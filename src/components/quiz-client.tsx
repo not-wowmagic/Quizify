@@ -76,7 +76,7 @@ export function QuizClient() {
   const allAnswered = quiz && answeredQuestions === quiz.questions.length;
 
   return (
-    <Card className="w-full shadow-lg">
+    <Card className="w-full shadow-lg bg-card/80 backdrop-blur-sm border-white/20">
       <CardContent className="p-6">
         {!quiz ? (
           <div className="flex flex-col gap-4">
@@ -88,7 +88,7 @@ export function QuizClient() {
               value={lectureText}
               onChange={(e) => setLectureText(e.target.value)}
               disabled={isLoading}
-              className="text-base"
+              className="text-base bg-secondary/80"
             />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -104,7 +104,7 @@ export function QuizClient() {
                   disabled={isLoading}
                   min="1"
                   max="50"
-                  className="mt-1"
+                  className="mt-1 bg-secondary/80"
                 />
               </div>
               <div>
@@ -114,7 +114,7 @@ export function QuizClient() {
                   onValueChange={(value) => setDifficulty(value as any)}
                   disabled={isLoading}
                 >
-                  <SelectTrigger id="difficulty" className="mt-1">
+                  <SelectTrigger id="difficulty" className="mt-1 bg-secondary/80">
                     <SelectValue placeholder="Select difficulty" />
                   </SelectTrigger>
                   <SelectContent>
@@ -191,7 +191,7 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer }: Questio
   const isAnswered = userAnswer !== undefined;
 
   return (
-    <Card>
+    <Card className="bg-card/80 backdrop-blur-sm border-white/20">
       <CardHeader>
         <CardTitle>Question {questionIndex + 1}</CardTitle>
         <CardDescription className="text-lg text-foreground pt-2">{question.question}</CardDescription>
