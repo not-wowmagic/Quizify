@@ -418,9 +418,9 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
               onClick={() => onAnswer(questionIndex, oIndex)}
               disabled={isAnswered}
             >
-              <span className="font-semibold">{optionLetter}.</span>
-              <span>{option}</span>
-              {isSelected && <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5" />}
+              <div className="flex-shrink-0 font-semibold">{optionLetter}.</div>
+              <div className="flex-grow">{option}</div>
+              {isSelected && <CheckCircle2 className="flex-shrink-0 w-5 h-5" />}
             </Button>
           );
         })}
