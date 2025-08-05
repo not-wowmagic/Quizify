@@ -96,7 +96,7 @@ export function QuizClient() {
                 <Input
                   id="num-questions"
                   type="number"
-                  value={numQuestions}
+                  value={numQuestions === '' ? '' : String(numQuestions)}
                   onChange={(e) => {
                     const value = e.target.value;
                     setNumQuestions(value === '' ? '' : Math.max(1, parseInt(value, 10)));
@@ -140,7 +140,7 @@ export function QuizClient() {
         ) : (
           <div className="flex flex-col gap-8 animate-in fade-in duration-500">
             <div className="flex-grow">
-              <h2 className="text-xl font-bold font-headline text-primary">Quiz Time!</h2>
+              <h2 className="text-xl font-bold font-headline text-primary-foreground dark:text-primary">Quiz Time!</h2>
               <Progress value={(answeredQuestions / quiz.questions.length) * 100} className="mt-2" />
             </div>
 
@@ -161,11 +161,15 @@ export function QuizClient() {
 
             <div className="flex justify-between items-center gap-4 flex-wrap mt-8">
               <div className="flex-grow">
-                <h2 className="text-xl font-bold font-headline text-primary">Your Score: {score} / {quiz.questions.length}</h2>
+                <h2 className="text-xl font-bold font-headline text-primary-foreground dark:text-primary">Your Score: {score} / {quiz.questions.length}</h2>
               </div>
+              <Button onClick={handleNewQuiz} variant="outline">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Generate New Quiz
+              </Button>
               <Button onClick={handleRegenerate} variant="outline">
                 <RefreshCw className="mr-2 h-4 w-4" />
-                New Quiz
+                Start Over
               </Button>
             </div>
 
