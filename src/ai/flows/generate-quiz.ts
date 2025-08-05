@@ -32,7 +32,18 @@ const GenerateQuizOutputSchema = z.object({
 export type GenerateQuizOutput = z.infer<typeof GenerateQuizOutputSchema>;
 
 export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQuizOutput> {
-  return generateQuizFlow(input);
+  const quiz = await generateQuizFlow(input);
+  // Shuffle the options for each question
+  quiz.questions.forEach((q) => {
+    const correctAnswer = q.options[q.correctAnswerIndex];
+    // Fisher-Yates shuffle
+    for (let i = q.options.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [q.options[i], q.options[j]] = [q.options[j], q.options[i]];
+    }
+    q.correctAnswerIndex = q.options.indexOf(correctAnswer);
+  });
+  return quiz;
 }
 
 const shouldAddDistractionTool = ai.defineTool({
