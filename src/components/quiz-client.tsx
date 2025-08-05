@@ -315,11 +315,6 @@ export function QuizClient() {
                         <div className="text-4xl font-bold mt-2">{score} / {quiz.questions.length}</div>
                         <p className="text-xl">({scorePercentage.toFixed(0)}%)</p>
                         <CardDescription className="mt-2">{getFeedbackMessage()}</CardDescription>
-                         {currentQuote && (
-                          <p className="text-muted-foreground italic text-sm pt-4">
-                            &ldquo;{currentQuote}&rdquo;
-                          </p>
-                        )}
                     </CardHeader>
                     <CardFooter className="flex-col gap-4">
                         <Button onClick={handleNewQuiz} variant="outline" className="w-full">
@@ -330,6 +325,11 @@ export function QuizClient() {
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Start Over
                         </Button>
+                        {currentQuote && (
+                          <p className="text-muted-foreground italic text-sm pt-4">
+                            &ldquo;{currentQuote}&rdquo;
+                          </p>
+                        )}
                     </CardFooter>
                  </Card>
             )}
