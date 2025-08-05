@@ -39,10 +39,10 @@
   }
  
   .dark {
-    --background: 0 0% 13%; /* Dark Gray #212121 */
+    --background: 202 50% 5%; /* #060f13 */
     --foreground: 210 40% 98%;
 
-    --card: 0 0% 19%; /* #303030 */
+    --card: 202 50% 9%;
     --card-foreground: 210 40% 98%;
     
     --popover: 222.2 84% 4.9%;
@@ -51,10 +51,10 @@
     --primary: 206 83% 53%; /* Muted Blue */
     --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 0 0% 19%; /* #303030 */
+    --secondary: 202 50% 9%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 215 27.9% 16.9%; /* Reverted from #303030 */
+    --muted: 202 50% 9%;
     --muted-foreground: 215 20.2% 65.1%;
     
     --accent: 151 46% 74%; /* Pale Green */
@@ -84,6 +84,6 @@
     background: radial-gradient(circle at top, hsl(210, 40%, 98%), hsl(210, 40%, 90%));
   }
   .dark body {
-    background: radial-gradient(circle at top, hsl(0, 0%, 20%), hsl(0, 0%, 13%));
+    background: radial-gradient(circle at top, hsl(202, 50%, 9%), hsl(202, 50%, 5%));
   }
 }
