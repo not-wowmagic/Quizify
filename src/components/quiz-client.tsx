@@ -392,41 +392,40 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
   return (
     <Card className="bg-card/80 backdrop-blur-sm border-white/20 shadow-lg">
       <CardHeader>
-        <CardTitle>Question {questionIndex + 1}</CardTitle>
-        <CardDescription className="text-lg text-foreground pt-2">{question.question}</CardDescription>
+        <CardTitle className="text-xl font-semibold">
+          {questionIndex + 1}. {question.question}
+        </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className={cn(
-          "grid grid-cols-1 gap-3",
-          question.options.length > 2 && "md:grid-cols-2"
-        )}>
-          {question.options.map((option, oIndex) => {
-            const isCorrectAnswer = oIndex === question.correctAnswerIndex;
-            const isSelected = oIndex === userAnswer;
+      <CardContent className="space-y-3">
+        {question.options.map((option, oIndex) => {
+          const isCorrectAnswer = oIndex === question.correctAnswerIndex;
+          const isSelected = oIndex === userAnswer;
+          const optionLetter = String.fromCharCode(65 + oIndex); // A, B, C, D
 
-            const buttonClass = cn(
-              'justify-start text-left h-auto py-3 whitespace-normal relative rounded-lg',
-              isAnswered && isCorrectAnswer && 'bg-success text-success-foreground hover:bg-success/90',
-              isAnswered && isSelected && !isCorrectAnswer && 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-              isAnswered && !isSelected && !isCorrectAnswer && 'bg-muted/50'
-            );
+          const buttonClass = cn(
+            'justify-start text-left h-auto py-3 px-4 whitespace-normal relative rounded-lg border flex items-center gap-4 text-base',
+            isAnswered && isCorrectAnswer && 'bg-success text-success-foreground border-success-foreground/20',
+            isAnswered && isSelected && !isCorrectAnswer && 'bg-destructive text-destructive-foreground border-destructive-foreground/20',
+            isAnswered && !isSelected && !isCorrectAnswer && 'bg-muted/50 text-muted-foreground',
+            !isAnswered && 'hover:bg-muted/50'
+          );
 
-            return (
-              <Button
-                key={oIndex}
-                variant="outline"
-                className={buttonClass}
-                onClick={() => onAnswer(questionIndex, oIndex)}
-                disabled={isAnswered}
-              >
-                {option}
-                {isSelected && <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5" />}
-              </Button>
-            );
-          })}
-        </div>
+          return (
+            <Button
+              key={oIndex}
+              variant="outline"
+              className={buttonClass}
+              onClick={() => onAnswer(questionIndex, oIndex)}
+              disabled={isAnswered}
+            >
+              <span className="font-semibold">{optionLetter}.</span>
+              <span>{option}</span>
+              {isSelected && <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5" />}
+            </Button>
+          );
+        })}
          {explanation && (
-          <div className="p-4 bg-secondary/80 rounded-md text-secondary-foreground animate-in fade-in duration-300">
+          <div className="p-4 bg-secondary/80 rounded-md text-secondary-foreground animate-in fade-in duration-300 mt-4">
             <h4 className="font-semibold mb-2 flex items-center"><Lightbulb className="mr-2 h-4 w-4 text-primary"/>Explanation</h4>
             <p>{explanation}</p>
           </div>
