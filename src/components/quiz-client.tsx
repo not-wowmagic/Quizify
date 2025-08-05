@@ -13,15 +13,6 @@ import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import * as pdfjs from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
@@ -368,15 +359,20 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
   const isAnswered = userAnswer !== undefined;
   const [isExplanationLoading, setIsExplanationLoading] = useState(false);
   const [explanation, setExplanation] = useState('');
-  const [isAlertOpen, setIsAlertOpen] = useState(false);
 
   const handleGetExplanation = async () => {
+    if (explanation) { // If explanation is already there, hide it.
+        setExplanation('');
+        return;
+    }
+
     setIsExplanationLoading(true);
     setExplanation('');
     const result = await explainAnswer({
       question: question.question,
       correctAnswer: question.options[question.correctAnswerIndex],
     });
+
     if ('error' in result) {
       toast({
         title: 'Error',
@@ -385,20 +381,18 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
       });
     } else {
       setExplanation(result.explanation);
-      setIsAlertOpen(true);
     }
     setIsExplanationLoading(false);
   };
 
 
   return (
-    <>
     <Card className="bg-card/80 backdrop-blur-sm border-white/20 shadow-lg">
       <CardHeader>
         <CardTitle>Question {questionIndex + 1}</CardTitle>
         <CardDescription className="text-lg text-foreground pt-2">{question.question}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         <div className={cn(
           "grid grid-cols-1 gap-3",
           question.options.length > 2 && "md:grid-cols-2"
@@ -428,6 +422,12 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
             );
           })}
         </div>
+         {explanation && (
+          <div className="p-4 bg-secondary/80 rounded-md text-secondary-foreground animate-in fade-in duration-300">
+            <h4 className="font-semibold mb-2 flex items-center"><Lightbulb className="mr-2 h-4 w-4 text-primary"/>Explanation</h4>
+            <p>{explanation}</p>
+          </div>
+        )}
       </CardContent>
         {isAnswered && (
           <CardFooter>
@@ -445,27 +445,12 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
                 ) : (
                     <>
                         <Lightbulb className="mr-2 h-4 w-4" />
-                        Show Explanation
+                        {explanation ? 'Hide Explanation' : 'Show Explanation'}
                     </>
                 )}
             </Button>
           </CardFooter>
         )}
     </Card>
-
-    <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Explanation</AlertDialogTitle>
-            <AlertDialogDescription>
-              {explanation}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setIsAlertOpen(false)}>Close</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
   );
 }
