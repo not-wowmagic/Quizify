@@ -398,7 +398,7 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
             const isSelected = oIndex === userAnswer;
 
             const buttonClass = cn(
-              'justify-start text-left h-auto py-3 whitespace-normal relative rounded-xl',
+              'justify-start text-left h-auto py-3 whitespace-normal relative rounded-lg',
               isAnswered && isCorrectAnswer && 'bg-success text-success-foreground hover:bg-success/90',
               isAnswered && isSelected && !isCorrectAnswer && 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
               isAnswered && !isSelected && !isCorrectAnswer && 'bg-muted/50'
