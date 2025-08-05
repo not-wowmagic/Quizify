@@ -38,10 +38,12 @@ export function QuizClient() {
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [questionType, setQuestionType] = useState<'multiple_choice' | 'situational' | 'fill_in_the_blank' | 'true_false' | 'mixed'>('multiple_choice');
   const [currentQuote, setCurrentQuote] = useState('');
+  const [isMounted, setIsMounted] = useState(false);
 
   const { toast } = useToast();
 
   useEffect(() => {
+    setIsMounted(true);
     setCurrentQuote(getRandomQuote());
   }, []);
 
@@ -107,6 +109,10 @@ export function QuizClient() {
       setCurrentQuote(getRandomQuote());
     }
   }, [allAnswered]);
+
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <Card className="w-full shadow-lg bg-card/80 backdrop-blur-sm border-white/20">
