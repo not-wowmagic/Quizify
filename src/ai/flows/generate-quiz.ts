@@ -15,12 +15,13 @@ const GenerateQuizInputSchema = z.object({
   lectureText: z.string().describe('The text of the lecture to generate a quiz from.'),
   numQuestions: z.number().describe('The number of questions to generate.'),
   difficulty: z.enum(['easy', 'medium', 'hard']).describe('The difficulty of the quiz.'),
+  questionType: z.enum(['multiple_choice', 'situational', 'fill_in_the_blank', 'true_false', 'mixed']).describe('The type of questions to generate.'),
 });
 export type GenerateQuizInput = z.infer<typeof GenerateQuizInputSchema>;
 
 const QuizQuestionSchema = z.object({
   question: z.string().describe('The quiz question.'),
-  options: z.array(z.string()).describe('An array of four possible answers.'),
+  options: z.array(z.string()).describe('An array of possible answers. For true/false, this will be ["True", "False"].'),
   correctAnswerIndex: z
     .number()
     .min(0)
@@ -37,6 +38,10 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
   const quiz = await generateQuizFlow(input);
   // Shuffle the options for each question
   quiz.questions.forEach((q) => {
+    // Don't shuffle for true/false questions
+    if (q.options.length === 2 && q.options[0].toLowerCase() === 'true' && q.options[1].toLowerCase() === 'false') {
+        return;
+    }
     const correctAnswer = q.options[q.correctAnswerIndex];
     // Fisher-Yates shuffle
     for (let i = q.options.length - 1; i > 0; i--) {
@@ -68,32 +73,34 @@ const generateQuizPrompt = ai.definePrompt({
   input: {schema: GenerateQuizInputSchema},
   output: {schema: GenerateQuizOutputSchema},
   tools: [shouldAddDistractionTool],
-  prompt: `You are an expert quiz generator. Given the following lecture text, generate a multiple-choice quiz with {{{numQuestions}}} questions with a difficulty of '{{{difficulty}}}'.
+  prompt: `You are an expert quiz generator. Given the following lecture text, generate a quiz with {{{numQuestions}}} questions with a difficulty of '{{{difficulty}}}'.
 
-Each question should have four options, and one correct answer. Indicate the index of the correct answer in the correctAnswerIndex field.
+The user has requested the following question type: '{{{questionType}}}'.
+- If 'multiple_choice', generate standard multiple-choice questions with 4 options.
+- If 'situational', generate questions that present a scenario and ask how to apply knowledge.
+- If 'fill_in_the_blank', generate questions with a blank space and provide options to fill it. Use "_____" for the blank.
+- If 'true_false', generate a statement that is either true or false. The options array should contain only "True" and "False".
+- If 'mixed', generate a combination of all the above question types.
+
+For each question, provide options and indicate the index of the correct answer in the correctAnswerIndex field. For all types except true/false, please provide 4 options.
 
 Lecture Text:
 {{lectureText}}
 
 Output the quiz in JSON format.
 
-Here's an example of the output format:
+Here's an example of the output format for a multiple choice question:
 {
   "questions": [
     {
       "question": "What is the capital of France?",
       "options": ["Berlin", "Paris", "Madrid", "Rome"],
       "correctAnswerIndex": 1
-    },
-    {
-      "question": "What is the highest mountain in the world?",
-      "options": ["K2", "Kangchenjunga", "Mount Everest", "Lhotse"],
-      "correctAnswerIndex": 2
     }
   ]
 }
 
-When generating options for questions, use the 'shouldAddDistraction' tool to generate reasonable but incorrect options, in order to make the quiz more challenging, especially for higher difficulty levels.
+When generating options for questions (where applicable), use the 'shouldAddDistraction' tool to generate reasonable but incorrect options, in order to make the quiz more challenging, especially for higher difficulty levels.
 `,
 });
 

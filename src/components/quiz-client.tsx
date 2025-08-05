@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { Quiz, QuizQuestion } from '@/types/quiz';
 import { createQuiz } from '@/app/actions';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,22 @@ import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+const motivationalQuotes = [
+    "Believe you can and you're halfway there.",
+    "The secret of getting ahead is getting started.",
+    "Don't watch the clock; do what it does. Keep going.",
+    "The expert in anything was once a beginner.",
+    "The only way to do great work is to love what you do.",
+    "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+    "The future belongs to those who believe in the beauty of their dreams.",
+    "Well done is better than well said.",
+    "You are capable of more than you know.",
+    "Push yourself, because no one else is going to do it for you."
+];
+
+const getRandomQuote = () => motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
+
+
 export function QuizClient() {
   const [lectureText, setLectureText] = useState('');
   const [quiz, setQuiz] = useState<Quiz | null>(null);
@@ -20,13 +36,21 @@ export function QuizClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [numQuestions, setNumQuestions] = useState<number | ''>(10);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [questionType, setQuestionType] = useState<'multiple_choice' | 'situational' | 'fill_in_the_blank' | 'true_false' | 'mixed'>('multiple_choice');
+  const [currentQuote, setCurrentQuote] = useState('');
+
   const { toast } = useToast();
+
+  useEffect(() => {
+    setCurrentQuote(getRandomQuote());
+  }, []);
 
   const handleGenerateQuiz = async () => {
     setIsLoading(true);
+    setCurrentQuote(getRandomQuote());
     setQuiz(null);
     setUserAnswers({});
-    const result = await createQuiz({ lectureText, numQuestions: Number(numQuestions) || 10, difficulty });
+    const result = await createQuiz({ lectureText, numQuestions: Number(numQuestions) || 10, difficulty, questionType });
     if ('error' in result) {
       toast({
         title: 'Error',
@@ -47,14 +71,17 @@ export function QuizClient() {
   };
 
   const handleRegenerate = () => {
+    setCurrentQuote(getRandomQuote());
     setQuiz(null);
     setUserAnswers({});
     setNumQuestions(10);
     setDifficulty('medium');
+    setQuestionType('multiple_choice');
     setLectureText('');
   };
 
   const handleNewQuiz = () => {
+    setCurrentQuote(getRandomQuote());
     setQuiz(null);
     setUserAnswers({});
   }
@@ -75,6 +102,12 @@ export function QuizClient() {
 
   const allAnswered = quiz && answeredQuestions === quiz.questions.length;
 
+  useEffect(() => {
+    if (allAnswered) {
+      setCurrentQuote(getRandomQuote());
+    }
+  }, [allAnswered]);
+
   return (
     <Card className="w-full shadow-lg bg-card/80 backdrop-blur-sm border-white/20">
       <CardContent className="p-6">
@@ -90,8 +123,8 @@ export function QuizClient() {
               disabled={isLoading}
               className="text-base bg-secondary/80"
             />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+               <div>
                 <Label htmlFor="num-questions">Number of Questions</Label>
                 <Input
                   id="num-questions"
@@ -99,7 +132,7 @@ export function QuizClient() {
                   value={numQuestions === '' ? '' : String(numQuestions)}
                   onChange={(e) => {
                     const value = e.target.value;
-                    setNumQuestions(value === '' ? '' : Math.max(1, parseInt(value, 10)));
+                    setNumQuestions(value === '' ? '' : Math.max(1, parseInt(value, 10) || 1));
                   }}
                   disabled={isLoading}
                   min="1"
@@ -124,6 +157,25 @@ export function QuizClient() {
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label htmlFor="question-type">Question Type</Label>
+                <Select
+                  value={questionType}
+                  onValueChange={(value) => setQuestionType(value as any)}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger id="question-type" className="mt-1 bg-secondary/80">
+                    <SelectValue placeholder="Select question type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                    <SelectItem value="situational">Situational</SelectItem>
+                    <SelectItem value="fill_in_the_blank">Fill in the Blank</SelectItem>
+                    <SelectItem value="true_false">True / False</SelectItem>
+                    <SelectItem value="mixed">Mixed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <Button onClick={handleGenerateQuiz} disabled={isLoading || lectureText.length < 50} size="lg">
@@ -136,6 +188,11 @@ export function QuizClient() {
                 'Generate Quiz'
               )}
             </Button>
+             {currentQuote && !isLoading && (
+              <p className="text-center text-muted-foreground italic text-sm mt-2">
+                &ldquo;{currentQuote}&rdquo;
+              </p>
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-8 animate-in fade-in duration-500">
@@ -149,6 +206,11 @@ export function QuizClient() {
                     <CardHeader>
                         <CardTitle>Quiz Complete!</CardTitle>
                         <CardDescription>You scored {score} out of {quiz.questions.length}. Great job!</CardDescription>
+                         {currentQuote && (
+                          <p className="text-center text-muted-foreground italic text-sm pt-4">
+                            &ldquo;{currentQuote}&rdquo;
+                          </p>
+                        )}
                     </CardHeader>
                 </Card>
             )}
@@ -201,7 +263,10 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer }: Questio
         <CardDescription className="text-lg text-foreground pt-2">{question.question}</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className={cn(
+          "grid grid-cols-1 gap-3",
+          question.options.length > 2 && "md:grid-cols-2"
+        )}>
           {question.options.map((option, oIndex) => {
             const isCorrectAnswer = oIndex === question.correctAnswerIndex;
             const isSelected = oIndex === userAnswer;
