@@ -2,17 +2,26 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Quiz, QuizQuestion } from '@/types/quiz';
-import { createQuiz } from '@/app/actions';
+import { createQuiz, explainAnswer } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, CheckCircle2, Upload } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import * as pdfjs from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
@@ -143,8 +152,8 @@ export function QuizClient() {
     setFileName('');
   }
 
-  const { score, answeredQuestions } = useMemo(() => {
-    if (!quiz) return { score: 0, answeredQuestions: 0 };
+  const { score, answeredQuestions, scorePercentage } = useMemo(() => {
+    if (!quiz) return { score: 0, answeredQuestions: 0, scorePercentage: 0 };
     const answeredIndices = Object.keys(userAnswers);
     const correctAnswers = answeredIndices.reduce((acc, qIndexStr) => {
       const qIndex = parseInt(qIndexStr, 10);
@@ -154,10 +163,18 @@ export function QuizClient() {
       }
       return acc;
     }, 0);
-    return { score: correctAnswers, answeredQuestions: answeredIndices.length };
+    const percentage = quiz.questions.length > 0 ? (correctAnswers / quiz.questions.length) * 100 : 0;
+    return { score: correctAnswers, answeredQuestions: answeredIndices.length, scorePercentage: percentage };
   }, [userAnswers, quiz]);
 
   const allAnswered = quiz && answeredQuestions === quiz.questions.length;
+  
+  const getFeedbackMessage = () => {
+    if (scorePercentage >= 80) return "Great job!";
+    if (scorePercentage >= 50) return "You're doing better!";
+    return "Keep trying!";
+  };
+
 
   useEffect(() => {
     if (allAnswered) {
@@ -286,44 +303,47 @@ export function QuizClient() {
           </div>
         ) : (
           <div className="flex flex-col gap-8 animate-in fade-in duration-500">
-            <div className="flex-grow">
+            <div>
               <h2 className="text-xl font-bold font-headline text-primary-foreground dark:text-primary">Quiz Time!</h2>
               <Progress value={(answeredQuestions / quiz.questions.length) * 100} className="mt-2" />
             </div>
 
-            {allAnswered && (
-                <Card className="bg-accent/50 border-accent">
+            <div className="space-y-6">
+              {quiz.questions.map((q, qIndex) => (
+                <QuestionCard 
+                  key={qIndex} 
+                  question={q} 
+                  questionIndex={qIndex} 
+                  userAnswer={userAnswers[qIndex]} 
+                  onAnswer={handleAnswer}
+                  toast={toast}
+                />
+              ))}
+            </div>
+
+             {allAnswered && (
+                 <Card className="bg-accent/50 border-accent mt-8">
                     <CardHeader>
                         <CardTitle>Quiz Complete!</CardTitle>
-                        <CardDescription>You scored {score} out of {quiz.questions.length}. Great job!</CardDescription>
+                        <CardDescription>You scored {score} out of {quiz.questions.length}. {getFeedbackMessage()}</CardDescription>
                          {currentQuote && (
                           <p className="text-center text-muted-foreground italic text-sm pt-4">
                             &ldquo;{currentQuote}&rdquo;
                           </p>
                         )}
                     </CardHeader>
-                </Card>
+                    <CardFooter className="flex-col gap-4">
+                        <Button onClick={handleNewQuiz} variant="outline" className="rounded-full w-full">
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Generate New Quiz
+                        </Button>
+                        <Button onClick={handleRegenerate} variant="outline" className="rounded-full w-full">
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Start Over
+                        </Button>
+                    </CardFooter>
+                 </Card>
             )}
-
-            <div className="space-y-6">
-              {quiz.questions.map((q, qIndex) => (
-                <QuestionCard key={qIndex} question={q} questionIndex={qIndex} userAnswer={userAnswers[qIndex]} onAnswer={handleAnswer} />
-              ))}
-            </div>
-
-            <div className="flex justify-between items-center gap-4 flex-wrap mt-8">
-              <div className="flex-grow">
-                <h2 className="text-xl font-bold font-headline text-primary-foreground dark:text-primary">Your Score: {score} / {quiz.questions.length}</h2>
-              </div>
-              <Button onClick={handleNewQuiz} variant="outline" className="rounded-full">
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Generate New Quiz
-              </Button>
-              <Button onClick={handleRegenerate} variant="outline" className="rounded-full">
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Start Over
-              </Button>
-            </div>
 
           </div>
         )}
@@ -341,12 +361,38 @@ interface QuestionCardProps {
   questionIndex: number;
   userAnswer: number | undefined;
   onAnswer: (questionIndex: number, optionIndex: number) => void;
+  toast: (options: { title: string; description: string; variant?: "default" | "destructive" }) => void;
 }
 
-function QuestionCard({ question, questionIndex, userAnswer, onAnswer }: QuestionCardProps) {
+function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: QuestionCardProps) {
   const isAnswered = userAnswer !== undefined;
+  const [isExplanationLoading, setIsExplanationLoading] = useState(false);
+  const [explanation, setExplanation] = useState('');
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+
+  const handleGetExplanation = async () => {
+    setIsExplanationLoading(true);
+    setExplanation('');
+    const result = await explainAnswer({
+      question: question.question,
+      correctAnswer: question.options[question.correctAnswerIndex],
+    });
+    if ('error' in result) {
+      toast({
+        title: 'Error',
+        description: result.error,
+        variant: 'destructive',
+      });
+    } else {
+      setExplanation(result.explanation);
+      setIsAlertOpen(true);
+    }
+    setIsExplanationLoading(false);
+  };
+
 
   return (
+    <>
     <Card className="bg-card/80 backdrop-blur-sm border-white/20 shadow-lg">
       <CardHeader>
         <CardTitle>Question {questionIndex + 1}</CardTitle>
@@ -383,6 +429,43 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer }: Questio
           })}
         </div>
       </CardContent>
+        {isAnswered && (
+          <CardFooter>
+            <Button 
+                variant="link" 
+                onClick={handleGetExplanation} 
+                disabled={isExplanationLoading}
+                className="text-primary hover:text-primary/80"
+            >
+                {isExplanationLoading ? (
+                    <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating...
+                    </>
+                ) : (
+                    <>
+                        <Lightbulb className="mr-2 h-4 w-4" />
+                        Show Explanation
+                    </>
+                )}
+            </Button>
+          </CardFooter>
+        )}
     </Card>
+
+    <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Explanation</AlertDialogTitle>
+            <AlertDialogDescription>
+              {explanation}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setIsAlertOpen(false)}>Close</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
