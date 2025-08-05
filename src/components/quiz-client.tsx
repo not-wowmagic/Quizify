@@ -18,7 +18,7 @@ export function QuizClient() {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [numQuestions, setNumQuestions] = useState(10);
+  const [numQuestions, setNumQuestions] = useState<number | ''>(10);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const { toast } = useToast();
 
@@ -26,7 +26,7 @@ export function QuizClient() {
     setIsLoading(true);
     setQuiz(null);
     setUserAnswers({});
-    const result = await createQuiz({ lectureText, numQuestions, difficulty });
+    const result = await createQuiz({ lectureText, numQuestions: Number(numQuestions) || 10, difficulty });
     if ('error' in result) {
       toast({
         title: 'Error',
@@ -49,7 +49,15 @@ export function QuizClient() {
   const handleRegenerate = () => {
     setQuiz(null);
     setUserAnswers({});
+    setNumQuestions(10);
+    setDifficulty('medium');
+    setLectureText('');
   };
+
+  const handleNewQuiz = () => {
+    setQuiz(null);
+    setUserAnswers({});
+  }
 
   const { score, answeredQuestions } = useMemo(() => {
     if (!quiz) return { score: 0, answeredQuestions: 0 };
@@ -89,7 +97,10 @@ export function QuizClient() {
                   id="num-questions"
                   type="number"
                   value={numQuestions}
-                  onChange={(e) => setNumQuestions(Math.max(1, parseInt(e.target.value, 10)))}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setNumQuestions(value === '' ? '' : Math.max(1, parseInt(value, 10)));
+                  }}
                   disabled={isLoading}
                   min="1"
                   max="50"
