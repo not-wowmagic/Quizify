@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function QuizClient() {
@@ -91,15 +91,9 @@ export function QuizClient() {
           </div>
         ) : (
           <div className="flex flex-col gap-8 animate-in fade-in duration-500">
-            <div className="flex justify-between items-center gap-4 flex-wrap">
-              <div className="flex-grow">
-                <h2 className="text-xl font-bold font-headline text-primary">Your Score: {score} / {quiz.questions.length}</h2>
-                <Progress value={(answeredQuestions / quiz.questions.length) * 100} className="mt-2" />
-              </div>
-              <Button onClick={handleRegenerate} variant="outline">
-                <RefreshCw className="mr-2 h-4 w-4" />
-                New Quiz
-              </Button>
+            <div className="flex-grow">
+              <h2 className="text-xl font-bold font-headline text-primary">Quiz Time!</h2>
+              <Progress value={(answeredQuestions / quiz.questions.length) * 100} className="mt-2" />
             </div>
 
             {allAnswered && (
@@ -116,6 +110,17 @@ export function QuizClient() {
                 <QuestionCard key={qIndex} question={q} questionIndex={qIndex} userAnswer={userAnswers[qIndex]} onAnswer={handleAnswer} />
               ))}
             </div>
+
+            <div className="flex justify-between items-center gap-4 flex-wrap mt-8">
+              <div className="flex-grow">
+                <h2 className="text-xl font-bold font-headline text-primary">Your Score: {score} / {quiz.questions.length}</h2>
+              </div>
+              <Button onClick={handleRegenerate} variant="outline">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                New Quiz
+              </Button>
+            </div>
+
           </div>
         )}
       </CardContent>
@@ -150,7 +155,7 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer }: Questio
             const isSelected = oIndex === userAnswer;
 
             const buttonClass = cn(
-              'justify-start text-left h-auto py-3 whitespace-normal',
+              'justify-start text-left h-auto py-3 whitespace-normal relative',
               isAnswered && isCorrectAnswer && 'bg-success text-success-foreground hover:bg-success/90',
               isAnswered && isSelected && !isCorrectAnswer && 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
               isAnswered && !isSelected && !isCorrectAnswer && 'bg-muted/50'
@@ -165,6 +170,7 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer }: Questio
                 disabled={isAnswered}
               >
                 {option}
+                {isSelected && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5" />}
               </Button>
             );
           })}
