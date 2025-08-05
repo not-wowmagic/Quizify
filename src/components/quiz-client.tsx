@@ -6,7 +6,6 @@ import { createQuiz, explainAnswer } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -294,10 +293,7 @@ export function QuizClient() {
           </div>
         ) : (
           <div className="flex flex-col gap-8 animate-in fade-in duration-500">
-            <div>
-              <h2 className="text-xl font-bold font-headline text-primary-foreground dark:text-primary">Quiz Time!</h2>
-              <Progress value={(answeredQuestions / quiz.questions.length) * 100} className="mt-2" />
-            </div>
+            <h2 className="text-xl font-bold font-headline text-primary-foreground dark:text-primary">Quiz Time!</h2>
 
             <div className="space-y-6">
               {quiz.questions.map((q, qIndex) => (
