@@ -35,7 +35,7 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
     
-    --radius: 0.5rem;
+    --radius: 1rem;
   }
  
   .dark {
@@ -79,6 +79,9 @@
   body {
     @apply bg-background text-foreground;
     transition: background-color 0.3s, color 0.3s;
+  }
+  .light body {
+    background: radial-gradient(circle at top, hsl(210, 40%, 98%), hsl(210, 40%, 90%));
   }
   .dark body {
     background: radial-gradient(circle at top, hsl(225, 41%, 20%), hsl(225, 51%, 10%));

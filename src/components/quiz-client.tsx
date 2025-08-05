@@ -115,20 +115,22 @@ export function QuizClient() {
   }
 
   return (
-    <Card className="w-full shadow-lg bg-card/80 backdrop-blur-sm border-white/20">
-      <CardContent className="p-6">
+    <Card className="w-full shadow-2xl bg-card/80 backdrop-blur-xl border-white/20">
+      <CardContent className="p-8">
         {!quiz ? (
-          <div className="flex flex-col gap-4">
-            <Label htmlFor="lecture-text">Paste your lecture text below</Label>
-            <Textarea
-              id="lecture-text"
-              placeholder="e.g., The mitochondria is the powerhouse of the cell..."
-              rows={10}
-              value={lectureText}
-              onChange={(e) => setLectureText(e.target.value)}
-              disabled={isLoading}
-              className="text-base bg-secondary/80"
-            />
+          <div className="flex flex-col gap-6">
+            <div>
+              <Label htmlFor="lecture-text">Paste your lecture text below</Label>
+              <Textarea
+                id="lecture-text"
+                placeholder="e.g., The mitochondria is the powerhouse of the cell..."
+                rows={10}
+                value={lectureText}
+                onChange={(e) => setLectureText(e.target.value)}
+                disabled={isLoading}
+                className="text-base bg-secondary/80 mt-2"
+              />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                <div>
                 <Label htmlFor="num-questions">Number of Questions</Label>
@@ -184,7 +186,7 @@ export function QuizClient() {
               </div>
             </div>
 
-            <Button onClick={handleGenerateQuiz} disabled={isLoading || lectureText.length < 50} size="lg">
+            <Button onClick={handleGenerateQuiz} disabled={isLoading || lectureText.length < 50} size="lg" className="rounded-full">
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -231,11 +233,11 @@ export function QuizClient() {
               <div className="flex-grow">
                 <h2 className="text-xl font-bold font-headline text-primary-foreground dark:text-primary">Your Score: {score} / {quiz.questions.length}</h2>
               </div>
-              <Button onClick={handleNewQuiz} variant="outline">
+              <Button onClick={handleNewQuiz} variant="outline" className="rounded-full">
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Generate New Quiz
               </Button>
-              <Button onClick={handleRegenerate} variant="outline">
+              <Button onClick={handleRegenerate} variant="outline" className="rounded-full">
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Start Over
               </Button>
@@ -263,7 +265,7 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer }: Questio
   const isAnswered = userAnswer !== undefined;
 
   return (
-    <Card className="bg-card/80 backdrop-blur-sm border-white/20">
+    <Card className="bg-card/80 backdrop-blur-sm border-white/20 shadow-lg">
       <CardHeader>
         <CardTitle>Question {questionIndex + 1}</CardTitle>
         <CardDescription className="text-lg text-foreground pt-2">{question.question}</CardDescription>
@@ -278,7 +280,7 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer }: Questio
             const isSelected = oIndex === userAnswer;
 
             const buttonClass = cn(
-              'justify-start text-left h-auto py-3 whitespace-normal relative',
+              'justify-start text-left h-auto py-3 whitespace-normal relative rounded-full',
               isAnswered && isCorrectAnswer && 'bg-success text-success-foreground hover:bg-success/90',
               isAnswered && isSelected && !isCorrectAnswer && 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
               isAnswered && !isSelected && !isCorrectAnswer && 'bg-muted/50'
@@ -293,7 +295,7 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer }: Questio
                 disabled={isAnswered}
               >
                 {option}
-                {isSelected && <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5" />}
+                {isSelected && <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5" />}
               </Button>
             );
           })}
