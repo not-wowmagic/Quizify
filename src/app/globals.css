@@ -39,7 +39,7 @@
   }
  
   .dark {
-    --background: 202 50% 5%; /* #060f13 */
+    --background: 217 33% 17%; /* #1d283a */
     --foreground: 210 40% 98%;
 
     --card: 202 50% 9%;
@@ -84,6 +84,6 @@
     background: radial-gradient(circle at top, hsl(210, 40%, 98%), hsl(210, 40%, 90%));
   }
   .dark body {
-    background: radial-gradient(circle at top, hsl(202, 50%, 9%), hsl(202, 50%, 5%));
+    background: radial-gradient(circle at top, hsl(217, 33%, 22%), hsl(217, 33%, 17%));
   }
 }
