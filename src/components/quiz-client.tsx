@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Quiz, QuizQuestion } from '@/types/quiz';
 import { createQuiz } from '@/app/actions';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import * as pdfjs from 'pdfjs-dist';
+import mammoth from 'mammoth';
+
+// Set up the worker for pdfjs
+if (typeof window !== 'undefined') {
+  pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+}
+
 
 const motivationalQuotes = [
     "Believe you can and you're halfway there.",
@@ -39,6 +48,8 @@ export function QuizClient() {
   const [questionType, setQuestionType] = useState<'multiple_choice' | 'situational' | 'fill_in_the_blank' | 'true_false' | 'mixed'>('multiple_choice');
   const [currentQuote, setCurrentQuote] = useState('');
   const [isMounted, setIsMounted] = useState(false);
+  const [fileName, setFileName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { toast } = useToast();
 
@@ -46,6 +57,47 @@ export function QuizClient() {
     setIsMounted(true);
     setCurrentQuote(getRandomQuote());
   }, []);
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsLoading(true);
+    setFileName(file.name);
+    try {
+      let text = '';
+      if (file.type === 'application/pdf') {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjs.getDocument(arrayBuffer).promise;
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          text += content.items.map(item => (item as any).str).join(' ');
+        }
+      } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        text = result.value;
+      } else {
+        toast({
+          title: 'Unsupported File Type',
+          description: 'Please upload a PDF or DOCX file.',
+          variant: 'destructive',
+        });
+      }
+      setLectureText(text);
+    } catch (error) {
+      console.error('Error processing file:', error);
+      toast({
+        title: 'File Processing Error',
+        description: 'There was an error reading the file. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   const handleGenerateQuiz = async () => {
     setIsLoading(true);
@@ -80,12 +132,15 @@ export function QuizClient() {
     setDifficulty('medium');
     setQuestionType('multiple_choice');
     setLectureText('');
+    setFileName('');
   };
 
   const handleNewQuiz = () => {
     setCurrentQuote(getRandomQuote());
     setQuiz(null);
     setUserAnswers({});
+    setLectureText('');
+    setFileName('');
   }
 
   const { score, answeredQuestions } = useMemo(() => {
@@ -119,18 +174,45 @@ export function QuizClient() {
       <CardContent className="p-8">
         {!quiz ? (
           <div className="flex flex-col gap-6">
-            <div>
-              <Label htmlFor="lecture-text">Paste your lecture text below</Label>
-              <Textarea
-                id="lecture-text"
-                placeholder="e.g., The mitochondria is the powerhouse of the cell..."
-                rows={10}
-                value={lectureText}
-                onChange={(e) => setLectureText(e.target.value)}
-                disabled={isLoading}
-                className="text-base bg-secondary/80 mt-2"
-              />
-            </div>
+            <Tabs defaultValue="paste" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="paste">Paste Text</TabsTrigger>
+                <TabsTrigger value="upload">Upload File</TabsTrigger>
+              </TabsList>
+              <TabsContent value="paste">
+                <Textarea
+                  id="lecture-text"
+                  placeholder="e.g., The mitochondria is the powerhouse of the cell..."
+                  rows={10}
+                  value={lectureText}
+                  onChange={(e) => setLectureText(e.target.value)}
+                  disabled={isLoading}
+                  className="text-base bg-secondary/80 mt-2"
+                />
+              </TabsContent>
+              <TabsContent value="upload">
+                <div className="mt-2">
+                   <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept=".pdf,.docx"
+                    disabled={isLoading}
+                  />
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    variant="outline"
+                    className="w-full"
+                    disabled={isLoading}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {fileName || 'Upload a PDF or DOCX file'}
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                <div>
                 <Label htmlFor="num-questions">Number of Questions</Label>
