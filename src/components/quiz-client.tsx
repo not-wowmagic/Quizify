@@ -10,19 +10,23 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export function QuizClient() {
   const [lectureText, setLectureText] = useState('');
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [numQuestions, setNumQuestions] = useState(10);
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const { toast } = useToast();
 
   const handleGenerateQuiz = async () => {
     setIsLoading(true);
     setQuiz(null);
     setUserAnswers({});
-    const result = await createQuiz(lectureText);
+    const result = await createQuiz({ lectureText, numQuestions, difficulty });
     if ('error' in result) {
       toast({
         title: 'Error',
@@ -78,6 +82,39 @@ export function QuizClient() {
               disabled={isLoading}
               className="text-base"
             />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="num-questions">Number of Questions</Label>
+                <Input
+                  id="num-questions"
+                  type="number"
+                  value={numQuestions}
+                  onChange={(e) => setNumQuestions(Math.max(1, parseInt(e.target.value, 10)))}
+                  disabled={isLoading}
+                  min="1"
+                  max="50"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="difficulty">Difficulty</Label>
+                <Select
+                  value={difficulty}
+                  onValueChange={(value) => setDifficulty(value as any)}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger id="difficulty" className="mt-1">
+                    <SelectValue placeholder="Select difficulty" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="easy">Easy</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="hard">Hard</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <Button onClick={handleGenerateQuiz} disabled={isLoading || lectureText.length < 50} size="lg">
               {isLoading ? (
                 <>

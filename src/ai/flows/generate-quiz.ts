@@ -13,6 +13,8 @@ import {z} from 'genkit';
 
 const GenerateQuizInputSchema = z.object({
   lectureText: z.string().describe('The text of the lecture to generate a quiz from.'),
+  numQuestions: z.number().describe('The number of questions to generate.'),
+  difficulty: z.enum(['easy', 'medium', 'hard']).describe('The difficulty of the quiz.'),
 });
 export type GenerateQuizInput = z.infer<typeof GenerateQuizInputSchema>;
 
@@ -66,7 +68,7 @@ const generateQuizPrompt = ai.definePrompt({
   input: {schema: GenerateQuizInputSchema},
   output: {schema: GenerateQuizOutputSchema},
   tools: [shouldAddDistractionTool],
-  prompt: `You are an expert quiz generator.  Given the following lecture text, generate a multiple-choice quiz with 10-20 questions.
+  prompt: `You are an expert quiz generator. Given the following lecture text, generate a multiple-choice quiz with {{{numQuestions}}} questions with a difficulty of '{{{difficulty}}}'.
 
 Each question should have four options, and one correct answer. Indicate the index of the correct answer in the correctAnswerIndex field.
 
@@ -91,7 +93,7 @@ Here's an example of the output format:
   ]
 }
 
-When generating options for questions, use the 'shouldAddDistraction' tool to generate reasonable but incorrect options, in order to make the quiz more challenging.
+When generating options for questions, use the 'shouldAddDistraction' tool to generate reasonable but incorrect options, in order to make the quiz more challenging, especially for higher difficulty levels.
 `,
 });
 
