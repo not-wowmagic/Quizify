@@ -54,7 +54,7 @@
     --secondary: 0 0% 19%; /* #303030 */
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 0 0% 19%; /* #303030 */
+    --muted: 215 27.9% 16.9%; /* Reverted from #303030 */
     --muted-foreground: 215 20.2% 65.1%;
     
     --accent: 151 46% 74%; /* Pale Green */
