@@ -198,25 +198,30 @@ export function QuizClient() {
                 />
               </TabsContent>
               <TabsContent value="upload">
-                <div className="mt-2">
-                   <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                    accept=".pdf,.docx"
-                    disabled={isLoading}
-                  />
-                  <Button
+                <div className="mt-2 flex justify-center items-center w-full">
+                  <label
+                    htmlFor="dropzone-file"
+                    className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-secondary/80"
                     onClick={() => fileInputRef.current?.click()}
-                    variant="outline"
-                    className="w-full"
-                    disabled={isLoading}
                   >
-                    <Upload className="mr-2 h-4 w-4" />
-                    {fileName || 'Upload a PDF or DOCX file'}
-                  </Button>
-                </div>
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <Upload className="w-10 h-10 mb-3 text-muted-foreground" />
+                      <p className="mb-2 text-sm text-muted-foreground">
+                        <span className="font-semibold">{fileName ? fileName : "Upload your lecture file"}</span>
+                      </p>
+                      <Button variant="outline" size="sm" className="mt-2" disabled={isLoading}>Choose File</Button>
+                    </div>
+                    <input 
+                      id="dropzone-file"
+                      type="file" 
+                      className="hidden" 
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      accept=".pdf,.docx"
+                      disabled={isLoading}
+                    />
+                  </label>
+                </div> 
               </TabsContent>
             </Tabs>
             
