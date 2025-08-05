@@ -310,21 +310,23 @@ export function QuizClient() {
 
              {allAnswered && (
                  <Card className="bg-accent/50 border-accent mt-8">
-                    <CardHeader>
+                    <CardHeader className="text-center">
                         <CardTitle>Quiz Complete!</CardTitle>
-                        <CardDescription>You scored {score} out of {quiz.questions.length}. {getFeedbackMessage()}</CardDescription>
+                        <div className="text-4xl font-bold mt-2">{score} / {quiz.questions.length}</div>
+                        <p className="text-xl">({scorePercentage.toFixed(0)}%)</p>
+                        <CardDescription className="mt-2">{getFeedbackMessage()}</CardDescription>
                          {currentQuote && (
-                          <p className="text-center text-muted-foreground italic text-sm pt-4">
+                          <p className="text-muted-foreground italic text-sm pt-4">
                             &ldquo;{currentQuote}&rdquo;
                           </p>
                         )}
                     </CardHeader>
                     <CardFooter className="flex-col gap-4">
-                        <Button onClick={handleNewQuiz} variant="outline" className="rounded-full w-full">
+                        <Button onClick={handleNewQuiz} variant="outline" className="w-full">
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Generate New Quiz
                         </Button>
-                        <Button onClick={handleRegenerate} variant="outline" className="rounded-full w-full">
+                        <Button onClick={handleRegenerate} variant="outline" className="w-full">
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Start Over
                         </Button>
