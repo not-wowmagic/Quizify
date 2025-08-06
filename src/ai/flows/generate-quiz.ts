@@ -10,12 +10,14 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 
 const GenerateQuizInputSchema = z.object({
   lectureText: z.string().describe('The text of the lecture to generate a quiz from.'),
   numQuestions: z.number().describe('The number of questions to generate.'),
   difficulty: z.enum(['easy', 'medium', 'hard']).describe('The difficulty of the quiz.'),
   questionType: z.enum(['multiple_choice', 'situational', 'fill_in_the_blank', 'true_false', 'mixed']).describe('The type of questions to generate.'),
+  model: z.string().optional().describe('The model to use for generation.'),
 });
 export type GenerateQuizInput = z.infer<typeof GenerateQuizInputSchema>;
 
@@ -137,7 +139,8 @@ const generateQuizFlow = ai.defineFlow(
     outputSchema: GenerateQuizOutputSchema,
   },
   async input => {
-    const {output} = await generateQuizPrompt(input);
+    const model = input.model ? googleAI.model(input.model) : 'googleai/gemini-pro';
+    const {output} = await generateQuizPrompt(input, { model });
     return output!;
   }
 );
