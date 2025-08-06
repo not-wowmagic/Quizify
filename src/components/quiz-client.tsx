@@ -313,7 +313,7 @@ export function QuizClient() {
           </div>
         ) : (
           <div className="flex flex-col gap-8 animate-in fade-in duration-500">
-            <h2 className="text-xl font-bold font-headline text-primary-foreground dark:text-primary">Quiz Time!</h2>
+          
 
             <div className="space-y-6">
               {quiz.questions.map((q, qIndex) => (
