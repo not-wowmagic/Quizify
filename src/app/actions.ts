@@ -5,7 +5,7 @@ import { generateQuiz, type GenerateQuizInput, type GenerateQuizOutput } from '@
 import { generateExplanation } from '@/ai/flows/generate-explanation';
 import type { GenerateExplanationInput, GenerateExplanationOutput } from '@/types/explanation';
 
-export async function createQuiz(input: GenerateQuizInput): Promise<GenerateQuizOutput | { error: string }> {
+export async function createQuiz(input: Omit<GenerateQuizInput, 'model'>): Promise<GenerateQuizOutput | { error: string }> {
   if (!input.lectureText || input.lectureText.trim().length < 50) {
     return { error: 'Please provide a more substantial lecture text (at least 50 characters).' };
   }
