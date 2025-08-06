@@ -331,10 +331,6 @@ export function QuizClient() {
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Regenerate Quiz
                         </Button>
-                        <Button onClick={handleNewQuiz} variant="outline" className="w-full">
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Generate New Quiz
-                        </Button>
                         <Button onClick={handleStartOver} variant="outline" className="w-full">
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Start Over
