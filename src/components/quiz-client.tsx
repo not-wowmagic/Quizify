@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb, FileText } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -194,13 +194,25 @@ export function QuizClient() {
                 <TabsTrigger value="paste">Paste Text</TabsTrigger>
               </TabsList>
               <TabsContent value="upload">
-                <div className="mt-2 flex justify-center items-center w-full">
+                <div 
+                    className="mt-4 flex justify-center items-center w-full"
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                        e.preventDefault();
+                        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                            if (fileInputRef.current) {
+                                fileInputRef.current.files = e.dataTransfer.files;
+                                handleFileChange({ target: fileInputRef.current } as any);
+                            }
+                        }
+                    }}
+                >
                   <label
                     htmlFor="dropzone-file"
                     className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-secondary/80"
                   >
                     <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                      <FileText className="w-12 h-12 mb-4 text-muted-foreground" />
+                      <Upload className="w-12 h-12 mb-4 text-muted-foreground" />
                       <p className="mb-2 text-lg font-semibold text-foreground">
                         Drag & drop files or <span className="text-primary">Browse</span>
                       </p>
@@ -425,7 +437,7 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
               onClick={() => onAnswer(questionIndex, oIndex)}
               disabled={isAnswered}
             >
-              <div className="flex-shrink-0 font-semibold">{optionLetter}.</div>
+              <div className="flex items-center justify-center w-6 h-6 rounded-full border mr-4 flex-shrink-0 font-semibold">{optionLetter}</div>
               <div className="flex-grow">{option}</div>
               {isAnswered && isSelected && <CheckCircle2 className="flex-shrink-0 w-5 h-5 ml-auto" />}
             </Button>
