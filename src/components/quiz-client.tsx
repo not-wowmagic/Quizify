@@ -123,7 +123,7 @@ export function QuizClient() {
     }));
   };
 
-  const handleRegenerate = () => {
+  const handleStartOver = () => {
     setCurrentQuote(getRandomQuote());
     setQuiz(null);
     setUserAnswers({});
@@ -141,6 +141,11 @@ export function QuizClient() {
     setLectureText('');
     setFileName('');
   }
+
+  const handleRegenerateQuiz = () => {
+    handleGenerateQuiz();
+  }
+
 
   const { score, answeredQuestions, scorePercentage } = useMemo(() => {
     if (!quiz) return { score: 0, answeredQuestions: 0, scorePercentage: 0 };
@@ -202,14 +207,14 @@ export function QuizClient() {
                   <label
                     htmlFor="dropzone-file"
                     className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-secondary/80"
-                    onClick={() => fileInputRef.current?.click()}
                   >
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
                       <Upload className="w-10 h-10 mb-3 text-muted-foreground" />
                       <p className="mb-2 text-sm text-muted-foreground">
-                        <span className="font-semibold">{fileName ? fileName : "Upload your lecture file"}</span>
+                        <span className="font-semibold">Click to upload</span> or drag and drop
                       </p>
-                      <Button variant="outline" size="sm" className="mt-2" disabled={isLoading}>Choose File</Button>
+                      <p className="text-xs text-muted-foreground">PDF or DOCX (MAX. 5MB)</p>
+                      {fileName && <p className="mt-2 text-sm text-primary">{fileName}</p>}
                     </div>
                     <input 
                       id="dropzone-file"
@@ -322,11 +327,15 @@ export function QuizClient() {
                         <CardDescription className="mt-2">{getFeedbackMessage()}</CardDescription>
                     </CardHeader>
                     <CardFooter className="flex-col gap-4">
+                        <Button onClick={handleRegenerateQuiz} variant="outline" className="w-full">
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Regenerate Quiz
+                        </Button>
                         <Button onClick={handleNewQuiz} variant="outline" className="w-full">
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Generate New Quiz
                         </Button>
-                        <Button onClick={handleRegenerate} variant="outline" className="w-full">
+                        <Button onClick={handleStartOver} variant="outline" className="w-full">
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Start Over
                         </Button>
@@ -420,7 +429,7 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
             >
               <div className="flex-shrink-0 font-semibold">{optionLetter}.</div>
               <div className="flex-grow">{option}</div>
-              {isSelected && <CheckCircle2 className="flex-shrink-0 w-5 h-5" />}
+              {isAnswered && isSelected && <CheckCircle2 className="flex-shrink-0 w-5 h-5 ml-auto" />}
             </Button>
           );
         })}
