@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -134,14 +134,6 @@ export function QuizClient() {
     setFileName('');
   };
 
-  const handleNewQuiz = () => {
-    setCurrentQuote(getRandomQuote());
-    setQuiz(null);
-    setUserAnswers({});
-    setLectureText('');
-    setFileName('');
-  }
-
   const handleRegenerateQuiz = () => {
     handleGenerateQuiz();
   }
@@ -186,22 +178,11 @@ export function QuizClient() {
       <CardContent className="p-8">
         {!quiz ? (
           <div className="flex flex-col gap-6">
-            <Tabs defaultValue="paste" className="w-full">
+            <Tabs defaultValue="upload" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="paste">Paste Text</TabsTrigger>
                 <TabsTrigger value="upload">Upload File</TabsTrigger>
+                <TabsTrigger value="paste">Paste Text</TabsTrigger>
               </TabsList>
-              <TabsContent value="paste">
-                <Textarea
-                  id="lecture-text"
-                  placeholder="e.g., The mitochondria is the powerhouse of the cell..."
-                  rows={10}
-                  value={lectureText}
-                  onChange={(e) => setLectureText(e.target.value)}
-                  disabled={isLoading}
-                  className="text-base bg-secondary/80 mt-2"
-                />
-              </TabsContent>
               <TabsContent value="upload">
                 <div className="mt-2 flex justify-center items-center w-full">
                   <label
@@ -209,12 +190,12 @@ export function QuizClient() {
                     className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-secondary/80"
                   >
                     <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                      <Upload className="w-10 h-10 mb-3 text-muted-foreground" />
-                      <p className="mb-2 text-sm text-muted-foreground">
-                        <span className="font-semibold">Click to upload</span> or drag and drop
+                      <FileText className="w-12 h-12 mb-4 text-muted-foreground" />
+                      <p className="mb-2 text-lg font-semibold text-foreground">
+                        Drag & drop files or <span className="text-primary">Browse</span>
                       </p>
-                      <p className="text-xs text-muted-foreground">PDF or DOCX (MAX. 5MB)</p>
-                      {fileName && <p className="mt-2 text-sm text-primary">{fileName}</p>}
+                      <p className="text-sm text-muted-foreground">Supports: PDF, DOCX</p>
+                      {fileName && <p className="mt-4 text-sm text-primary">{fileName}</p>}
                     </div>
                     <input 
                       id="dropzone-file"
@@ -227,6 +208,17 @@ export function QuizClient() {
                     />
                   </label>
                 </div> 
+              </TabsContent>
+              <TabsContent value="paste">
+                <Textarea
+                  id="lecture-text"
+                  placeholder="e.g., The mitochondria is the powerhouse of the cell..."
+                  rows={10}
+                  value={lectureText}
+                  onChange={(e) => setLectureText(e.target.value)}
+                  disabled={isLoading}
+                  className="text-base bg-secondary/80 mt-2"
+                />
               </TabsContent>
             </Tabs>
             
