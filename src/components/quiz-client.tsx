@@ -20,6 +20,7 @@ if (typeof window !== 'undefined') {
   pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 }
 
+const MODELS = ['googleai/gemini-1.5-flash-latest', 'googleai/gemini-pro'];
 
 const motivationalQuotes = [
     "Believe you can and you're halfway there.",
@@ -49,6 +50,7 @@ export function QuizClient() {
   const [isMounted, setIsMounted] = useState(false);
   const [fileName, setFileName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const modelIndex = useRef(0);
 
   const { toast } = useToast();
 
@@ -98,12 +100,20 @@ export function QuizClient() {
   };
 
 
-  const handleGenerateQuiz = async () => {
+  const handleGenerateQuiz = async (isRegeneration = false) => {
     setIsLoading(true);
     setCurrentQuote(getRandomQuote());
     setQuiz(null);
     setUserAnswers({});
-    const result = await createQuiz({ lectureText, numQuestions: Number(numQuestions) || 10, difficulty, questionType });
+
+    if (isRegeneration) {
+        modelIndex.current = (modelIndex.current + 1) % MODELS.length;
+    } else {
+        modelIndex.current = 0;
+    }
+    const model = MODELS[modelIndex.current];
+    
+    const result = await createQuiz({ lectureText, numQuestions: Number(numQuestions) || 10, difficulty, questionType, model });
     if ('error' in result) {
       toast({
         title: 'Error',
@@ -135,7 +145,7 @@ export function QuizClient() {
   };
 
   const handleRegenerateQuiz = () => {
-    handleGenerateQuiz();
+    handleGenerateQuiz(true);
   }
 
 
@@ -277,7 +287,7 @@ export function QuizClient() {
               </div>
             </div>
 
-            <Button onClick={handleGenerateQuiz} disabled={isLoading || lectureText.length < 50} size="lg" className="rounded-full">
+            <Button onClick={() => handleGenerateQuiz(false)} disabled={isLoading || lectureText.length < 50} size="lg" className="rounded-full">
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
