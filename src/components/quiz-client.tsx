@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb, FileText, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,7 +20,6 @@ if (typeof window !== 'undefined') {
   pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 }
 
-const MODELS = ['googleai/gemini-1.5-flash-latest', 'googleai/gemini-pro'];
 
 const motivationalQuotes = [
     "Believe you can and you're halfway there.",
@@ -50,7 +49,6 @@ export function QuizClient() {
   const [isMounted, setIsMounted] = useState(false);
   const [fileName, setFileName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const modelIndex = useRef(0);
 
   const { toast } = useToast();
 
@@ -100,20 +98,13 @@ export function QuizClient() {
   };
 
 
-  const handleGenerateQuiz = async (isRegeneration = false) => {
+  const handleGenerateQuiz = async () => {
     setIsLoading(true);
     setCurrentQuote(getRandomQuote());
     setQuiz(null);
     setUserAnswers({});
-
-    if (isRegeneration) {
-        modelIndex.current = (modelIndex.current + 1) % MODELS.length;
-    } else {
-        modelIndex.current = 0;
-    }
-    const model = MODELS[modelIndex.current];
     
-    const result = await createQuiz({ lectureText, numQuestions: Number(numQuestions) || 10, difficulty, questionType, model });
+    const result = await createQuiz({ lectureText, numQuestions: Number(numQuestions) || 10, difficulty, questionType });
     if ('error' in result) {
       toast({
         title: 'Error',
@@ -142,10 +133,13 @@ export function QuizClient() {
     setQuestionType('multiple_choice');
     setLectureText('');
     setFileName('');
+    if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+    }
   };
 
   const handleRegenerateQuiz = () => {
-    handleGenerateQuiz(true);
+    handleGenerateQuiz();
   }
 
 
@@ -196,7 +190,9 @@ export function QuizClient() {
               <TabsContent value="upload">
                 <div 
                     className="mt-4 flex justify-center items-center w-full"
-                    onDragOver={(e) => e.preventDefault()}
+                    onDragOver={(e) => {
+                        e.preventDefault();
+                    }}
                     onDrop={(e) => {
                         e.preventDefault();
                         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
@@ -214,10 +210,10 @@ export function QuizClient() {
                     <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
                       <Upload className="w-12 h-12 mb-4 text-muted-foreground" />
                       <p className="mb-2 text-lg font-semibold text-foreground">
-                        Drag & drop files or <span className="text-primary">Browse</span>
+                        Drag & drop or <span className="text-primary">browse</span>
                       </p>
                       <p className="text-sm text-muted-foreground">Supports: PDF, DOCX</p>
-                      {fileName && <p className="mt-4 text-sm text-primary">{fileName}</p>}
+                       {fileName && <p className="mt-4 text-sm text-primary">{fileName}</p>}
                     </div>
                     <input 
                       id="dropzone-file"
@@ -229,7 +225,7 @@ export function QuizClient() {
                       disabled={isLoading}
                     />
                   </label>
-                </div> 
+                </div>
               </TabsContent>
               <TabsContent value="paste">
                 <Textarea
@@ -299,7 +295,7 @@ export function QuizClient() {
               </div>
             </div>
 
-            <Button onClick={() => handleGenerateQuiz(false)} disabled={isLoading || lectureText.length < 50} size="lg" className="rounded-full">
+            <Button onClick={() => handleGenerateQuiz()} disabled={isLoading || lectureText.length < 50} size="lg" className="rounded-full">
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
