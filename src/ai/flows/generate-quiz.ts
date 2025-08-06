@@ -36,6 +36,12 @@ export type GenerateQuizOutput = z.infer<typeof GenerateQuizOutputSchema>;
 
 export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQuizOutput> {
   const quiz = await generateQuizFlow(input);
+  // Shuffle the questions
+  for (let i = quiz.questions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [quiz.questions[i], quiz.questions[j]] = [quiz.questions[j], quiz.questions[i]];
+  }
+
   // Shuffle the options for each question
   quiz.questions.forEach((q) => {
     // Don't shuffle for true/false questions
