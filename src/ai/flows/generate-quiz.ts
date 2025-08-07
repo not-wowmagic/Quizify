@@ -60,26 +60,10 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
   return quiz;
 }
 
-const shouldAddDistractionTool = ai.defineTool({
-  name: 'shouldAddDistraction',
-  description: 'Determine if a given fact from lecture text should be used as a distractor in a quiz question.',
-  inputSchema: z.object({
-    fact: z.string().describe('A fact extracted from the lecture text.'),
-    question: z.string().describe('The question the fact is being considered for.'),
-  }),
-  outputSchema: z.boolean().describe('True if the fact should be used as a distractor, false otherwise.'),
-},
-async (input) => {
-  // Basic implementation: always return true.
-  // A more advanced version could use an LLM to determine if the fact is relevant but incorrect.
-  return true;
-});
-
 const generateQuizPrompt = ai.definePrompt({
   name: 'generateQuizPrompt',
   input: {schema: GenerateQuizInputSchema},
   output: {schema: GenerateQuizOutputSchema},
-  tools: [shouldAddDistractionTool],
   prompt: `You are an expert quiz generator. Given the following lecture text, generate a quiz with {{{numQuestions}}} questions with a difficulty of '{{{difficulty}}}'.
 
 The user has requested the following question type: '{{{questionType}}}'.
@@ -107,7 +91,7 @@ Here's an example of the output format for a multiple choice question:
   ]
 }
 
-When generating options for questions (where applicable), use the 'shouldAddDistraction' tool to generate reasonable but incorrect options, in order to make the quiz more challenging, especially for higher difficulty levels.
+When generating options for questions (where applicable), create reasonable but incorrect options, in order to make the quiz more challenging, especially for higher difficulty levels.
 `,
 });
 
