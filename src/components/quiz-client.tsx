@@ -367,7 +367,7 @@ export function QuizClient() {
             <div className="space-y-6">
               {quiz.questions.map((q, qIndex) => (
                 <QuestionCard 
-                  key={q.question} 
+                  key={`${q.question}-${qIndex}`} 
                   question={q} 
                   questionIndex={qIndex} 
                   userAnswer={userAnswers[qIndex]} 
