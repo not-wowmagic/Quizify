@@ -329,6 +329,16 @@ export function QuizClient() {
         ) : (
           <div className="flex flex-col gap-8 animate-in fade-in duration-500">
           
+            {quiz.summary && (
+                <Card className="bg-secondary/50 border-border">
+                    <CardHeader>
+                        <CardTitle>Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">{quiz.summary}</p>
+                    </CardContent>
+                </Card>
+            )}
 
             <div className="space-y-6">
               {quiz.questions.map((q, qIndex) => (
