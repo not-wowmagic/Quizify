@@ -419,10 +419,12 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
 
           const buttonClass = cn(
             'justify-start text-left h-auto py-3 px-4 whitespace-normal relative rounded-lg border flex items-center gap-4 text-base',
-            isAnswered && isSelected && !isCorrectAnswer && 'bg-destructive text-destructive-foreground border-destructive-foreground/20',
-            isAnswered && isCorrectAnswer && 'bg-success text-success-foreground border-success-foreground/20',
-            isAnswered && !isSelected && !isCorrectAnswer && 'bg-muted/50 text-muted-foreground',
-            !isAnswered && 'hover:bg-muted/50'
+            {
+              'bg-destructive text-destructive-foreground border-destructive-foreground/20': isAnswered && isSelected && !isCorrectAnswer,
+              'bg-success text-success-foreground border-success-foreground/20': isAnswered && isCorrectAnswer,
+              'bg-muted/50 text-muted-foreground': isAnswered && !isSelected,
+              'hover:bg-muted/50': !isAnswered,
+            }
           );
 
           return (
