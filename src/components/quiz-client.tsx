@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb, FileText, ChevronRight } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -419,8 +419,8 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
 
           const buttonClass = cn(
             'justify-start text-left h-auto py-3 px-4 whitespace-normal relative rounded-lg border flex items-center gap-4 text-base',
-            isAnswered && isCorrectAnswer && 'bg-success text-success-foreground border-success-foreground/20',
             isAnswered && isSelected && !isCorrectAnswer && 'bg-destructive text-destructive-foreground border-destructive-foreground/20',
+            isAnswered && isCorrectAnswer && 'bg-success text-success-foreground border-success-foreground/20',
             isAnswered && !isSelected && !isCorrectAnswer && 'bg-muted/50 text-muted-foreground',
             !isAnswered && 'hover:bg-muted/50'
           );
@@ -435,7 +435,8 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
             >
               <div className="flex items-center justify-center w-6 h-6 rounded-full border mr-4 flex-shrink-0 font-semibold">{optionLetter}</div>
               <div className="flex-grow">{option}</div>
-              {isAnswered && isSelected && <CheckCircle2 className="flex-shrink-0 w-5 h-5 ml-auto" />}
+              {isAnswered && isSelected && isCorrectAnswer && <CheckCircle2 className="flex-shrink-0 w-5 h-5 ml-auto" />}
+              {isAnswered && isSelected && !isCorrectAnswer && <XCircle className="flex-shrink-0 w-5 h-5 ml-auto" />}
             </Button>
           );
         })}
