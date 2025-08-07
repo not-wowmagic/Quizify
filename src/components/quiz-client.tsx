@@ -422,7 +422,7 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
             {
               'bg-destructive text-destructive-foreground border-destructive-foreground/20': isAnswered && isSelected && !isCorrectAnswer,
               'bg-success text-success-foreground border-success-foreground/20': isAnswered && isCorrectAnswer,
-              'bg-muted/50 text-muted-foreground': isAnswered && !isSelected,
+              'bg-muted/50 text-muted-foreground': isAnswered && !isSelected && !isCorrectAnswer,
               'hover:bg-muted/50': !isAnswered,
             }
           );
@@ -439,6 +439,7 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
               <div className="flex-grow">{option}</div>
               {isAnswered && isSelected && isCorrectAnswer && <CheckCircle2 className="flex-shrink-0 w-5 h-5 ml-auto" />}
               {isAnswered && isSelected && !isCorrectAnswer && <XCircle className="flex-shrink-0 w-5 h-5 ml-auto" />}
+              {isAnswered && !isSelected && isCorrectAnswer && <CheckCircle2 className="flex-shrink-0 w-5 h-5 ml-auto" />}
             </Button>
           );
         })}
