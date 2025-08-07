@@ -441,7 +441,6 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
   useEffect(() => {
     // Reset explanation when question changes
     setExplanation('');
-    setUserAnswers({});
   }, [question]);
 
 
