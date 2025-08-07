@@ -42,6 +42,7 @@ export function QuizClient() {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [numQuestions, setNumQuestions] = useState<number | ''>(10);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [questionType, setQuestionType] = useState<'multiple_choice' | 'situational' | 'fill_in_the_blank' | 'true_false' | 'mixed'>('multiple_choice');
@@ -138,8 +139,22 @@ export function QuizClient() {
     }
   };
 
-  const handleRegenerateQuiz = () => {
-    handleGenerateQuiz();
+  const handleRegenerateQuiz = async () => {
+    setIsRegenerating(true);
+    setCurrentQuote(getRandomQuote());
+    
+    const result = await createQuiz({ lectureText, numQuestions: Number(numQuestions) || 10, difficulty, questionType });
+    if ('error' in result) {
+      toast({
+        title: 'Error',
+        description: result.error,
+        variant: 'destructive',
+      });
+    } else {
+      setQuiz(result);
+      setUserAnswers({});
+    }
+    setIsRegenerating(false);
   }
 
 
@@ -337,11 +352,15 @@ export function QuizClient() {
                         <CardDescription className="mt-2">{getFeedbackMessage()}</CardDescription>
                     </CardHeader>
                     <CardFooter className="flex-col gap-4">
-                        <Button onClick={handleRegenerateQuiz} variant="outline" className="w-full">
-                            <RefreshCw className="mr-2 h-4 w-4" />
+                        <Button onClick={handleRegenerateQuiz} variant="outline" className="w-full" disabled={isRegenerating}>
+                            {isRegenerating ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                            )}
                             Regenerate Quiz
                         </Button>
-                        <Button onClick={handleStartOver} variant="outline" className="w-full">
+                        <Button onClick={handleStartOver} variant="outline" className="w-full" disabled={isRegenerating}>
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Start Over
                         </Button>
@@ -422,7 +441,7 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
             {
               'bg-destructive text-destructive-foreground border-destructive-foreground/20': isAnswered && isSelected && !isCorrectAnswer,
               'bg-success text-success-foreground border-success-foreground/20': isAnswered && isCorrectAnswer,
-              'bg-muted/50 text-muted-foreground': isAnswered && !isSelected && !isCorrectAnswer,
+              'bg-muted/50 text-muted-foreground': isAnswered && !isSelected,
               'hover:bg-muted/50': !isAnswered,
             }
           );
