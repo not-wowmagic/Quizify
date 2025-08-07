@@ -1,22 +1,19 @@
 // src/app/actions.ts
 'use server';
 
-import { generateQuiz, type GenerateQuizInput, type GenerateQuizOutput } from '@/ai/flows/generate-quiz';
+import { generateQuiz, type GenerateQuizInput } from '@/ai/flows/generate-quiz';
 import { generateExplanation } from '@/ai/flows/generate-explanation';
-import { generateSummary } from '@/ai/flows/generate-summary';
+import { generateSummary, type GenerateSummaryInput, type GenerateSummaryOutput } from '@/ai/flows/generate-summary';
 import type { GenerateExplanationInput, GenerateExplanationOutput } from '@/types/explanation';
 import type { Quiz, QuizQuestion } from '@/types/quiz';
 
-export async function createQuiz(input: Omit<GenerateQuizInput, 'model'>): Promise<Quiz | { error: string }> {
+export async function createQuiz(input: Omit<GenerateQuizInput, 'model'>): Promise<Pick<Quiz, 'questions'> | { error: string }> {
   if (!input.lectureText || input.lectureText.trim().length < 50) {
     return { error: 'Please provide a more substantial lecture text (at least 50 characters).' };
   }
 
   try {
-    const [quizResult, summaryResult] = await Promise.all([
-        generateQuiz(input),
-        generateSummary({ lectureText: input.lectureText })
-    ]);
+    const quizResult = await generateQuiz(input);
 
     // Ensure we have questions
     if (!quizResult.questions || quizResult.questions.length === 0) {
@@ -25,7 +22,6 @@ export async function createQuiz(input: Omit<GenerateQuizInput, 'model'>): Promi
 
     return {
         questions: quizResult.questions,
-        summary: summaryResult.summary,
     };
   } catch (e) {
     console.error(e);
@@ -57,5 +53,15 @@ export async function explainAnswer(input: GenerateExplanationInput): Promise<Ge
     } catch (e) {
         console.error(e);
         return { error: 'An unexpected error occurred while generating the explanation. Please try again later.' };
+    }
+}
+
+export async function createSummary(input: GenerateSummaryInput): Promise<GenerateSummaryOutput | { error: string }> {
+    try {
+        const summary = await generateSummary(input);
+        return summary;
+    } catch (e) {
+        console.error(e);
+        return { error: 'An unexpected error occurred while generating the summary. Please try again later.' };
     }
 }
