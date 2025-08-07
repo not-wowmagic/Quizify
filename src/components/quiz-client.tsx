@@ -2,12 +2,12 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Quiz, QuizQuestion } from '@/types/quiz';
-import { createQuiz, explainAnswer, regenerateQuizQuestions } from '@/app/actions';
+import { createQuiz, explainAnswer, regenerateQuizQuestions, createSummary } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb, XCircle } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb, XCircle, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -43,6 +43,7 @@ export function QuizClient() {
   const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [numQuestions, setNumQuestions] = useState<number | ''>(10);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [questionType, setQuestionType] = useState<'multiple_choice' | 'situational' | 'fill_in_the_blank' | 'true_false' | 'mixed'>('multiple_choice');
@@ -117,6 +118,28 @@ export function QuizClient() {
     }
     setIsLoading(false);
   };
+  
+  const handleGenerateSummary = async () => {
+    if (!lectureText) return;
+    setIsSummaryLoading(true);
+    const result = await createSummary({ lectureText });
+    if ('error' in result) {
+      toast({
+        title: 'Error creating summary',
+        description: result.error,
+        variant: 'destructive',
+      });
+    } else {
+        setQuiz((prevQuiz) => {
+            if (!prevQuiz) return null;
+            return {
+                ...prevQuiz,
+                summary: result.summary
+            }
+        })
+    }
+    setIsSummaryLoading(false);
+  }
 
   const handleAnswer = (questionIndex: number, optionIndex: number) => {
     setUserAnswers((prev) => ({
@@ -335,16 +358,11 @@ export function QuizClient() {
         ) : (
           <div className="flex flex-col gap-8 animate-in fade-in duration-500">
           
-            {quiz.summary && (
-                <Card className="bg-secondary/50 border-border">
-                    <CardHeader>
-                        <CardTitle>Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground">{quiz.summary}</p>
-                    </CardContent>
-                </Card>
-            )}
+            <SummaryCard 
+                summary={quiz.summary} 
+                onGenerate={handleGenerateSummary}
+                isLoading={isSummaryLoading}
+            />
 
             <div className="space-y-6">
               {quiz.questions.map((q, qIndex) => (
@@ -514,4 +532,43 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
         )}
     </Card>
   );
+}
+
+interface SummaryCardProps {
+    summary?: string;
+    onGenerate: () => void;
+    isLoading: boolean;
+}
+
+function SummaryCard({ summary, onGenerate, isLoading }: SummaryCardProps) {
+    if (summary) {
+        return (
+            <Card className="bg-secondary/50 border-border">
+                <CardHeader>
+                    <CardTitle>Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground">{summary}</p>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    return (
+        <div className="flex justify-center">
+            <Button variant="outline" onClick={onGenerate} disabled={isLoading}>
+                {isLoading ? (
+                    <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating Summary...
+                    </>
+                ) : (
+                    <>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Show Summary
+                    </>
+                )}
+            </Button>
+        </div>
+    );
 }

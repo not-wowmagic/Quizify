@@ -7,5 +7,5 @@ export interface QuizQuestion {
 
 export interface Quiz {
   questions: QuizQuestion[];
-  summary: string;
+  summary?: string;
 }
