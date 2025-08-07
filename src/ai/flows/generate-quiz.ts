@@ -101,7 +101,7 @@ const generateQuizFlow = ai.defineFlow(
     outputSchema: GenerateQuizOutputSchema,
   },
   async input => {
-    const model = 'googleai/gemini-1.5-flash-latest';
+    const model = 'googleai/gemini-2.5-flash-lite';
     const {output} = await generateQuizPrompt(input, { model });
     return output!;
   }
