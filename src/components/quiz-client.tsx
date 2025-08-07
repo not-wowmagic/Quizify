@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Quiz, QuizQuestion } from '@/types/quiz';
-import { createQuiz, explainAnswer } from '@/app/actions';
+import { createQuiz, explainAnswer, regenerateQuizQuestions } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -143,7 +143,7 @@ export function QuizClient() {
     setIsRegenerating(true);
     setCurrentQuote(getRandomQuote());
     
-    const result = await createQuiz({ lectureText, numQuestions: Number(numQuestions) || 10, difficulty, questionType });
+    const result = await regenerateQuizQuestions({ lectureText, numQuestions: Number(numQuestions) || 10, difficulty, questionType });
     if ('error' in result) {
       toast({
         title: 'Error',
@@ -151,7 +151,13 @@ export function QuizClient() {
         variant: 'destructive',
       });
     } else {
-      setQuiz(result);
+      setQuiz((prevQuiz) => {
+        if (!prevQuiz) return null;
+        return {
+          ...prevQuiz,
+          questions: result.questions,
+        };
+      });
       setUserAnswers({});
     }
     setIsRegenerating(false);
@@ -343,7 +349,7 @@ export function QuizClient() {
             <div className="space-y-6">
               {quiz.questions.map((q, qIndex) => (
                 <QuestionCard 
-                  key={qIndex} 
+                  key={q.question} 
                   question={q} 
                   questionIndex={qIndex} 
                   userAnswer={userAnswers[qIndex]} 
@@ -431,6 +437,12 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
     }
     setIsExplanationLoading(false);
   };
+
+  useEffect(() => {
+    // Reset explanation when question changes
+    setExplanation('');
+    setUserAnswers({});
+  }, [question]);
 
 
   return (
