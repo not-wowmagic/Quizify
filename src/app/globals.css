@@ -39,36 +39,36 @@
   }
  
   .dark {
-    --background: 217 33% 17%; /* #1d283a */
+    --background: 224 71% 4%; /* #010816 */
     --foreground: 210 40% 98%;
 
-    --card: 202 50% 9%;
+    --card: 222 47% 11%;
     --card-foreground: 210 40% 98%;
     
-    --popover: 222.2 84% 4.9%;
+    --popover: 224 71% 4%;
     --popover-foreground: 210 40% 98%;
     
-    --primary: 206 83% 53%; /* Muted Blue */
+    --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 202 50% 9%;
+    --secondary: 215 28% 17%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 202 50% 9%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 215 28% 17%;
+    --muted-foreground: 217 9% 61%;
     
     --accent: 151 46% 74%; /* Pale Green */
-    --accent-foreground: 210 40% 98%;
+    --accent-foreground: 222.2 47.4% 11.2%;
     
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
 
     --success: 145 63% 42%;
     --success-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 217.2 32.6% 17.5%;
+    --border: 215 28% 17%;
+    --input: 215 28% 17%;
+    --ring: 210 40% 98%;
   }
 }
 
@@ -84,6 +84,8 @@
     background: radial-gradient(circle at top, hsl(210, 40%, 98%), hsl(210, 40%, 90%));
   }
   .dark body {
-    background: radial-gradient(circle at top, hsl(217, 33%, 22%), hsl(217, 33%, 17%));
+    background-color: hsl(var(--background));
+    background-image: radial-gradient(circle at 1px 1px, hsl(218 47% 11%) 1px, transparent 0);
+    background-size: 2rem 2rem;
   }
 }
