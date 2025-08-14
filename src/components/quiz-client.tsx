@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb, XCircle, FileText } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb, XCircle, FileText, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -222,8 +222,8 @@ export function QuizClient() {
   }
 
   return (
-    <Card className="w-full shadow-2xl bg-card/80 backdrop-blur-xl border-white/20">
-      <CardContent className="p-8">
+    <Card className="w-full shadow-2xl bg-card/60 backdrop-blur-xl border-white/10 rounded-2xl">
+      <CardContent className="p-6 md:p-8">
         {!quiz ? (
           <div className="flex flex-col gap-6">
             <Tabs defaultValue="upload" className="w-full">
@@ -249,12 +249,12 @@ export function QuizClient() {
                 >
                   <label
                     htmlFor="dropzone-file"
-                    className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-secondary/80"
+                    className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-card/50 hover:bg-secondary/50 transition-colors"
                   >
                     <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
                       <Upload className="w-12 h-12 mb-4 text-muted-foreground" />
                       <p className="mb-2 text-lg font-semibold text-foreground">
-                        Drag & drop or <span className="text-primary">browse</span>
+                        Drag & drop or <span className="text-primary font-bold">browse</span>
                       </p>
                       <p className="text-sm text-muted-foreground">Supports: PDF, DOCX</p>
                        {fileName && <p className="mt-4 text-sm text-primary">{fileName}</p>}
@@ -339,14 +339,17 @@ export function QuizClient() {
               </div>
             </div>
 
-            <Button onClick={() => handleGenerateQuiz()} disabled={isLoading || lectureText.length < 50} size="lg" className="rounded-full">
+            <Button onClick={() => handleGenerateQuiz()} disabled={isLoading || lectureText.length < 50} size="lg" className="rounded-full font-bold text-base">
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Generating Quiz...
                 </>
               ) : (
-                'Generate Quiz'
+                 <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Generate Quiz
+                 </>
               )}
             </Button>
              {currentQuote && !isLoading && (
@@ -378,20 +381,16 @@ export function QuizClient() {
             </div>
 
              {allAnswered && (
-                 <Card className="bg-accent/50 border-accent mt-8">
+                 <Card className="bg-gradient-to-br from-green-500/20 to-cyan-500/20 border-green-500/30 mt-8">
                     <CardHeader className="text-center">
                         <CardTitle>Quiz Complete!</CardTitle>
                         <div className="text-4xl font-bold mt-2">{score} / {quiz.questions.length}</div>
                         <p className="text-xl">({scorePercentage.toFixed(0)}%)</p>
-                        <CardDescription className="mt-2">{getFeedbackMessage()}</CardDescription>
+                        <CardDescription className="mt-2 font-semibold">{getFeedbackMessage()}</CardDescription>
                     </CardHeader>
                     <CardFooter className="flex-col gap-4">
                         <Button onClick={handleRegenerateQuiz} variant="outline" className="w-full" disabled={isRegenerating}>
-                            {isRegenerating ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                                <RefreshCw className="mr-2 h-4 w-4" />
-                            )}
+                             {isRegenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                             Regenerate Quiz
                         </Button>
                         <Button onClick={handleStartOver} variant="outline" className="w-full" disabled={isRegenerating}>
@@ -463,7 +462,7 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
 
 
   return (
-    <Card className="bg-card/80 backdrop-blur-sm border-white/20 shadow-lg">
+    <Card className="bg-card/80 backdrop-blur-sm border-white/10 shadow-lg transition-all duration-300 hover:border-white/20">
       <CardHeader>
         <CardTitle className="text-xl font-semibold">
           {questionIndex + 1}. {question.question}
@@ -476,12 +475,12 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
           const optionLetter = String.fromCharCode(65 + oIndex); // A, B, C, D
 
           const buttonClass = cn(
-            'justify-start text-left h-auto py-3 px-4 whitespace-normal relative rounded-lg border flex items-center gap-4 text-base',
+            'justify-start text-left h-auto py-3 px-4 whitespace-normal relative rounded-lg border flex items-center gap-4 text-base transition-all duration-300',
             {
-              'bg-destructive text-destructive-foreground border-destructive-foreground/20': isAnswered && isSelected && !isCorrectAnswer,
-              'bg-success text-success-foreground border-success-foreground/20': isAnswered && isCorrectAnswer,
-              'bg-muted/50 text-muted-foreground': isAnswered && !isSelected && !isCorrectAnswer,
-              'hover:bg-muted/50': !isAnswered,
+                'bg-destructive/80 text-destructive-foreground border-destructive-foreground/20 shadow-lg shadow-destructive/20': isAnswered && isSelected && !isCorrectAnswer,
+                'bg-success/80 text-success-foreground border-success-foreground/20 shadow-lg shadow-success/20': isAnswered && isCorrectAnswer,
+                'bg-muted/50 text-muted-foreground opacity-60': isAnswered && !isSelected && !isCorrectAnswer,
+                'hover:bg-muted/50 hover:border-white/20': !isAnswered,
             }
           );
 
