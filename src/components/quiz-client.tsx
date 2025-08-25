@@ -293,7 +293,7 @@ export function QuizClient() {
                         Drag & drop or <span className="text-primary font-bold">browse</span>
                       </p>
                       <p className="text-sm text-muted-foreground">Supports: PDF, DOCX</p>
-                       {fileName && <p className="mt-4 text-sm text-primary">{fileName}</p>}
+                       {fileName && <p className="mt-4 text-sm text-primary">Nombre del archivo: {fileName}</p>}
                     </div>
                     <input 
                       id="dropzone-file"
@@ -514,7 +514,7 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
             'justify-start text-left h-auto py-3 px-4 whitespace-normal relative rounded-lg border flex items-center gap-4 text-base transition-all duration-300',
             {
                 'bg-destructive/80 text-destructive-foreground border-destructive-foreground/20 shadow-lg shadow-destructive/20': isAnswered && isSelected && !isCorrectAnswer,
-                'bg-success/80 text-success-foreground border-success-foreground/20 shadow-lg shadow-success/20': isAnswered && isCorrectAnswer,
+                'bg-success/80 text-success-foreground border-success-foreground/20 shadow-lg shadow-success/20': isAnswered && isSelected && isCorrectAnswer,
                 'bg-muted/50 text-muted-foreground opacity-60': isAnswered && !isSelected,
                 'hover:bg-muted/50 hover:border-white/20': !isAnswered,
             }
@@ -532,7 +532,6 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
               <div className="flex-grow">{option}</div>
               {isAnswered && isSelected && isCorrectAnswer && <CheckCircle2 className="flex-shrink-0 w-5 h-5 ml-auto" />}
               {isAnswered && isSelected && !isCorrectAnswer && <XCircle className="flex-shrink-0 w-5 h-5 ml-auto" />}
-              {isAnswered && !isSelected && isCorrectAnswer && <CheckCircle2 className="flex-shrink-0 w-5 h-5 ml-auto" />}
             </Button>
           );
         })}
