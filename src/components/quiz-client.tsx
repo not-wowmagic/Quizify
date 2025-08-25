@@ -37,6 +37,41 @@ const motivationalQuotes = [
 const getRandomQuote = () => motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
 
 
+// Helper function to shuffle arrays
+const shuffleArray = <T>(array: T[]): T[] => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
+
+const processQuiz = (quizResult: { questions: QuizQuestion[] }): Quiz => {
+    // Shuffle questions
+    const shuffledQuestions = shuffleArray(quizResult.questions);
+
+    // Shuffle options for each question and update the correct answer index
+    const processedQuestions = shuffledQuestions.map((q) => {
+      // Don't shuffle for true/false questions
+      if (q.options.length === 2 && q.options[0].toLowerCase() === 'true' && q.options[1].toLowerCase() === 'false') {
+          return q;
+      }
+      const correctAnswer = q.options[q.correctAnswerIndex];
+      const shuffledOptions = shuffleArray(q.options);
+      const newCorrectAnswerIndex = shuffledOptions.indexOf(correctAnswer);
+
+      return {
+          ...q,
+          options: shuffledOptions,
+          correctAnswerIndex: newCorrectAnswerIndex,
+      };
+    });
+
+    return { questions: processedQuestions };
+};
+
+
 export function QuizClient() {
   const [lectureText, setLectureText] = useState('');
   const [quiz, setQuiz] = useState<Quiz | null>(null);
@@ -114,7 +149,7 @@ export function QuizClient() {
         variant: 'destructive',
       });
     } else {
-      setQuiz(result);
+      setQuiz(processQuiz(result));
     }
     setIsLoading(false);
   };
@@ -175,10 +210,11 @@ export function QuizClient() {
       });
     } else {
       setQuiz((prevQuiz) => {
-        if (!prevQuiz) return null;
+        const newQuizData = processQuiz(result);
+        if (!prevQuiz) return newQuizData; // Should not happen if regenerate is clicked
         return {
-          ...prevQuiz,
-          questions: result.questions,
+          ...prevQuiz, // Keep the summary
+          questions: newQuizData.questions,
         };
       });
       setUserAnswers({});
@@ -479,7 +515,7 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
             {
                 'bg-destructive/80 text-destructive-foreground border-destructive-foreground/20 shadow-lg shadow-destructive/20': isAnswered && isSelected && !isCorrectAnswer,
                 'bg-success/80 text-success-foreground border-success-foreground/20 shadow-lg shadow-success/20': isAnswered && isCorrectAnswer,
-                'bg-muted/50 text-muted-foreground opacity-60': isAnswered && !isSelected && !isCorrectAnswer,
+                'bg-muted/50 text-muted-foreground opacity-60': isAnswered && !isSelected,
                 'hover:bg-muted/50 hover:border-white/20': !isAnswered,
             }
           );

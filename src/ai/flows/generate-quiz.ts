@@ -36,26 +36,6 @@ export type GenerateQuizOutput = z.infer<typeof GenerateQuizOutputSchema>;
 
 export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQuizOutput> {
   const quiz = await generateQuizFlow(input);
-  // Shuffle the questions
-  for (let i = quiz.questions.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [quiz.questions[i], quiz.questions[j]] = [quiz.questions[j], quiz.questions[i]];
-  }
-
-  // Shuffle the options for each question
-  quiz.questions.forEach((q) => {
-    // Don't shuffle for true/false questions
-    if (q.options.length === 2 && q.options[0].toLowerCase() === 'true' && q.options[1].toLowerCase() === 'false') {
-        return;
-    }
-    const correctAnswer = q.options[q.correctAnswerIndex];
-    // Fisher-Yates shuffle
-    for (let i = q.options.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [q.options[i], q.options[j]] = [q.options[j], q.options[i]];
-    }
-    q.correctAnswerIndex = q.options.indexOf(correctAnswer);
-  });
   return quiz;
 }
 
