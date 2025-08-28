@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { Quiz, QuizQuestion } from '@/types/quiz';
 import { createQuiz, explainAnswer, regenerateQuizQuestions, createSummary } from '@/app/actions';
 import { Button } from '@/components/ui/button';
@@ -38,7 +38,7 @@ const getRandomQuote = () => motivationalQuotes[Math.floor(Math.random() * motiv
 
 
 // Helper function to shuffle arrays
-const shuffleArray = <T>(array: T[]): T[] => {
+const shuffleArray = <T,>(array: T[]): T[] => {
   const newArray = [...array];
   for (let i = newArray.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -108,7 +108,7 @@ export function QuizClient() {
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const content = await page.getTextContent();
-          text += content.items.map(item => (item as any).str).join(' ');
+          text += content.items.map((item: any) => (item as any).str).join(' ');
         }
       } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         const arrayBuffer = await file.arrayBuffer();
@@ -510,13 +510,17 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
           const isSelected = oIndex === userAnswer;
           const optionLetter = String.fromCharCode(65 + oIndex); // A, B, C, D
 
+          // Determine classes so that after answering:
+          // - the correct answer is highlighted green
+          // - a selected wrong answer is highlighted red
+          // - other options are muted
           const buttonClass = cn(
             'justify-start text-left h-auto py-3 px-4 whitespace-normal relative rounded-lg border flex items-center gap-4 text-base transition-all duration-300',
             {
-                'bg-destructive/80 text-destructive-foreground border-destructive-foreground/20 shadow-lg shadow-destructive/20': isAnswered && isSelected && !isCorrectAnswer,
-                'bg-success/80 text-success-foreground border-success-foreground/20 shadow-lg shadow-success/20': isAnswered && isSelected && isCorrectAnswer,
-                'bg-muted/50 text-muted-foreground opacity-60': isAnswered && !isSelected,
-                'hover:bg-muted/50 hover:border-white/20': !isAnswered,
+              'bg-success/80 text-success-foreground border-success-foreground/20 shadow-lg shadow-success/20': isAnswered && isCorrectAnswer,
+              'bg-destructive/80 text-destructive-foreground border-destructive-foreground/20 shadow-lg shadow-destructive/20': isAnswered && isSelected && !isCorrectAnswer,
+              'bg-muted/50 text-muted-foreground opacity-60': isAnswered && !isCorrectAnswer && !isSelected,
+              'hover:bg-muted/50 hover:border-white/20': !isAnswered,
             }
           );
 
@@ -530,7 +534,7 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
             >
               <div className="flex items-center justify-center w-6 h-6 rounded-full border mr-4 flex-shrink-0 font-semibold">{optionLetter}</div>
               <div className="flex-grow">{option}</div>
-              {isAnswered && isSelected && isCorrectAnswer && <CheckCircle2 className="flex-shrink-0 w-5 h-5 ml-auto" />}
+              {isAnswered && isCorrectAnswer && <CheckCircle2 className="flex-shrink-0 w-5 h-5 ml-auto" />}
               {isAnswered && isSelected && !isCorrectAnswer && <XCircle className="flex-shrink-0 w-5 h-5 ml-auto" />}
             </Button>
           );
