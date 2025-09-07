@@ -7,8 +7,8 @@
  * - GenerateSummaryOutput - The return type for the generateSummary function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { callOpenRouter } from '@/ai/openrouter';
+import { z } from 'zod';
 
 const GenerateSummaryInputSchema = z.object({
   lectureText: z.string().describe('The text of the lecture to summarize.'),
@@ -26,29 +26,17 @@ export async function generateSummary(
   return generateSummaryFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'generateSummaryPrompt',
-  input: {schema: GenerateSummaryInputSchema},
-  output: {schema: GenerateSummaryOutputSchema},
-  prompt: `You are an expert in summarizing complex topics.
+const generateSummaryFlow = async (input: { lectureText: string }) => {
+  const validatedInput = GenerateSummaryInputSchema.parse(input);
   
-  Given the following text, please generate a concise, one-paragraph summary that captures the main points.
-  The summary should give the reader a quick overview of the topic.
+  const prompt = `Summarize the following text in one concise paragraph that captures the main points and key concepts:\n\n${validatedInput.lectureText}\n\nProvide ONLY the summary text without any additional formatting or JSON.`;
+  const model = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free';
+  const content = await callOpenRouter(model, prompt);
   
-  Lecture Text:
-  {{{lectureText}}}
+  // Create and validate the output
+  const result = {
+    summary: content.trim()
+  };
   
-  Summary:`,
-});
-
-const generateSummaryFlow = ai.defineFlow(
-  {
-    name: 'generateSummaryFlow',
-    inputSchema: GenerateSummaryInputSchema,
-    outputSchema: GenerateSummaryOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
-  }
-);
+  return GenerateSummaryOutputSchema.parse(result);
+};

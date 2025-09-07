@@ -24,8 +24,11 @@ export async function createQuiz(input: Omit<GenerateQuizInput, 'model'>): Promi
         questions: quizResult.questions,
     };
   } catch (e) {
-    console.error(e);
-    return { error: 'An unexpected error occurred while generating the quiz. Please try again later.' };
+        console.error(e);
+        if (process.env.NODE_ENV !== 'production') {
+            return { error: 'An unexpected error occurred while generating the quiz. ' + String((e as any)?.message || e) };
+        }
+        return { error: 'An unexpected error occurred while generating the quiz. Please try again later.' };
   }
 }
 
@@ -41,6 +44,9 @@ export async function regenerateQuizQuestions(input: Omit<GenerateQuizInput, 'mo
         return { questions: quizResult.questions };
     } catch (e) {
         console.error(e);
+        if (process.env.NODE_ENV !== 'production') {
+            return { error: 'An unexpected error occurred while regenerating the quiz. ' + String((e as any)?.message || e) };
+        }
         return { error: 'An unexpected error occurred while regenerating the quiz. Please try again later.' };
     }
 }

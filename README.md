@@ -28,3 +28,27 @@ To explore the codebase, start by looking at `src/app/page.tsx`.
 
 ## Development:
 
+### Switching to OpenRouter (how to configure your API key)
+
+This project now uses OpenRouter for LLM calls. To run the app locally with your OpenRouter API key:
+
+1. Create a file named `.env.local` in the project root.
+2. Add your key and optionally the model name:
+
+```
+OPENROUTER_API_KEY=your_api_key_here
+OPENROUTER_MODEL=your_model_here
+```
+
+3. Install dependencies and run the dev server:
+
+```powershell
+npm install
+npm run dev
+```
+
+The app will be available at http://localhost:9002 (per package.json dev script).
+
+If you want to use a different OpenRouter model, update `OPENROUTER_MODEL` or leave it unset to use the default.
+
+

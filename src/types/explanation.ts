@@ -1,5 +1,5 @@
 // src/types/explanation.ts
-import {z} from 'genkit';
+import { z } from 'zod';
 
 export const GenerateExplanationInputSchema = z.object({
   question: z.string().describe('The quiz question.'),
