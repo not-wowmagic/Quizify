@@ -8,8 +8,8 @@
  * - GenerateDistractorsOutput - The return type for the generateDistractors function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { callOpenRouter } from '@/ai/openrouter';
+import { z } from 'zod';
 
 const GenerateDistractorsInputSchema = z.object({
   question: z.string().describe('The multiple-choice question.'),
@@ -34,30 +34,17 @@ export async function generateDistractors(
   return generateDistractorsFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'generateDistractorsPrompt',
-  input: {schema: GenerateDistractorsInputSchema},
-  output: {schema: GenerateDistractorsOutputSchema},
-  prompt: `You are an expert in generating challenging distractor options for multiple-choice questions.
-
-  Given a question and its correct answer, generate {{{numDistractors}}} distractor options that are plausible but incorrect.
-  The distractors should be designed to test the understanding of the subject matter and differentiate between those who have a strong grasp of the material and those who do not.
-  Make sure that each distractor is different from the correct answer.
-
-  Question: {{{question}}}
-  Correct Answer: {{{correctAnswer}}}
-
-  Distractors:`, // The LLM is expected to return an array of strings
-});
-
-const generateDistractorsFlow = ai.defineFlow(
-  {
-    name: 'generateDistractorsFlow',
-    inputSchema: GenerateDistractorsInputSchema,
-    outputSchema: GenerateDistractorsOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+const generateDistractorsFlow = async (input: any) => {
+  const prompt = `You are an expert in generating challenging distractor options for multiple-choice questions.\n\nGiven a question and its correct answer, generate ${input.numDistractors} distractor options that are plausible but incorrect. Return JSON: { "distractors": ["a","b",...] }\n\nQuestion: ${input.question}\nCorrect Answer: ${input.correctAnswer}`;
+  const model = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free';
+  const content = await callOpenRouter(model, prompt);
+  let parsed: any;
+  try {
+    parsed = JSON.parse(content);
+  } catch (err) {
+    const match = content.match(/\{[\s\S]*\}/m);
+    if (match) parsed = JSON.parse(match[0]);
+    else throw new Error('Failed to parse JSON distractors: ' + content);
   }
-);
+  return GenerateDistractorsOutputSchema.parse(parsed);
+};

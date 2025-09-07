@@ -12,14 +12,7 @@ import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import * as pdfjs from 'pdfjs-dist';
-import mammoth from 'mammoth';
-
-// Set up the worker for pdfjs
-if (typeof window !== 'undefined') {
-  pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-}
-
+import { processFile, processQuiz, quizHelpers } from '@/lib/quiz-processors';
 
 const motivationalQuotes = [
     "Believe you can and you're halfway there.",
@@ -37,55 +30,31 @@ const motivationalQuotes = [
 const getRandomQuote = () => motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
 
 
-// Helper function to shuffle arrays
-const shuffleArray = <T,>(array: T[]): T[] => {
-  const newArray = [...array];
-  for (let i = newArray.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-  }
-  return newArray;
-};
-
-const processQuiz = (quizResult: { questions: QuizQuestion[] }): Quiz => {
-    // Shuffle questions
-    const shuffledQuestions = shuffleArray(quizResult.questions);
-
-    // Shuffle options for each question and update the correct answer index
-    const processedQuestions = shuffledQuestions.map((q) => {
-      // Don't shuffle for true/false questions
-      if (q.options.length === 2 && q.options[0].toLowerCase() === 'true' && q.options[1].toLowerCase() === 'false') {
-          return q;
-      }
-      const correctAnswer = q.options[q.correctAnswerIndex];
-      const shuffledOptions = shuffleArray(q.options);
-      const newCorrectAnswerIndex = shuffledOptions.indexOf(correctAnswer);
-
-      return {
-          ...q,
-          options: shuffledOptions,
-          correctAnswerIndex: newCorrectAnswerIndex,
-      };
-    });
-
-    return { questions: processedQuestions };
-};
-
-
 export function QuizClient() {
-  const [lectureText, setLectureText] = useState('');
+  // Core quiz state
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [isRegenerating, setIsRegenerating] = useState(false);
-  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+  
+  // Input state with validation
+  const [lectureText, setLectureText] = useState('');
   const [numQuestions, setNumQuestions] = useState<number | ''>(10);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [questionType, setQuestionType] = useState<'multiple_choice' | 'situational' | 'fill_in_the_blank' | 'true_false' | 'mixed'>('multiple_choice');
+  
+  // UI state
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [currentQuote, setCurrentQuote] = useState('');
   const [isMounted, setIsMounted] = useState(false);
   const [fileName, setFileName] = useState('');
+  
+  // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previousTextRef = useRef('');
+  const debounceTimerRef = useRef<NodeJS.Timeout>();
+  
+
 
   const { toast } = useToast();
 
@@ -100,33 +69,16 @@ export function QuizClient() {
 
     setIsLoading(true);
     setFileName(file.name);
+    setLectureText(''); // Clear previous text
+    
     try {
-      let text = '';
-      if (file.type === 'application/pdf') {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjs.getDocument(arrayBuffer).promise;
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          text += content.items.map((item: any) => (item as any).str).join(' ');
-        }
-      } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.extractRawText({ arrayBuffer });
-        text = result.value;
-      } else {
-        toast({
-          title: 'Unsupported File Type',
-          description: 'Please upload a PDF or DOCX file.',
-          variant: 'destructive',
-        });
-      }
+      const text = await processFile(file);
       setLectureText(text);
     } catch (error) {
       console.error('Error processing file:', error);
       toast({
         title: 'File Processing Error',
-        description: 'There was an error reading the file. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to read the file. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -136,44 +88,93 @@ export function QuizClient() {
 
 
   const handleGenerateQuiz = async () => {
-    setIsLoading(true);
-    setCurrentQuote(getRandomQuote());
-    setQuiz(null);
-    setUserAnswers({});
-    
-    const result = await createQuiz({ lectureText, numQuestions: Number(numQuestions) || 10, difficulty, questionType });
-    if ('error' in result) {
+    if (!quizHelpers.isValidInput(lectureText, numQuestions)) {
       toast({
-        title: 'Error',
-        description: result.error,
+        title: 'Invalid Input',
+        description: 'Please provide enough text (at least 100 characters) and a valid number of questions (1-50).',
         variant: 'destructive',
       });
-    } else {
-      setQuiz(processQuiz(result));
+      return;
     }
-    setIsLoading(false);
+
+    try {
+      setIsLoading(true);
+      setCurrentQuote(getRandomQuote());
+      setQuiz(null);
+      setUserAnswers({});
+      
+      // Save current text for comparison
+      previousTextRef.current = lectureText;
+      
+      const result = await createQuiz({ 
+        lectureText, 
+        numQuestions: Number(numQuestions) || 10, 
+        difficulty, 
+        questionType 
+      });
+
+      if ('error' in result) {
+        toast({
+          title: 'Error Generating Quiz',
+          description: result.error,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const processedQuiz = processQuiz(result);
+      setQuiz(processedQuiz);
+      
+      // Automatically generate summary for longer texts
+      if (lectureText.length > 1000) {
+        handleGenerateSummary();
+      }
+    } catch (error) {
+      toast({
+        title: 'Unexpected Error',
+        description: error instanceof Error ? error.message : 'Failed to generate quiz. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   const handleGenerateSummary = async () => {
     if (!lectureText) return;
-    setIsSummaryLoading(true);
-    const result = await createSummary({ lectureText });
-    if ('error' in result) {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    try {
+      setIsSummaryLoading(true);
+      const result = await createSummary({ lectureText });
+      
+      if ('error' in result) {
+        toast({
+          title: 'Error Creating Summary',
+          description: result.error,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setQuiz(prevQuiz => {
+        if (!prevQuiz) return null;
+        return {
+          ...prevQuiz,
+          summary: result.summary
+        };
+      });
+    } catch (error) {
       toast({
-        title: 'Error creating summary',
-        description: result.error,
+        title: 'Summary Generation Failed',
+        description: error instanceof Error ? error.message : 'Failed to generate summary. Please try again.',
         variant: 'destructive',
       });
-    } else {
-        setQuiz((prevQuiz) => {
-            if (!prevQuiz) return null;
-            return {
-                ...prevQuiz,
-                summary: result.summary
-            }
-        })
+    } finally {
+      setIsSummaryLoading(false);
     }
-    setIsSummaryLoading(false);
   }
 
   const handleAnswer = (questionIndex: number, optionIndex: number) => {
@@ -198,28 +199,63 @@ export function QuizClient() {
   };
 
   const handleRegenerateQuiz = async () => {
-    setIsRegenerating(true);
-    setCurrentQuote(getRandomQuote());
-    
-    const result = await regenerateQuizQuestions({ lectureText, numQuestions: Number(numQuestions) || 10, difficulty, questionType });
-    if ('error' in result) {
+    if (!quizHelpers.isValidInput(lectureText, numQuestions) || !quiz) {
       toast({
-        title: 'Error',
-        description: result.error,
+        title: 'Cannot Regenerate',
+        description: 'Please ensure you have valid input text and an existing quiz.',
         variant: 'destructive',
       });
-    } else {
-      setQuiz((prevQuiz) => {
+      return;
+    }
+
+    try {
+      setIsRegenerating(true);
+      setCurrentQuote(getRandomQuote());
+      
+      // Compare with saved text
+      if (lectureText !== previousTextRef.current) {
+        toast({
+          title: 'Text Changed',
+          description: 'The lecture text has changed. Generating a new quiz instead.',
+          variant: 'default',
+        });
+        await handleGenerateQuiz();
+        return;
+      }
+      
+      const result = await regenerateQuizQuestions({ 
+        lectureText, 
+        numQuestions: Number(numQuestions) || 10, 
+        difficulty, 
+        questionType 
+      });
+
+      if ('error' in result) {
+        toast({
+          title: 'Error Regenerating Quiz',
+          description: result.error,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setQuiz(prevQuiz => {
         const newQuizData = processQuiz(result);
-        if (!prevQuiz) return newQuizData; // Should not happen if regenerate is clicked
+        if (!prevQuiz) return newQuizData;
         return {
-          ...prevQuiz, // Keep the summary
+          ...prevQuiz,
           questions: newQuizData.questions,
         };
       });
-      setUserAnswers({});
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to regenerate quiz',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRegenerating(false);
     }
-    setIsRegenerating(false);
   }
 
 
@@ -241,9 +277,9 @@ export function QuizClient() {
   const allAnswered = quiz && answeredQuestions === quiz.questions.length;
   
   const getFeedbackMessage = () => {
-    if (scorePercentage >= 80) return "Great job!";
-    if (scorePercentage >= 50) return "You're doing better!";
-    return "Keep trying!";
+    if (scorePercentage >= 80) return "Excellent work! You've mastered this content!";
+    if (scorePercentage >= 60) return "Good job! Keep practicing to improve further.";
+    return "Keep learning! Practice makes perfect.";
   };
 
 
@@ -293,7 +329,7 @@ export function QuizClient() {
                         Drag & drop or <span className="text-primary font-bold">browse</span>
                       </p>
                       <p className="text-sm text-muted-foreground">Supports: PDF, DOCX</p>
-                       {fileName && <p className="mt-4 text-sm text-primary">Nombre del archivo: {fileName}</p>}
+                       {fileName && <p className="mt-4 text-sm text-primary">File Name: {fileName}</p>}
                     </div>
                     <input 
                       id="dropzone-file"
