@@ -6,7 +6,7 @@
  * - generateExplanation - A function that generates an explanation for a quiz question.
  */
 
-import { callOpenRouter } from '@/ai/openrouter';
+import { callOpenAI } from '@/ai/openai';
 import type { GenerateExplanationInput, GenerateExplanationOutput } from '@/types/explanation';
 import { GenerateExplanationInputSchema, GenerateExplanationOutputSchema } from '@/types/explanation';
 
@@ -20,8 +20,8 @@ export async function generateExplanation(
 
 const generateExplanationFlow = async (input: GenerateExplanationInput): Promise<GenerateExplanationOutput> => {
   const prompt = `You are an expert tutor. Given a quiz question and its correct answer, provide a clear and concise explanation of why the answer is correct.\n\nQuestion: ${input.question}\nCorrect Answer: ${input.correctAnswer}\n\nReturn JSON: { "explanation": "..." }`;
-  const model = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free';
-  const content = await callOpenRouter(model, prompt);
+  const model = process.env.OPENAI_MODEL || 'gpt-5-mini';
+  const content = await callOpenAI(model, prompt);
   let parsed: any;
   try {
     parsed = JSON.parse(content);

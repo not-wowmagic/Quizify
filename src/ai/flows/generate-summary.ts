@@ -7,7 +7,7 @@
  * - GenerateSummaryOutput - The return type for the generateSummary function.
  */
 
-import { callOpenRouter } from '@/ai/openrouter';
+import { callOpenAI } from '@/ai/openai';
 import { z } from 'zod';
 
 const GenerateSummaryInputSchema = z.object({
@@ -30,8 +30,8 @@ const generateSummaryFlow = async (input: { lectureText: string }) => {
   const validatedInput = GenerateSummaryInputSchema.parse(input);
   
   const prompt = `Summarize the following text in one concise paragraph that captures the main points and key concepts:\n\n${validatedInput.lectureText}\n\nProvide ONLY the summary text without any additional formatting or JSON.`;
-  const model = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free';
-  const content = await callOpenRouter(model, prompt);
+  const model = process.env.OPENAI_MODEL || 'gpt-5-mini';
+  const content = await callOpenAI(model, prompt);
   
   // Create and validate the output
   const result = {
