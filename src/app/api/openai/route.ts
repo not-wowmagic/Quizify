@@ -5,14 +5,17 @@ export async function GET() {
   try {
     const model = process.env.OPENAI_MODEL || 'gpt-5-mini';
     const res = await callOpenAI(model, 'Return JSON: { "ok": true }');
-    // try to parse response
+
     try {
       const parsed = JSON.parse(res);
       return NextResponse.json({ status: 'ok', parsed });
-    } catch (err) {
+    } catch {
       return NextResponse.json({ status: 'ok', raw: res });
     }
   } catch (err: any) {
-    return NextResponse.json({ status: 'error', message: String(err?.message || err) }, { status: 500 });
+    return NextResponse.json({
+      status: 'error',
+      message: String(err?.message || err),
+    }, { status: 500 });
   }
 }

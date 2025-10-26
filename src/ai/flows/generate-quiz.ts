@@ -8,7 +8,7 @@
  */
 
 import { z } from 'zod';
-import { callOpenRouter } from '@/ai/openrouter';
+import { callOpenAI } from '@/ai/openai';
 
 // =========================================
 // Type Definitions and Validation Schemas
@@ -26,6 +26,7 @@ const GenerateQuizInputSchema = z.object({
 });
 
 export type GenerateQuizInput = z.infer<typeof GenerateQuizInputSchema>;
+type QuestionType = GenerateQuizInput['questionType'];
 
 /**
  * Question format validation schema
@@ -44,6 +45,14 @@ const GenerateQuizOutputSchema = z.object({
 });
 
 export type GenerateQuizOutput = z.infer<typeof GenerateQuizOutputSchema>;
+
+const QUESTION_TYPE_GUIDANCE: Record<QuestionType, string> = {
+  multiple_choice: 'Write clear multiple-choice questions with exactly four plausible options (one correct and three distractors). Use direct phrasing that tests conceptual understanding or factual recall from the text.',
+  situational: 'Craft scenario-based questions that describe a realistic situation. Ask the learner to apply concepts from the text to that scenario. Ensure the scenario details and the correct option are grounded explicitly in the provided text.',
+  fill_in_the_blank: 'Select a key sentence from the text and replace one critical term with a blank ("___"). Provide four answer options that could fit. Only one option may be correct according to the text, and distractors must be plausible but incorrect.',
+  true_false: 'Create declarative statements about the text and provide four answer options that contain variations (e.g., True, False, Mostly True, Not Given). Only one option may be fully correct, and each distractor must be clearly incorrect according to the text.',
+  mixed: 'Generate a balanced mix of multiple-choice, situational, fill-in-the-blank, and true/false questions. Alternate formats so the learner experiences variety while keeping every question answerable strictly from the text.',
+};
 
 // =========================================
 // Helper Functions
@@ -79,6 +88,9 @@ async function processTextChunk(chunk: string, params: {
   questionType: string;
   difficulty: string;
 }): Promise<any[]> {
+  const questionType = params.questionType as QuestionType;
+  const typeGuidance = QUESTION_TYPE_GUIDANCE[questionType] ?? QUESTION_TYPE_GUIDANCE.multiple_choice;
+
   const prompt = `You are an assistant that helps generate quiz questions from text content.
 Follow these strict rules:
 
@@ -95,6 +107,7 @@ Follow these strict rules:
      params.difficulty === 'medium' ? 'application of concepts and relationships' :
      'complex analysis and evaluation'
    }
+5. Question type guidance: ${typeGuidance}
 
 Text to use for questions:
 ${chunk}
@@ -111,8 +124,8 @@ Return questions in this exact JSON format:
   ]
 }`;
 
-  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
-  const response = await callOpenRouter(model, prompt);
+  const model = process.env.OPENAI_MODEL || 'gpt-5-mini';
+  const response = await callOpenAI(model, prompt);
   
   try {
     const result = JSON.parse(response);

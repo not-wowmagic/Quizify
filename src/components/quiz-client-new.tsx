@@ -306,6 +306,119 @@ export function QuizClient() {
   }
 
   return (
-    /* Your existing JSX rendering code */
+    <div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Quizify</CardTitle>
+          <CardDescription>{currentQuote}</CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <Textarea
+            value={lectureText}
+            onChange={(e) => setLectureText(e.target.value)}
+            placeholder="Paste lecture text or upload a file..."
+          />
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <Input
+              value={String(numQuestions)}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setNumQuestions(Number.isNaN(v) ? '' : v);
+              }}
+              placeholder="Number of questions"
+            />
+
+            <Select onValueChange={(v) => setDifficulty(v as 'easy' | 'medium' | 'hard')}>
+              <SelectTrigger>
+                <SelectValue>{difficulty}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="easy">Easy</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="hard">Hard</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select onValueChange={(v) => setQuestionType(v as any)}>
+              <SelectTrigger>
+                <SelectValue>{questionType}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                <SelectItem value="situational">Situational</SelectItem>
+                <SelectItem value="fill_in_the_blank">Fill in the Blank</SelectItem>
+                <SelectItem value="true_false">True / False</SelectItem>
+                <SelectItem value="mixed">Mixed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+
+        <CardFooter style={{ display: 'flex', gap: 8 }}>
+          <Button onClick={handleGenerateQuiz} disabled={isLoading}>
+            {isLoading ? <Loader2 className={cn('animate-spin')} /> : 'Generate Quiz'}
+          </Button>
+
+          <Button onClick={handleRegenerateQuiz} disabled={isRegenerating || !quiz}>
+            {isRegenerating ? <RefreshCw /> : 'Regenerate'}
+          </Button>
+
+          <Button variant="ghost" onClick={handleStartOver}>
+            Start Over
+          </Button>
+        </CardFooter>
+      </Card>
+
+      {quiz && (
+        <Card style={{ marginTop: 16 }}>
+          <CardHeader>
+            <CardTitle>Quiz</CardTitle>
+            <CardDescription>
+              Score: {score} / {quiz.questions.length} ({Math.round(scorePercentage)}%)
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            {quiz.summary && (
+              <div style={{ marginBottom: 12 }}>
+                <strong>Summary:</strong>
+                <p>{quiz.summary}</p>
+              </div>
+            )}
+
+            {quiz.questions.map((q, i) => (
+              <div key={i} style={{ marginBottom: 14 }}>
+                <div style={{ fontWeight: 600 }}>
+                  {i + 1}. {( (q as any).prompt ?? (q as any).question ?? (q as any).text ?? (q as any).stem ?? 'No prompt available' )}
+                </div>
+
+                <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {q.options.map((opt, oi) => (
+                    <Button
+                      key={oi}
+                      onClick={() => handleAnswer(i, oi)}
+                      variant={userAnswers[i] === oi ? 'secondary' : 'default'}
+                    >
+                      {opt}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+
+          <CardFooter>
+            <div style={{ flex: 1 }}>
+              {answeredQuestions > 0 ? getFeedbackMessage() : 'Answer some questions to get feedback.'}
+            </div>
+            <div style={{ marginLeft: 'auto' }}>
+              <strong>{score} / {quiz.questions.length}</strong>
+            </div>
+          </CardFooter>
+        </Card>
+      )}
+    </div>
   );
 }

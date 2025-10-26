@@ -28,16 +28,17 @@ To explore the codebase, start by looking at `src/app/page.tsx`.
 
 ## Development:
 
-### Switching to OpenRouter (how to configure your API key)
+### Configuring the OpenAI-compatible API
 
-This project now uses OpenRouter for LLM calls. To run the app locally with your OpenRouter API key:
+This project now targets OpenAI-compatible endpoints (e.g. ChatAnywhere). To run the app locally:
 
 1. Create a file named `.env.local` in the project root.
-2. Add your key and optionally the model name:
+2. Add your key, base URL, and (optionally) the model name:
 
 ```
-OPENROUTER_API_KEY=your_api_key_here
-OPENROUTER_MODEL=your_model_here
+OPENAI_API_KEY=your_api_key_here
+OPENAI_API_BASE_URL=https://api.chatanywhere.tech/v1
+OPENAI_MODEL=gpt-5-mini
 ```
 
 3. Install dependencies and run the dev server:
@@ -49,6 +50,6 @@ npm run dev
 
 The app will be available at http://localhost:9002 (per package.json dev script).
 
-If you want to use a different OpenRouter model, update `OPENROUTER_MODEL` or leave it unset to use the default.
+If you want to use a different model, update `OPENAI_MODEL` or leave it unset to use the default.
 
 
