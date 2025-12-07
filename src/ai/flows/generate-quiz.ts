@@ -8,7 +8,7 @@
  */
 
 import { z } from 'zod';
-import { callOpenAI } from '@/ai/openai';
+import { callOpenRouter } from '@/ai/openrouter';
 
 // =========================================
 // Type Definitions and Validation Schemas
@@ -124,8 +124,8 @@ Return questions in this exact JSON format:
   ]
 }`;
 
-  const model = process.env.OPENAI_MODEL || 'gpt-5-mini';
-  const response = await callOpenAI(model, prompt);
+  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
+  const response = await callOpenRouter(model, prompt);
   
   try {
     const result = JSON.parse(response);
