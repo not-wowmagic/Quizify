@@ -8,7 +8,7 @@
  * - GenerateDistractorsOutput - The return type for the generateDistractors function.
  */
 
-import { callOpenAI } from '@/ai/openai';
+import { callOpenRouter } from '@/ai/openrouter';
 import { z } from 'zod';
 
 const GenerateDistractorsInputSchema = z.object({
@@ -36,8 +36,8 @@ export async function generateDistractors(
 
 const generateDistractorsFlow = async (input: any) => {
   const prompt = `You are an expert in generating challenging distractor options for multiple-choice questions.\n\nGiven a question and its correct answer, generate ${input.numDistractors} distractor options that are plausible but incorrect. Return JSON: { "distractors": ["a","b",...] }\n\nQuestion: ${input.question}\nCorrect Answer: ${input.correctAnswer}`;
-  const model = process.env.OPENAI_MODEL || 'gpt-5-mini';
-  const content = await callOpenAI(model, prompt);
+  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
+  const content = await callOpenRouter(model, prompt);
   let parsed: any;
   try {
     parsed = JSON.parse(content);
