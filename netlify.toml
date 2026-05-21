@@ -1,0 +1,7 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+# Required for Next.js Server Actions and SSR on Netlify
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
