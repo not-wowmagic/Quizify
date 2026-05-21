@@ -148,7 +148,7 @@ export async function callGemini(prompt: string, options: GeminiOptions = {}) {
     throw new Error('GEMINI_API_KEY environment variable is not set. Please set it in your environment (e.g. Netlify dashboard or local .env.local file).');
   }
 
-  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
   const body: any = {
