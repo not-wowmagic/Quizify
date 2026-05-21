@@ -1,5 +1,5 @@
 // src/lib/quiz-processors.ts
-import type { Quiz, QuizQuestion } from '@/types/quiz';
+import type { Quiz, QuizQuestion, StandardQuestion, MatchingQuestion } from '@/types/quiz';
 import * as pdfjs from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
@@ -52,36 +52,61 @@ export const processFile = async (file: File): Promise<string> => {
   throw new Error('Unsupported file type. Please upload a PDF or DOCX file.');
 };
 
+/**
+ * Processes a standard (multiple-choice) question — shuffles options and updates correct index.
+ */
+function processStandardQuestion(q: StandardQuestion): StandardQuestion {
+  const optionObjects = q.options.map((opt, index) => ({
+    text: opt,
+    isCorrect: index === q.correctAnswerIndex
+  }));
+
+  // Don't shuffle for true/false questions
+  const isTrueFalse = (q.options.length === 2 || q.options.length === 4) &&
+    q.options.some(o => typeof o === 'string' && o.toLowerCase() === 'true') &&
+    q.options.some(o => typeof o === 'string' && o.toLowerCase() === 'false');
+
+  let shuffledObjects = optionObjects;
+  if (!isTrueFalse) {
+    shuffledObjects = shuffleArray(optionObjects);
+  }
+
+  const newOptions = shuffledObjects.map(o => o.text);
+  const newCorrectAnswerIndex = shuffledObjects.findIndex(o => o.isCorrect);
+
+  return {
+    ...q,
+    type: 'standard',
+    options: newOptions,
+    correctAnswerIndex: newCorrectAnswerIndex !== -1 ? newCorrectAnswerIndex : 0,
+  };
+}
+
+/**
+ * Processes a matching question — shuffles the response column order.
+ */
+function processMatchingQuestion(q: MatchingQuestion): MatchingQuestion {
+  // Create an array of response indices [0, 1, 2, ...] and shuffle them
+  const responseIndices = q.pairs.map((_, i) => i);
+  const shuffledIndices = shuffleArray(responseIndices);
+
+  return {
+    ...q,
+    type: 'matching',
+    shuffledResponseIndices: shuffledIndices,
+  };
+}
+
 export const processQuiz = (quizResult: { questions: QuizQuestion[] }): Quiz => {
-  // Shuffle questions
+  // Shuffle question order
   const shuffledQuestions = shuffleArray(quizResult.questions);
 
-  // Shuffle options for each question and update the correct answer index safely
-  const processedQuestions = shuffledQuestions.map((q) => {
-    // Map options to objects tracking their correctness based on the original correct index
-    const optionObjects = q.options.map((opt, index) => ({
-      text: opt,
-      isCorrect: index === q.correctAnswerIndex
-    }));
-
-    // Don't shuffle for true/false questions (length 2 or 4, containing 'true' and 'false')
-    const isTrueFalse = (q.options.length === 2 || q.options.length === 4) &&
-      q.options.some(o => typeof o === 'string' && o.toLowerCase() === 'true') &&
-      q.options.some(o => typeof o === 'string' && o.toLowerCase() === 'false');
-
-    let shuffledObjects = optionObjects;
-    if (!isTrueFalse) {
-      shuffledObjects = shuffleArray(optionObjects);
+  // Process each question based on type
+  const processedQuestions = shuffledQuestions.map((q): QuizQuestion => {
+    if (q.type === 'matching') {
+      return processMatchingQuestion(q);
     }
-
-    const newOptions = shuffledObjects.map(o => o.text);
-    const newCorrectAnswerIndex = shuffledObjects.findIndex(o => o.isCorrect);
-
-    return {
-      ...q,
-      options: newOptions,
-      correctAnswerIndex: newCorrectAnswerIndex !== -1 ? newCorrectAnswerIndex : 0,
-    };
+    return processStandardQuestion(q);
   });
 
   return { questions: processedQuestions };
