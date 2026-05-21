@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb, XCircle, FileText, Sparkles, Link2, Unlink2, RotateCcw } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb, XCircle, FileText, Sparkles, Link2, Unlink2, RotateCcw, CircleDot, CheckSquare, Edit3, Shuffle, Link } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -383,59 +383,85 @@ export function QuizClient() {
               </TabsContent>
             </Tabs>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-               <div>
-                <Label htmlFor="num-questions">Number of Questions</Label>
-                <Input
-                  id="num-questions"
-                  type="number"
-                  value={numQuestions === '' ? '' : String(numQuestions)}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setNumQuestions(value === '' ? '' : Math.max(1, parseInt(value, 10) || 1));
-                  }}
-                  disabled={isLoading}
-                  min="1"
-                  max="50"
-                  className="mt-1 bg-secondary/80"
-                />
+            <div className="grid grid-cols-1 gap-8 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Number of Questions */}
+                <div className="flex flex-col gap-4">
+                  <label className="text-sm font-medium text-muted-foreground">Number of Questions</label>
+                  <div className="flex bg-secondary/50 rounded-lg p-1 border border-border/50">
+                    {[5, 10, 15, 20].map((num) => (
+                      <button
+                        key={num}
+                        onClick={() => setNumQuestions(num)}
+                        disabled={isLoading}
+                        className={cn(
+                          "flex-1 py-2 rounded-md text-sm font-medium transition-colors",
+                          numQuestions === num 
+                            ? "bg-primary text-primary-foreground shadow-sm" 
+                            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        )}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Difficulty */}
+                <div className="flex flex-col gap-4">
+                  <label className="text-sm font-medium text-muted-foreground">Difficulty Level</label>
+                  <div className="flex bg-secondary/50 rounded-lg p-1 border border-border/50">
+                    {(['easy', 'medium', 'hard'] as const).map((diff) => (
+                      <button
+                        key={diff}
+                        onClick={() => setDifficulty(diff)}
+                        disabled={isLoading}
+                        className={cn(
+                          "flex-1 py-2 rounded-md text-sm font-medium capitalize transition-colors",
+                          difficulty === diff 
+                            ? "bg-primary text-primary-foreground shadow-sm" 
+                            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        )}
+                      >
+                        {diff}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="difficulty">Difficulty</Label>
-                <Select
-                  value={difficulty}
-                  onValueChange={(value) => setDifficulty(value as any)}
-                  disabled={isLoading}
-                >
-                  <SelectTrigger id="difficulty" className="mt-1 bg-secondary/80">
-                    <SelectValue placeholder="Select difficulty" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="easy">Easy</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="hard">Hard</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="question-type">Question Type</Label>
-                <Select
-                  value={questionType}
-                  onValueChange={(value) => setQuestionType(value as any)}
-                  disabled={isLoading}
-                >
-                  <SelectTrigger id="question-type" className="mt-1 bg-secondary/80">
-                    <SelectValue placeholder="Select question type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
-                    <SelectItem value="situational">Situational</SelectItem>
-                    <SelectItem value="fill_in_the_blank">Fill in the Blank</SelectItem>
-                    <SelectItem value="true_false">True / False</SelectItem>
-                    <SelectItem value="matching">Matching Type</SelectItem>
-                    <SelectItem value="mixed">Mixed</SelectItem>
-                  </SelectContent>
-                </Select>
+
+              {/* Question Type */}
+              <div className="flex flex-col gap-4">
+                <label className="text-sm font-medium text-muted-foreground">Question Type</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  {[
+                    { id: 'multiple_choice', label: 'Multiple Choice', icon: CircleDot },
+                    { id: 'true_false', label: 'True / False', icon: CheckSquare },
+                    { id: 'fill_in_the_blank', label: 'Fill in Blank', icon: Edit3 },
+                    { id: 'matching', label: 'Matching', icon: Link },
+                    { id: 'situational', label: 'Situational', icon: Lightbulb },
+                    { id: 'mixed', label: 'Mixed', icon: Shuffle }
+                  ].map((type) => {
+                    const Icon = type.icon;
+                    const isActive = questionType === type.id;
+                    return (
+                      <button
+                        key={type.id}
+                        onClick={() => setQuestionType(type.id as any)}
+                        disabled={isLoading}
+                        className={cn(
+                          "rounded-xl p-4 border flex flex-col items-center justify-center gap-3 transition-all duration-200 text-center",
+                          isActive
+                            ? "bg-primary/10 border-primary text-primary shadow-sm"
+                            : "border-border/50 hover:border-border bg-card hover:bg-secondary/50 text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <Icon className={cn("w-6 h-6", isActive ? "text-primary" : "text-muted-foreground")} />
+                        <span className="text-sm font-medium leading-tight">{type.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
