@@ -20,6 +20,10 @@
 # production
 /build
 
+# env files (use Netlify dashboard for secrets)
+.env.local
+.env*.local
+
 # misc
 .DS_Store
 *.pem
