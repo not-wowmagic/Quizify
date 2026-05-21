@@ -181,7 +181,7 @@ export async function callGemini(prompt: string, options: GeminiOptions = {}) {
   }
 
   const model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${primaryKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${primaryKey}`;
 
   const body: any = {
     contents: [
@@ -218,7 +218,7 @@ export async function callGemini(prompt: string, options: GeminiOptions = {}) {
     
     if (isRateLimit && fallbackKey) {
       console.warn(`Primary Gemini API Key was rate-limited/refused (${err.status}). Trying with fallback API key...`);
-      const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${fallbackKey}`;
+      const fallbackUrl = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${fallbackKey}`;
       try {
         const data = await fetchWithRetry(fallbackUrl, body);
         return getResponseText(data);
