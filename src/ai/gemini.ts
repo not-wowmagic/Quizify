@@ -93,7 +93,7 @@ export function extractJSON(str: string): any {
 }
 
 async function fetchWithRetry(url: string, body: any, retries = 2, delay = 1000): Promise<any> {
-  const timeoutMs = 4000; // 4000ms timeout as requested by the user
+  const timeoutMs = 15000; // 15s timeout — quiz generation needs time for JSON output
 
   for (let i = 0; i <= retries; i++) {
     const controller = new AbortController();
@@ -149,7 +149,7 @@ export async function callGemini(prompt: string, options: GeminiOptions = {}) {
   }
 
   const model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
 
   const body: any = {
     contents: [
