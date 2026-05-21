@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import type { Quiz, QuizQuestion } from '@/types/quiz';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import type { Quiz, QuizQuestion, StandardQuestion, MatchingQuestion } from '@/types/quiz';
 import { createQuiz, explainAnswer, regenerateQuizQuestions, createSummary } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb, XCircle, FileText, Sparkles } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb, XCircle, FileText, Sparkles, Link2, Unlink2, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,17 +29,23 @@ const motivationalQuotes = [
 
 const getRandomQuote = () => motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
 
+// =========================================
+// Answer type: supports both standard and matching answers
+// =========================================
+type StandardAnswer = { type: 'standard'; selectedIndex: number };
+type MatchingAnswer = { type: 'matching'; matches: Record<number, number>; checked: boolean };
+type QuizAnswer = StandardAnswer | MatchingAnswer;
 
 export function QuizClient() {
   // Core quiz state
   const [quiz, setQuiz] = useState<Quiz | null>(null);
-  const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
+  const [userAnswers, setUserAnswers] = useState<Record<number, QuizAnswer>>({});
   
   // Input state with validation
   const [lectureText, setLectureText] = useState('');
   const [numQuestions, setNumQuestions] = useState<number | ''>(10);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [questionType, setQuestionType] = useState<'multiple_choice' | 'situational' | 'fill_in_the_blank' | 'true_false' | 'mixed'>('multiple_choice');
+  const [questionType, setQuestionType] = useState<'multiple_choice' | 'situational' | 'fill_in_the_blank' | 'true_false' | 'matching' | 'mixed'>('multiple_choice');
   
   // UI state
   const [isLoading, setIsLoading] = useState(false);
@@ -54,7 +60,6 @@ export function QuizClient() {
   const previousTextRef = useRef('');
   const debounceTimerRef = useRef<NodeJS.Timeout>();
   
-
 
   const { toast } = useToast();
 
@@ -177,10 +182,17 @@ export function QuizClient() {
     }
   }
 
-  const handleAnswer = (questionIndex: number, optionIndex: number) => {
+  const handleStandardAnswer = (questionIndex: number, optionIndex: number) => {
     setUserAnswers((prev) => ({
       ...prev,
-      [questionIndex]: optionIndex,
+      [questionIndex]: { type: 'standard', selectedIndex: optionIndex },
+    }));
+  };
+
+  const handleMatchingUpdate = (questionIndex: number, answer: MatchingAnswer) => {
+    setUserAnswers((prev) => ({
+      ...prev,
+      [questionIndex]: answer,
     }));
   };
 
@@ -239,6 +251,7 @@ export function QuizClient() {
         return;
       }
 
+      setUserAnswers({});
       setQuiz(prevQuiz => {
         const newQuizData = processQuiz(result);
         if (!prevQuiz) return newQuizData;
@@ -261,17 +274,31 @@ export function QuizClient() {
 
   const { score, answeredQuestions, scorePercentage } = useMemo(() => {
     if (!quiz) return { score: 0, answeredQuestions: 0, scorePercentage: 0 };
-    const answeredIndices = Object.keys(userAnswers);
-    const correctAnswers = answeredIndices.reduce((acc, qIndexStr) => {
-      const qIndex = parseInt(qIndexStr, 10);
-      const question = quiz.questions[qIndex];
-      if (question.correctAnswerIndex === userAnswers[qIndex]) {
-        return acc + 1;
+    
+    let totalCorrect = 0;
+    let totalAnswered = 0;
+
+    quiz.questions.forEach((q, qIndex) => {
+      const answer = userAnswers[qIndex];
+      if (!answer) return;
+
+      if (q.type === 'standard' && answer.type === 'standard') {
+        totalAnswered++;
+        if (q.correctAnswerIndex === answer.selectedIndex) {
+          totalCorrect++;
+        }
+      } else if (q.type === 'matching' && answer.type === 'matching' && answer.checked) {
+        totalAnswered++;
+        // A matching question is correct if ALL pairs are matched correctly
+        const allCorrect = q.pairs.every((_, pairIdx) => answer.matches[pairIdx] === pairIdx);
+        if (allCorrect) {
+          totalCorrect++;
+        }
       }
-      return acc;
-    }, 0);
-    const percentage = quiz.questions.length > 0 ? (correctAnswers / quiz.questions.length) * 100 : 0;
-    return { score: correctAnswers, answeredQuestions: answeredIndices.length, scorePercentage: percentage };
+    });
+
+    const percentage = quiz.questions.length > 0 ? (totalCorrect / quiz.questions.length) * 100 : 0;
+    return { score: totalCorrect, answeredQuestions: totalAnswered, scorePercentage: percentage };
   }, [userAnswers, quiz]);
 
   const allAnswered = quiz && answeredQuestions === quiz.questions.length;
@@ -405,6 +432,7 @@ export function QuizClient() {
                     <SelectItem value="situational">Situational</SelectItem>
                     <SelectItem value="fill_in_the_blank">Fill in the Blank</SelectItem>
                     <SelectItem value="true_false">True / False</SelectItem>
+                    <SelectItem value="matching">Matching Type</SelectItem>
                     <SelectItem value="mixed">Mixed</SelectItem>
                   </SelectContent>
                 </Select>
@@ -440,16 +468,29 @@ export function QuizClient() {
             />
 
             <div className="space-y-6">
-              {quiz.questions.map((q, qIndex) => (
-                <QuestionCard 
-                  key={`${q.question}-${qIndex}`} 
-                  question={q} 
-                  questionIndex={qIndex} 
-                  userAnswer={userAnswers[qIndex]} 
-                  onAnswer={handleAnswer}
-                  toast={toast}
-                />
-              ))}
+              {quiz.questions.map((q, qIndex) => {
+                if (q.type === 'matching') {
+                  return (
+                    <MatchingQuestionCard
+                      key={`matching-${q.question}-${qIndex}`}
+                      question={q}
+                      questionIndex={qIndex}
+                      userAnswer={userAnswers[qIndex] as MatchingAnswer | undefined}
+                      onUpdate={(answer) => handleMatchingUpdate(qIndex, answer)}
+                    />
+                  );
+                }
+                return (
+                  <StandardQuestionCard 
+                    key={`standard-${q.question}-${qIndex}`} 
+                    question={q} 
+                    questionIndex={qIndex} 
+                    userAnswer={userAnswers[qIndex] as StandardAnswer | undefined} 
+                    onAnswer={handleStandardAnswer}
+                    toast={toast}
+                  />
+                );
+              })}
             </div>
 
              {allAnswered && (
@@ -489,15 +530,19 @@ function Label({ htmlFor, children }: { htmlFor: string, children: React.ReactNo
     return <label htmlFor={htmlFor} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{children}</label>
 }
 
-interface QuestionCardProps {
-  question: QuizQuestion;
+// =========================================
+// Standard Question Card (existing behavior)
+// =========================================
+
+interface StandardQuestionCardProps {
+  question: StandardQuestion;
   questionIndex: number;
-  userAnswer: number | undefined;
+  userAnswer: StandardAnswer | undefined;
   onAnswer: (questionIndex: number, optionIndex: number) => void;
   toast: (options: { title: string; description: string; variant?: "default" | "destructive" }) => void;
 }
 
-function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: QuestionCardProps) {
+function StandardQuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: StandardQuestionCardProps) {
   const isAnswered = userAnswer !== undefined;
   const [isExplanationLoading, setIsExplanationLoading] = useState(false);
   const [explanation, setExplanation] = useState('');
@@ -543,13 +588,9 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
       <CardContent className="space-y-3">
         {question.options.map((option, oIndex) => {
           const isCorrectAnswer = oIndex === question.correctAnswerIndex;
-          const isSelected = oIndex === userAnswer;
+          const isSelected = userAnswer !== undefined && oIndex === userAnswer.selectedIndex;
           const optionLetter = String.fromCharCode(65 + oIndex); // A, B, C, D
 
-          // Determine classes so that after answering:
-          // - the correct answer is highlighted green
-          // - a selected wrong answer is highlighted red
-          // - other options are muted
           const buttonClass = cn(
             'justify-start text-left h-auto py-3 px-4 whitespace-normal relative rounded-lg border flex items-center gap-4 text-base transition-all duration-300',
             {
@@ -607,6 +648,322 @@ function QuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: 
     </Card>
   );
 }
+
+// =========================================
+// Matching Question Card — click-to-match, mobile-friendly
+// =========================================
+
+interface MatchingQuestionCardProps {
+  question: MatchingQuestion;
+  questionIndex: number;
+  userAnswer: MatchingAnswer | undefined;
+  onUpdate: (answer: MatchingAnswer) => void;
+}
+
+function MatchingQuestionCard({ question, questionIndex, userAnswer, onUpdate }: MatchingQuestionCardProps) {
+  const pairs = question.pairs;
+  const shuffledResponseIndices = question.shuffledResponseIndices || pairs.map((_, i) => i);
+  
+  // Local state for the matching interaction
+  const [matches, setMatches] = useState<Record<number, number>>(userAnswer?.matches || {});
+  const [selectedPremise, setSelectedPremise] = useState<number | null>(null);
+  const [checked, setChecked] = useState(userAnswer?.checked || false);
+
+  // Reverse map: response index → premise index (for highlighting which response is taken)
+  const responseToMatchedPremise = useMemo(() => {
+    const map: Record<number, number> = {};
+    Object.entries(matches).forEach(([pIdx, rIdx]) => {
+      map[rIdx] = Number(pIdx);
+    });
+    return map;
+  }, [matches]);
+
+  const allPairsMatched = Object.keys(matches).length === pairs.length;
+
+  const handlePremiseClick = useCallback((premiseIdx: number) => {
+    if (checked) return;
+    
+    // If already matched, unmatch it
+    if (matches[premiseIdx] !== undefined) {
+      setMatches(prev => {
+        const next = { ...prev };
+        delete next[premiseIdx];
+        return next;
+      });
+      setSelectedPremise(null);
+      return;
+    }
+
+    // Toggle selection
+    setSelectedPremise(prev => prev === premiseIdx ? null : premiseIdx);
+  }, [checked, matches]);
+
+  const handleResponseClick = useCallback((responseOriginalIdx: number) => {
+    if (checked) return;
+
+    // If this response is already matched to something, unmatch it
+    if (responseToMatchedPremise[responseOriginalIdx] !== undefined) {
+      const matchedPremise = responseToMatchedPremise[responseOriginalIdx];
+      setMatches(prev => {
+        const next = { ...prev };
+        delete next[matchedPremise];
+        return next;
+      });
+      // If we had a selected premise, don't auto-match it to this response
+      return;
+    }
+
+    // If no premise selected, select this response's premise (reverse flow)
+    if (selectedPremise === null) return;
+
+    // Create the match
+    setMatches(prev => ({
+      ...prev,
+      [selectedPremise]: responseOriginalIdx,
+    }));
+    setSelectedPremise(null);
+  }, [checked, selectedPremise, responseToMatchedPremise]);
+
+  const handleCheck = useCallback(() => {
+    setChecked(true);
+    onUpdate({ type: 'matching', matches, checked: true });
+  }, [matches, onUpdate]);
+
+  const handleReset = useCallback(() => {
+    if (checked) return;
+    setMatches({});
+    setSelectedPremise(null);
+  }, [checked]);
+
+  // Get match color for a premise (after checking)
+  const getMatchResult = useCallback((premiseIdx: number): 'correct' | 'incorrect' | null => {
+    if (!checked) return null;
+    if (matches[premiseIdx] === undefined) return 'incorrect';
+    // Correct if the response's original index matches the premise's original index
+    return matches[premiseIdx] === premiseIdx ? 'correct' : 'incorrect';
+  }, [checked, matches]);
+
+  // Count correct pairs
+  const correctPairCount = useMemo(() => {
+    if (!checked) return 0;
+    return pairs.filter((_, idx) => matches[idx] === idx).length;
+  }, [checked, pairs, matches]);
+
+  // Get the matching label index (1, 2, 3...) for visual connection lines
+  const getMatchLabel = useCallback((premiseIdx: number): number | null => {
+    if (matches[premiseIdx] === undefined) return null;
+    // Return a 1-indexed label based on creation order
+    const sortedPremises = Object.keys(matches).map(Number).sort((a, b) => a - b);
+    return sortedPremises.indexOf(premiseIdx) + 1;
+  }, [matches]);
+
+  const getResponseMatchLabel = useCallback((responseOriginalIdx: number): number | null => {
+    const premiseIdx = responseToMatchedPremise[responseOriginalIdx];
+    if (premiseIdx === undefined) return null;
+    return getMatchLabel(premiseIdx);
+  }, [responseToMatchedPremise, getMatchLabel]);
+
+  // Color palette for match lines
+  const matchColors = [
+    'bg-blue-500/30 border-blue-400', 
+    'bg-purple-500/30 border-purple-400', 
+    'bg-amber-500/30 border-amber-400', 
+    'bg-cyan-500/30 border-cyan-400', 
+    'bg-pink-500/30 border-pink-400', 
+    'bg-emerald-500/30 border-emerald-400',
+    'bg-orange-500/30 border-orange-400',
+    'bg-indigo-500/30 border-indigo-400',
+  ];
+
+  const matchTextColors = [
+    'text-blue-400', 
+    'text-purple-400', 
+    'text-amber-400', 
+    'text-cyan-400', 
+    'text-pink-400', 
+    'text-emerald-400',
+    'text-orange-400',
+    'text-indigo-400',
+  ];
+
+  return (
+    <Card className="bg-card/80 backdrop-blur-sm border-white/10 shadow-lg transition-all duration-300 hover:border-white/20">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-md bg-primary/10 border border-primary/20">
+            <Link2 className="w-4 h-4 text-primary" />
+          </div>
+          <CardTitle className="text-xl font-semibold">
+            {questionIndex + 1}. {question.question}
+          </CardTitle>
+        </div>
+        <CardDescription className="mt-1">
+          Tap a term on the left, then tap its match on the right. Tap a matched pair to unmatch it.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {/* Two-column matching grid */}
+        <div className="grid grid-cols-2 gap-3 md:gap-4">
+          {/* Left column — Premises */}
+          <div className="space-y-2">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 px-1">Terms</div>
+            {pairs.map((pair, pIdx) => {
+              const isSelected = selectedPremise === pIdx;
+              const isMatched = matches[pIdx] !== undefined;
+              const matchResult = getMatchResult(pIdx);
+              const matchLabel = getMatchLabel(pIdx);
+              const colorIdx = matchLabel !== null ? (matchLabel - 1) % matchColors.length : 0;
+
+              return (
+                <button
+                  key={`premise-${pIdx}`}
+                  onClick={() => handlePremiseClick(pIdx)}
+                  disabled={checked}
+                  className={cn(
+                    'w-full text-left p-3 rounded-lg border-2 transition-all duration-200 text-sm md:text-base relative',
+                    'active:scale-[0.98] touch-manipulation',
+                    {
+                      // Not answered yet states
+                      'border-primary bg-primary/10 shadow-md shadow-primary/20 ring-2 ring-primary/30': isSelected && !checked,
+                      [matchColors[colorIdx]]: isMatched && !checked,
+                      'border-border/50 bg-card/60 hover:border-border hover:bg-card/80': !isSelected && !isMatched && !checked,
+                      // After check states
+                      'bg-success/20 border-success/50': matchResult === 'correct',
+                      'bg-destructive/20 border-destructive/50': matchResult === 'incorrect',
+                      'opacity-50 cursor-not-allowed': checked,
+                    }
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    {matchLabel !== null && (
+                      <span className={cn(
+                        'flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold',
+                        checked 
+                          ? matchResult === 'correct' ? 'bg-success/50 text-success-foreground' : 'bg-destructive/50 text-destructive-foreground'
+                          : `${matchColors[colorIdx]} ${matchTextColors[colorIdx]}`
+                      )}>
+                        {matchLabel}
+                      </span>
+                    )}
+                    <span className="flex-grow">{pair.premise}</span>
+                    {matchResult === 'correct' && <CheckCircle2 className="flex-shrink-0 w-4 h-4 text-success ml-1" />}
+                    {matchResult === 'incorrect' && <XCircle className="flex-shrink-0 w-4 h-4 text-destructive ml-1" />}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Right column — Responses (shuffled) */}
+          <div className="space-y-2">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 px-1">Definitions</div>
+            {shuffledResponseIndices.map((originalIdx) => {
+              const pair = pairs[originalIdx];
+              const isMatchedToSomePremise = responseToMatchedPremise[originalIdx] !== undefined;
+              const matchLabel = getResponseMatchLabel(originalIdx);
+              const colorIdx = matchLabel !== null ? (matchLabel - 1) % matchColors.length : 0;
+              
+              // After check: determine if the match to this response is correct
+              const matchedPremise = responseToMatchedPremise[originalIdx];
+              const isCorrectMatch = checked && matchedPremise !== undefined && matchedPremise === originalIdx;
+              const isIncorrectMatch = checked && matchedPremise !== undefined && matchedPremise !== originalIdx;
+              // This response wasn't matched at all but should have been
+              const isUnmatched = checked && matchedPremise === undefined;
+
+              return (
+                <button
+                  key={`response-${originalIdx}`}
+                  onClick={() => handleResponseClick(originalIdx)}
+                  disabled={checked}
+                  className={cn(
+                    'w-full text-left p-3 rounded-lg border-2 transition-all duration-200 text-sm md:text-base',
+                    'active:scale-[0.98] touch-manipulation',
+                    {
+                      // Before check states
+                      [matchColors[colorIdx]]: isMatchedToSomePremise && !checked,
+                      'border-border/50 bg-card/60 hover:border-border hover:bg-card/80': !isMatchedToSomePremise && !checked,
+                      'border-primary/50 bg-primary/5': selectedPremise !== null && !isMatchedToSomePremise && !checked,
+                      // After check states
+                      'bg-success/20 border-success/50': isCorrectMatch,
+                      'bg-destructive/20 border-destructive/50': isIncorrectMatch || isUnmatched,
+                      'opacity-50 cursor-not-allowed': checked,
+                    }
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    {matchLabel !== null && (
+                      <span className={cn(
+                        'flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold',
+                        checked
+                          ? isCorrectMatch ? 'bg-success/50 text-success-foreground' : 'bg-destructive/50 text-destructive-foreground'
+                          : `${matchColors[colorIdx]} ${matchTextColors[colorIdx]}`
+                      )}>
+                        {matchLabel}
+                      </span>
+                    )}
+                    <span className="flex-grow">{pair.response}</span>
+                    {isCorrectMatch && <CheckCircle2 className="flex-shrink-0 w-4 h-4 text-success ml-1" />}
+                    {isIncorrectMatch && <XCircle className="flex-shrink-0 w-4 h-4 text-destructive ml-1" />}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Correct answers reveal after checking */}
+        {checked && (
+          <div className="mt-4 p-4 bg-secondary/60 rounded-lg border border-border/30 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <h4 className="font-semibold mb-2 text-sm flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-primary" />
+              Correct Matches — {correctPairCount} / {pairs.length} pairs correct
+            </h4>
+            <div className="space-y-1">
+              {pairs.map((pair, idx) => (
+                <div key={`answer-${idx}`} className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">{pair.premise}</span>
+                  <span className="text-primary">→</span>
+                  <span>{pair.response}</span>
+                  {matches[idx] === idx ? (
+                    <CheckCircle2 className="w-3 h-3 text-success flex-shrink-0" />
+                  ) : (
+                    <XCircle className="w-3 h-3 text-destructive flex-shrink-0" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+      
+      {!checked && (
+        <CardFooter className="flex gap-3">
+          <Button
+            onClick={handleCheck}
+            disabled={!allPairsMatched}
+            className="flex-1 rounded-lg font-semibold"
+          >
+            <CheckCircle2 className="mr-2 h-4 w-4" />
+            Check Matches
+          </Button>
+          <Button
+            onClick={handleReset}
+            variant="outline"
+            disabled={Object.keys(matches).length === 0}
+            className="rounded-lg"
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Reset
+          </Button>
+        </CardFooter>
+      )}
+    </Card>
+  );
+}
+
+// =========================================
+// Summary Card
+// =========================================
 
 interface SummaryCardProps {
     summary?: string;
