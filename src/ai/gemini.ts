@@ -3,6 +3,15 @@ export interface GeminiOptions {
   jsonMode?: boolean;
 }
 
+export class GeminiAPIError extends Error {
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.status = status;
+    this.name = 'GeminiAPIError';
+  }
+}
+
 /**
  * Extract the first complete, balanced JSON object (or array) from a string.
  * Handles strings, escapes, and brackets balancing.
@@ -124,15 +133,19 @@ async function fetchWithRetry(url: string, body: any, retries = 2, delay = 1000)
         continue;
       }
 
-      throw new Error(`Gemini API error ${res.status}: ${txt}`);
+      throw new GeminiAPIError(`Gemini API error ${res.status}: ${txt}`, res.status);
     } catch (err: any) {
       clearTimeout(timeoutId);
+
+      if (err instanceof GeminiAPIError) {
+        throw err;
+      }
 
       const isTimeout = err.name === 'AbortError';
       const errorMessage = isTimeout ? `Request timed out after ${timeoutMs}ms` : err.message;
 
       if (i === retries) {
-        throw new Error(`Failed to contact Gemini API: ${errorMessage}`);
+        throw new GeminiAPIError(`Failed to contact Gemini API: ${errorMessage}`);
       }
 
       console.warn(`Request failed (${errorMessage}). Retrying in ${delay}ms (attempt ${i + 1}/${retries})...`);
@@ -142,14 +155,33 @@ async function fetchWithRetry(url: string, body: any, retries = 2, delay = 1000)
   }
 }
 
+function getResponseText(data: any): string {
+  const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  
+  if (!content) {
+    const candidate = data?.candidates?.[0];
+    if (candidate?.finishReason && candidate.finishReason !== 'STOP') {
+      throw new Error(`Gemini API failed to generate complete response. Finish reason: ${candidate.finishReason}`);
+    }
+    if (data?.promptFeedback?.blockReason) {
+      throw new Error(`Gemini API request was blocked: ${data.promptFeedback.blockReason}`);
+    }
+    throw new Error(`Gemini API returned no content. Response payload: ${JSON.stringify(data)}`);
+  }
+  
+  return String(content);
+}
+
 export async function callGemini(prompt: string, options: GeminiOptions = {}) {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) {
+  const primaryKey = process.env.GEMINI_API_KEY;
+  const fallbackKey = process.env.GEMINI_API_KEY_FALLBACK;
+
+  if (!primaryKey) {
     throw new Error('GEMINI_API_KEY environment variable is not set. Please set it in your environment (e.g. Netlify dashboard or local .env.local file).');
   }
 
   const model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${primaryKey}`;
 
   const body: any = {
     contents: [
@@ -180,22 +212,22 @@ export async function callGemini(prompt: string, options: GeminiOptions = {}) {
 
   try {
     const data = await fetchWithRetry(url, body);
-    const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    return getResponseText(data);
+  } catch (err: any) {
+    const isRateLimit = err instanceof GeminiAPIError && (err.status === 429 || err.status === 403);
     
-    if (!content) {
-      // Check for safety blocks or other finish reasons
-      const candidate = data?.candidates?.[0];
-      if (candidate?.finishReason && candidate.finishReason !== 'STOP') {
-        throw new Error(`Gemini API failed to generate complete response. Finish reason: ${candidate.finishReason}`);
+    if (isRateLimit && fallbackKey) {
+      console.warn(`Primary Gemini API Key was rate-limited/refused (${err.status}). Trying with fallback API key...`);
+      const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${fallbackKey}`;
+      try {
+        const data = await fetchWithRetry(fallbackUrl, body);
+        return getResponseText(data);
+      } catch (fallbackErr: any) {
+        console.error('Fallback Gemini API execution error:', fallbackErr);
+        throw fallbackErr;
       }
-      if (data?.promptFeedback?.blockReason) {
-        throw new Error(`Gemini API request was blocked: ${data.promptFeedback.blockReason}`);
-      }
-      throw new Error(`Gemini API returned no content. Response payload: ${JSON.stringify(data)}`);
     }
-    
-    return String(content);
-  } catch (err) {
+
     console.error('Gemini API execution error:', err);
     throw err;
   }
