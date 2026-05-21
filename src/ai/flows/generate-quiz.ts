@@ -1,5 +1,3 @@
-'use server';
-
 /**
  * Quiz Generation Module
  * 
@@ -8,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { callOpenRouter } from '@/ai/openrouter';
+import { callGemini, extractJSON } from '@/ai/gemini';
 
 // =========================================
 // Type Definitions and Validation Schemas
@@ -62,18 +60,42 @@ const QUESTION_TYPE_GUIDANCE: Record<QuestionType, string> = {
  * Splits text into manageable chunks for better processing
  */
 function splitTextIntoChunks(text: string, maxLength = 2000): string[] {
-  const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
+  let sentences: string[] = text.match(/[^.!?]+[.!?]+/g) || [];
+  if (sentences.length === 0) {
+    sentences = text.split(/\n+/).filter(Boolean);
+    if (sentences.length === 0) {
+      sentences = [text];
+    }
+  }
+
   const chunks: string[] = [];
   let currentChunk = '';
   
   for (const sentence of sentences) {
-    if ((currentChunk + sentence).length > maxLength) {
+    if (sentence.length > maxLength) {
+      if (currentChunk.trim()) {
+        chunks.push(currentChunk.trim());
+        currentChunk = '';
+      }
+      
+      let remaining = sentence;
+      while (remaining.length > maxLength) {
+        let splitIdx = remaining.lastIndexOf(' ', maxLength);
+        if (splitIdx === -1 || splitIdx === 0) {
+          splitIdx = maxLength;
+        }
+        chunks.push(remaining.substring(0, splitIdx).trim());
+        remaining = remaining.substring(splitIdx).trim();
+      }
+      currentChunk = remaining;
+    } else if ((currentChunk + sentence).length > maxLength) {
       chunks.push(currentChunk.trim());
       currentChunk = sentence;
     } else {
       currentChunk += sentence;
     }
   }
+  
   if (currentChunk.trim()) {
     chunks.push(currentChunk.trim());
   }
@@ -124,23 +146,13 @@ Return questions in this exact JSON format:
   ]
 }`;
 
-  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
-  const response = await callOpenRouter(model, prompt);
+  const response = await callGemini(prompt, { jsonMode: true });
   
   try {
-    const result = JSON.parse(response);
+    const result = extractJSON(response);
     return result?.questions || [];
   } catch (err) {
-    // Try to extract JSON if it's wrapped in text
-    const match = response.match(/\{[\s\S]*\}/m);
-    if (match) {
-      try {
-        const result = JSON.parse(match[0]);
-        return result?.questions || [];
-      } catch {
-        console.error('Failed to parse JSON from chunk response');
-      }
-    }
+    console.error('Failed to extract/parse JSON from chunk response:', err);
     return [];
   }
 }
@@ -169,14 +181,18 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
   const chunks = splitTextIntoChunks(validatedInput.lectureText);
   const questionsPerChunk = Math.ceil(validatedInput.numQuestions / chunks.length);
   
-  // Generate questions from each chunk
-  const allQuestions: any[] = [];
-  for (const chunk of chunks) {
-    const chunkQuestions = await processTextChunk(chunk, {
+  // Generate questions from each chunk in parallel
+  const chunkPromises = chunks.map(chunk =>
+    processTextChunk(chunk, {
       questionsPerChunk,
       questionType: validatedInput.questionType,
       difficulty: validatedInput.difficulty
-    });
+    })
+  );
+  
+  const results = await Promise.all(chunkPromises);
+  const allQuestions: any[] = [];
+  for (const chunkQuestions of results) {
     allQuestions.push(...chunkQuestions);
   }
   

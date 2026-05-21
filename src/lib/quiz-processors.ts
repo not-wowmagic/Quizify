@@ -3,9 +3,12 @@ import type { Quiz, QuizQuestion } from '@/types/quiz';
 import * as pdfjs from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
-// Set up the worker for pdfjs
+// Set up the worker for pdfjs using Next.js Webpack asset bundling
 if (typeof window !== 'undefined') {
-  pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+    'pdfjs-dist/build/pdf.worker.min.mjs',
+    import.meta.url
+  ).toString();
 }
 
 // Helper function to shuffle arrays
@@ -33,7 +36,11 @@ export const processFile = async (file: File): Promise<string> => {
       textContent.push(pageText);
     }
     
-    return textContent.join('\n\n');
+    const fullText = textContent.join('\n\n');
+    if (fullText.trim().length < 10) {
+      throw new Error('This PDF appears to be a scanned image or empty. It does not contain any readable text layers. Please use a text-based document or copy and paste the text manually.');
+    }
+    return fullText;
   } 
   
   if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
@@ -49,23 +56,31 @@ export const processQuiz = (quizResult: { questions: QuizQuestion[] }): Quiz => 
   // Shuffle questions
   const shuffledQuestions = shuffleArray(quizResult.questions);
 
-  // Shuffle options for each question and update the correct answer index
+  // Shuffle options for each question and update the correct answer index safely
   const processedQuestions = shuffledQuestions.map((q) => {
-    // Don't shuffle for true/false questions
-    if (q.options.length === 2 && 
-        q.options[0].toLowerCase() === 'true' && 
-        q.options[1].toLowerCase() === 'false') {
-      return q;
+    // Map options to objects tracking their correctness based on the original correct index
+    const optionObjects = q.options.map((opt, index) => ({
+      text: opt,
+      isCorrect: index === q.correctAnswerIndex
+    }));
+
+    // Don't shuffle for true/false questions (length 2 or 4, containing 'true' and 'false')
+    const isTrueFalse = (q.options.length === 2 || q.options.length === 4) &&
+      q.options.some(o => typeof o === 'string' && o.toLowerCase() === 'true') &&
+      q.options.some(o => typeof o === 'string' && o.toLowerCase() === 'false');
+
+    let shuffledObjects = optionObjects;
+    if (!isTrueFalse) {
+      shuffledObjects = shuffleArray(optionObjects);
     }
-    
-    const correctAnswer = q.options[q.correctAnswerIndex];
-    const shuffledOptions = shuffleArray(q.options);
-    const newCorrectAnswerIndex = shuffledOptions.indexOf(correctAnswer);
+
+    const newOptions = shuffledObjects.map(o => o.text);
+    const newCorrectAnswerIndex = shuffledObjects.findIndex(o => o.isCorrect);
 
     return {
       ...q,
-      options: shuffledOptions,
-      correctAnswerIndex: newCorrectAnswerIndex,
+      options: newOptions,
+      correctAnswerIndex: newCorrectAnswerIndex !== -1 ? newCorrectAnswerIndex : 0,
     };
   });
 

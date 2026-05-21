@@ -1,4 +1,3 @@
-'use server';
 /**
  * @fileOverview Flow to generate a summary of the provided text.
  *
@@ -7,7 +6,7 @@
  * - GenerateSummaryOutput - The return type for the generateSummary function.
  */
 
-import { callOpenRouter } from '@/ai/openrouter';
+import { callGemini } from '@/ai/gemini';
 import { z } from 'zod';
 
 const GenerateSummaryInputSchema = z.object({
@@ -30,8 +29,7 @@ const generateSummaryFlow = async (input: { lectureText: string }) => {
   const validatedInput = GenerateSummaryInputSchema.parse(input);
   
   const prompt = `Summarize the following text in one concise paragraph that captures the main points and key concepts:\n\n${validatedInput.lectureText}\n\nProvide ONLY the summary text without any additional formatting or JSON.`;
-  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
-  const content = await callOpenRouter(model, prompt);
+  const content = await callGemini(prompt);
   
   // Create and validate the output
   const result = {

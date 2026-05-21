@@ -8,8 +8,8 @@ import type { GenerateExplanationInput, GenerateExplanationOutput } from '@/type
 import type { Quiz, QuizQuestion } from '@/types/quiz';
 
 export async function createQuiz(input: Omit<GenerateQuizInput, 'model'>): Promise<Pick<Quiz, 'questions'> | { error: string }> {
-  if (!input.lectureText || input.lectureText.trim().length < 50) {
-    return { error: 'Please provide a more substantial lecture text (at least 50 characters).' };
+  if (!input.lectureText || input.lectureText.trim().length < 100) {
+    return { error: 'Please provide a more substantial lecture text (at least 100 characters).' };
   }
 
   try {
@@ -24,15 +24,14 @@ export async function createQuiz(input: Omit<GenerateQuizInput, 'model'>): Promi
         questions: quizResult.questions,
     };
   } catch (e) {
-        console.error(e);
-        // Always return the error message for debugging purposes
-        return { error: 'An unexpected error occurred while generating the quiz. ' + String((e as any)?.message || e) };
+        console.error('CreateQuiz Error:', e);
+        return { error: 'Failed to generate the quiz due to a server error. If deploying, ensure GEMINI_API_KEY is configured on Netlify.' };
   }
 }
 
 export async function regenerateQuizQuestions(input: Omit<GenerateQuizInput, 'model'>): Promise<{questions: QuizQuestion[]} | { error: string }> {
-    if (!input.lectureText || input.lectureText.trim().length < 50) {
-        return { error: 'Please provide a more substantial lecture text (at least 50 characters).' };
+    if (!input.lectureText || input.lectureText.trim().length < 100) {
+        return { error: 'Please provide a more substantial lecture text (at least 100 characters).' };
     }
     try {
         const quizResult = await generateQuiz(input);
@@ -41,9 +40,8 @@ export async function regenerateQuizQuestions(input: Omit<GenerateQuizInput, 'mo
         }
         return { questions: quizResult.questions };
     } catch (e) {
-        console.error(e);
-        // Always return the error message for debugging purposes
-        return { error: 'An unexpected error occurred while regenerating the quiz. ' + String((e as any)?.message || e) };
+        console.error('RegenerateQuizQuestions Error:', e);
+        return { error: 'Failed to regenerate the quiz due to a server error. Please try again later.' };
     }
 }
 

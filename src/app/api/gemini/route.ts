@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
-import { callOpenRouter } from '@/ai/openrouter';
+import { callGemini } from '@/ai/gemini';
 
 export async function GET() {
   try {
-    const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
-    const res = await callOpenRouter(model, 'Return JSON: { "ok": true }');
+    const res = await callGemini('Return JSON: { "ok": true }', { jsonMode: true });
 
     try {
       const parsed = JSON.parse(res);
