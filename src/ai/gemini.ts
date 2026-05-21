@@ -197,7 +197,8 @@ export async function callGemini(prompt: string, options: GeminiOptions = {}) {
   };
 
   if (options.jsonMode) {
-    body.generationConfig.responseMimeType = 'application/json';
+    // The v1 API endpoint does not currently support the responseMimeType parameter 
+    // in generationConfig, so we rely solely on prompting and extractJSON to parse the output.
   }
 
   if (options.systemInstruction) {
