@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import type { Quiz, QuizQuestion, StandardQuestion, MatchingQuestion } from '@/types/quiz';
-import { createQuiz, explainAnswer, regenerateQuizQuestions, createSummary } from '@/app/actions';
+import { createQuiz, explainAnswer, createSummary } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -235,7 +235,7 @@ export function QuizClient() {
         return;
       }
       
-      const result = await regenerateQuizQuestions({ 
+      const result = await createQuiz({ 
         lectureText, 
         numQuestions: Number(numQuestions) || 10, 
         difficulty, 
