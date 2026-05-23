@@ -5,7 +5,7 @@ import { generateQuiz, type GenerateQuizInput } from '@/ai/flows/generate-quiz';
 import { generateExplanation } from '@/ai/flows/generate-explanation';
 import { generateSummary, type GenerateSummaryInput, type GenerateSummaryOutput } from '@/ai/flows/generate-summary';
 import type { GenerateExplanationInput, GenerateExplanationOutput } from '@/types/explanation';
-import type { Quiz, QuizQuestion } from '@/types/quiz';
+import type { Quiz } from '@/types/quiz';
 
 export async function createQuiz(input: Omit<GenerateQuizInput, 'model'>): Promise<Pick<Quiz, 'questions'> | { error: string }> {
   if (!input.lectureText || input.lectureText.trim().length < 100) {
@@ -27,22 +27,6 @@ export async function createQuiz(input: Omit<GenerateQuizInput, 'model'>): Promi
         console.error('CreateQuiz Error:', e);
         return { error: 'Failed to generate the quiz due to a server error. If deploying, ensure GEMINI_API_KEY is configured on Netlify.' };
   }
-}
-
-export async function regenerateQuizQuestions(input: Omit<GenerateQuizInput, 'model'>): Promise<{questions: QuizQuestion[]} | { error: string }> {
-    if (!input.lectureText || input.lectureText.trim().length < 100) {
-        return { error: 'Please provide a more substantial lecture text (at least 100 characters).' };
-    }
-    try {
-        const quizResult = await generateQuiz(input);
-        if (!quizResult.questions || quizResult.questions.length === 0) {
-            return { error: 'The AI could not generate a quiz from the provided text. Please try refining your text.' };
-        }
-        return { questions: quizResult.questions };
-    } catch (e) {
-        console.error('RegenerateQuizQuestions Error:', e);
-        return { error: 'Failed to regenerate the quiz due to a server error. Please try again later.' };
-    }
 }
 
 
