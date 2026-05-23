@@ -49,7 +49,6 @@ export function QuizClient() {
   
   // UI state
   const [isLoading, setIsLoading] = useState(false);
-  const [isRegenerating, setIsRegenerating] = useState(false);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [currentQuote, setCurrentQuote] = useState('');
   const [isMounted, setIsMounted] = useState(false);
@@ -129,11 +128,6 @@ export function QuizClient() {
 
       const processedQuiz = processQuiz(result);
       setQuiz(processedQuiz);
-      
-      // Automatically generate summary for longer texts
-      if (lectureText.length > 1000) {
-        handleGenerateSummary();
-      }
     } catch (error) {
       toast({
         title: 'Unexpected Error',
@@ -210,65 +204,12 @@ export function QuizClient() {
     }
   };
 
-  const handleRegenerateQuiz = async () => {
-    if (!quizHelpers.isValidInput(lectureText, numQuestions) || !quiz) {
-      toast({
-        title: 'Cannot Regenerate',
-        description: 'Please ensure you have valid input text and an existing quiz.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      setIsRegenerating(true);
-      setCurrentQuote(getRandomQuote());
-      
-      // Compare with saved text
-      if (lectureText !== previousTextRef.current) {
-        toast({
-          title: 'Text Changed',
-          description: 'The lecture text has changed. Generating a new quiz instead.',
-          variant: 'default',
-        });
-        await handleGenerateQuiz();
-        return;
-      }
-      
-      const result = await createQuiz({ 
-        lectureText, 
-        numQuestions: Number(numQuestions) || 10, 
-        difficulty, 
-        questionType 
-      });
-
-      if ('error' in result) {
-        toast({
-          title: 'Error Regenerating Quiz',
-          description: result.error,
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      setUserAnswers({});
-      setQuiz(prevQuiz => {
-        const newQuizData = processQuiz(result);
-        if (!prevQuiz) return newQuizData;
-        return {
-          ...prevQuiz,
-          questions: newQuizData.questions,
-        };
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to regenerate quiz',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsRegenerating(false);
-    }
+  const handleRegenerateQuiz = () => {
+    // Go back to the landing page but keep the lecture text and settings
+    // so the user can change question type, difficulty, etc. before regenerating
+    setQuiz(null);
+    setUserAnswers({});
+    setCurrentQuote(getRandomQuote());
   }
 
 
@@ -528,11 +469,11 @@ export function QuizClient() {
                         <CardDescription className="mt-2 font-semibold">{getFeedbackMessage()}</CardDescription>
                     </CardHeader>
                     <CardFooter className="flex-col gap-4">
-                        <Button onClick={handleRegenerateQuiz} variant="outline" className="w-full" disabled={isRegenerating}>
-                             {isRegenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                            Regenerate Quiz
+                        <Button onClick={handleRegenerateQuiz} variant="outline" className="w-full">
+                             <RotateCcw className="mr-2 h-4 w-4" />
+                            New Quiz
                         </Button>
-                        <Button onClick={handleStartOver} variant="outline" className="w-full" disabled={isRegenerating}>
+                        <Button onClick={handleStartOver} variant="outline" className="w-full">
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Start Over
                         </Button>

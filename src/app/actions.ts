@@ -25,7 +25,14 @@ export async function createQuiz(input: Omit<GenerateQuizInput, 'model'>): Promi
     };
   } catch (e) {
         console.error('CreateQuiz Error:', e);
-        return { error: 'Failed to generate the quiz due to a server error. If deploying, ensure GEMINI_API_KEY is configured on Netlify.' };
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        
+        // Only mention API key if the error is actually about the API key
+        if (errorMessage.includes('GEMINI_API_KEY') || errorMessage.includes('API key')) {
+          return { error: 'GEMINI_API_KEY is not configured. Please set it in your environment (e.g. Netlify dashboard or local .env.local file).' };
+        }
+        
+        return { error: `Failed to generate the quiz: ${errorMessage}` };
   }
 }
 

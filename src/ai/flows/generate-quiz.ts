@@ -249,7 +249,8 @@ Return questions in this exact JSON format:
 }
 
 /**
- * Processes a chunk for mixed mode — generates both standard and matching questions
+ * Processes a chunk for mixed mode — generates both standard and matching questions.
+ * Distributes standard questions across multiple types to ensure variety.
  */
 async function processMixedChunk(chunk: string, params: {
   questionsPerChunk: number;
@@ -259,20 +260,43 @@ async function processMixedChunk(chunk: string, params: {
   const matchingCount = Math.max(1, Math.floor(params.questionsPerChunk / 4));
   const standardCount = params.questionsPerChunk - matchingCount;
 
-  const [standardQuestions, matchingQuestions] = await Promise.all([
-    standardCount > 0 ? processStandardChunk(chunk, {
-      questionsPerChunk: standardCount,
-      questionType: 'mixed',
-      difficulty: params.difficulty,
-    }) : Promise.resolve([]),
+  // Distribute standard questions across the four standard types
+  const standardTypes: QuestionType[] = ['multiple_choice', 'situational', 'fill_in_the_blank', 'true_false'];
+  const standardPromises: Promise<any[]>[] = [];
+
+  if (standardCount > 0) {
+    // Evenly distribute, with remainder going to the first types
+    const perType = Math.floor(standardCount / standardTypes.length);
+    let remainder = standardCount % standardTypes.length;
+
+    for (const qType of standardTypes) {
+      const count = perType + (remainder > 0 ? 1 : 0);
+      if (remainder > 0) remainder--;
+      if (count > 0) {
+        standardPromises.push(processStandardChunk(chunk, {
+          questionsPerChunk: count,
+          questionType: qType,
+          difficulty: params.difficulty,
+        }));
+      }
+    }
+  }
+
+  const [standardResults, matchingQuestions] = await Promise.all([
+    Promise.all(standardPromises).then(results => results.flat()),
     matchingCount > 0 ? processMatchingChunk(chunk, {
       questionsPerChunk: matchingCount,
       difficulty: params.difficulty,
     }) : Promise.resolve([]),
   ]);
 
-  // Interleave: standard questions first, then matching
-  return [...standardQuestions, ...matchingQuestions];
+  // Shuffle to interleave different question types
+  const allQuestions = [...standardResults, ...matchingQuestions];
+  for (let i = allQuestions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
+  }
+  return allQuestions;
 }
 
 // =========================================
