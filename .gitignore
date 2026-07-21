@@ -21,6 +21,7 @@
 /build
 
 # env files (use Netlify dashboard for secrets)
+.env
 .env.local
 .env*.local
 

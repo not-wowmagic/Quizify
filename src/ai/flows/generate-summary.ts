@@ -10,7 +10,7 @@ import { callGemini } from '@/ai/gemini';
 import { z } from 'zod';
 
 const GenerateSummaryInputSchema = z.object({
-  lectureText: z.string().describe('The text of the lecture to summarize.'),
+  lectureText: z.string().max(100000).describe('The text of the lecture to summarize.'),
 });
 export type GenerateSummaryInput = z.infer<typeof GenerateSummaryInputSchema>;
 

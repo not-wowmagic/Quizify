@@ -2,8 +2,8 @@
 import { z } from 'zod';
 
 export const GenerateExplanationInputSchema = z.object({
-  question: z.string().describe('The quiz question.'),
-  correctAnswer: z.string().describe('The correct answer to the question.'),
+  question: z.string().max(5000).describe('The quiz question.'),
+  correctAnswer: z.string().max(5000).describe('The correct answer to the question.'),
 });
 export type GenerateExplanationInput = z.infer<typeof GenerateExplanationInputSchema>;
 

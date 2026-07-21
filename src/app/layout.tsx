@@ -1,12 +1,15 @@
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/components/theme-provider';
 import { ThemeToggle } from '@/components/theme-toggle';
 
+const inter = Inter({ subsets: ['latin'] });
+
 export const metadata: Metadata = {
-  title: 'Quizify',
-  description: 'Generate quizzes from your lecture notes.',
+  title: 'Quizify - AI-Powered Quiz Generator',
+  description: 'Turn lecture notes, textbook excerpts, and study documents into interactive quizzes in seconds.',
 };
 
 export default function RootLayout({
@@ -16,22 +19,24 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-      </head>
-      <body className="font-body antialiased">
+      <head />
+      <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
         >
-          <div className="absolute top-4 right-4 z-50">
+          {/* Floating Theme Toggle */}
+          <div className="fixed top-4 right-4 z-50">
             <ThemeToggle />
           </div>
-          {children}
+
+          {/* Main Content Body */}
+          <div className="relative flex h-screen flex-col overflow-hidden">
+            {children}
+          </div>
+
           <Toaster />
         </ThemeProvider>
       </body>
