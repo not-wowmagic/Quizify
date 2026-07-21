@@ -7,31 +7,30 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb, XCircle, FileText, Sparkles, Link2, Unlink2, RotateCcw, CircleDot, CheckSquare, Edit3, Shuffle, Link } from 'lucide-react';
+import { 
+  Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb, XCircle, FileText, 
+  Sparkles, RotateCcw, CircleDot, CheckSquare, Edit3, Link as LinkIcon, Shuffle, Link2, 
+  HelpCircle, ChevronDown, ChevronUp, FileCode
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { processFile, processQuiz, quizHelpers } from '@/lib/quiz-processors';
 
 const motivationalQuotes = [
-    "Believe you can and you're halfway there.",
-    "The secret of getting ahead is getting started.",
-    "Don't watch the clock; do what it does. Keep going.",
-    "The expert in anything was once a beginner.",
-    "The only way to do great work is to love what you do.",
-    "Success is not final, failure is not fatal: it is the courage to continue that counts.",
-    "The future belongs to those who believe in the beauty of their dreams.",
-    "Well done is better than well said.",
-    "You are capable of more than you know.",
-    "Push yourself, because no one else is going to do it for you."
+  "Believe you can and you're halfway there.",
+  "The secret of getting ahead is getting started.",
+  "Don't watch the clock; do what it does. Keep going.",
+  "The expert in anything was once a beginner.",
+  "The only way to do great work is to love what you do.",
+  "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+  "The future belongs to those who believe in the beauty of their dreams.",
+  "Well done is better than well said.",
+  "You are capable of more than you know.",
+  "Push yourself, because no one else is going to do it for you."
 ];
 
 const getRandomQuote = () => motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
 
-// =========================================
-// Answer type: supports both standard and matching answers
-// =========================================
 type StandardAnswer = { type: 'standard'; selectedIndex: number };
 type MatchingAnswer = { type: 'matching'; matches: Record<number, number>; checked: boolean };
 type QuizAnswer = StandardAnswer | MatchingAnswer;
@@ -53,12 +52,11 @@ export function QuizClient() {
   const [currentQuote, setCurrentQuote] = useState('');
   const [isMounted, setIsMounted] = useState(false);
   const [fileName, setFileName] = useState('');
+  const [showSummary, setShowSummary] = useState(false);
   
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previousTextRef = useRef('');
-  const debounceTimerRef = useRef<NodeJS.Timeout>();
-  
 
   const { toast } = useToast();
 
@@ -73,7 +71,7 @@ export function QuizClient() {
 
     setIsLoading(true);
     setFileName(file.name);
-    setLectureText(''); // Clear previous text
+    setLectureText('');
     
     try {
       const text = await processFile(file);
@@ -90,12 +88,11 @@ export function QuizClient() {
     }
   };
 
-
   const handleGenerateQuiz = async () => {
     if (!quizHelpers.isValidInput(lectureText, numQuestions)) {
       toast({
         title: 'Invalid Input',
-        description: 'Please provide enough text (at least 100 characters) and a valid number of questions (1-50).',
+        description: 'Please provide enough text (at least 100 characters) and a valid question count (1-50).',
         variant: 'destructive',
       });
       return;
@@ -107,7 +104,6 @@ export function QuizClient() {
       setQuiz(null);
       setUserAnswers({});
       
-      // Save current text for comparison
       previousTextRef.current = lectureText;
       
       const result = await createQuiz({ 
@@ -141,9 +137,6 @@ export function QuizClient() {
   
   const handleGenerateSummary = async () => {
     if (!lectureText) return;
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
 
     try {
       setIsSummaryLoading(true);
@@ -165,6 +158,7 @@ export function QuizClient() {
           summary: result.summary
         };
       });
+      setShowSummary(true);
     } catch (error) {
       toast({
         title: 'Summary Generation Failed',
@@ -174,7 +168,7 @@ export function QuizClient() {
     } finally {
       setIsSummaryLoading(false);
     }
-  }
+  };
 
   const handleStandardAnswer = (questionIndex: number, optionIndex: number) => {
     setUserAnswers((prev) => ({
@@ -205,13 +199,10 @@ export function QuizClient() {
   };
 
   const handleRegenerateQuiz = () => {
-    // Go back to the landing page but keep the lecture text and settings
-    // so the user can change question type, difficulty, etc. before regenerating
     setQuiz(null);
     setUserAnswers({});
     setCurrentQuote(getRandomQuote());
-  }
-
+  };
 
   const { score, answeredQuestions, scorePercentage } = useMemo(() => {
     if (!quiz) return { score: 0, answeredQuestions: 0, scorePercentage: 0 };
@@ -230,7 +221,6 @@ export function QuizClient() {
         }
       } else if (q.type === 'matching' && answer.type === 'matching' && answer.checked) {
         totalAnswered++;
-        // A matching question is correct if ALL pairs are matched correctly
         const allCorrect = q.pairs.every((_, pairIdx) => answer.matches[pairIdx] === pairIdx);
         if (allCorrect) {
           totalCorrect++;
@@ -245,11 +235,10 @@ export function QuizClient() {
   const allAnswered = quiz && answeredQuestions === quiz.questions.length;
   
   const getFeedbackMessage = () => {
-    if (scorePercentage >= 80) return "Excellent work! You've mastered this content!";
-    if (scorePercentage >= 60) return "Good job! Keep practicing to improve further.";
-    return "Keep learning! Practice makes perfect.";
+    if (scorePercentage >= 80) return "Excellent work! You've mastered this material!";
+    if (scorePercentage >= 60) return "Good effort! Practice key areas to sharpen your score.";
+    return "Keep reinforcing! Active practice will strengthen your recall.";
   };
-
 
   useEffect(() => {
     if (allAnswered) {
@@ -262,42 +251,68 @@ export function QuizClient() {
   }
 
   return (
-    <Card className="w-full shadow-2xl bg-card/60 backdrop-blur-xl border-white/10 rounded-2xl">
-      <CardContent className="p-6 md:p-8">
-        {!quiz ? (
-          <div className="flex flex-col gap-6">
+    <div className="w-full space-y-8">
+      {!quiz ? (
+        /* Setup Container Card */
+        <Card className="surface-card border-border/80 bg-card p-4 md:p-6 shadow-sm">
+          <CardHeader className="p-0 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-bold tracking-tight text-foreground">Configure Quiz</CardTitle>
+                <CardDescription className="text-sm text-muted-foreground mt-1">
+                  Import study material and select your desired question parameters.
+                </CardDescription>
+              </div>
+              <span className="badge border-border/80 bg-muted/50 text-muted-foreground">
+                Step 1 of 2
+              </span>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-0 space-y-4">
+            {/* Input Selection Tabs */}
             <Tabs defaultValue="upload" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="upload">Upload File</TabsTrigger>
-                <TabsTrigger value="paste">Paste Text</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 rounded-lg bg-muted p-1 text-muted-foreground">
+                <TabsTrigger value="upload" className="rounded-md text-xs font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                  Upload Document
+                </TabsTrigger>
+                <TabsTrigger value="paste" className="rounded-md text-xs font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                  Paste Text
+                </TabsTrigger>
               </TabsList>
-              <TabsContent value="upload">
+
+              <TabsContent value="upload" className="mt-4">
                 <div 
-                    className="mt-4 flex justify-center items-center w-full"
-                    onDragOver={(e) => {
-                        e.preventDefault();
-                    }}
-                    onDrop={(e) => {
-                        e.preventDefault();
-                        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                            if (fileInputRef.current) {
-                                fileInputRef.current.files = e.dataTransfer.files;
-                                handleFileChange({ target: fileInputRef.current } as any);
-                            }
-                        }
-                    }}
+                  className="flex justify-center items-center w-full"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      if (fileInputRef.current) {
+                        fileInputRef.current.files = e.dataTransfer.files;
+                        handleFileChange({ target: fileInputRef.current } as any);
+                      }
+                    }
+                  }}
                 >
                   <label
                     htmlFor="dropzone-file"
-                    className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-card/50 hover:bg-secondary/50 transition-colors"
+                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border/80 rounded-xl cursor-pointer bg-muted/20 hover:bg-muted/40 transition-colors text-center px-4"
                   >
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                      <Upload className="w-12 h-12 mb-4 text-muted-foreground" />
-                      <p className="mb-2 text-lg font-semibold text-foreground">
-                        Drag & drop or <span className="text-primary font-bold">browse</span>
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="p-2 rounded-full bg-primary/10 text-primary mb-2">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                      <p className="text-sm font-semibold text-foreground">
+                        Drag & drop file here or <span className="text-primary font-bold">browse</span>
                       </p>
-                      <p className="text-sm text-muted-foreground">Supports: PDF, DOCX</p>
-                       {fileName && <p className="mt-4 text-sm text-primary">File Name: {fileName}</p>}
+                      <p className="text-xs text-muted-foreground mt-1">Supports PDF or DOCX format</p>
+                      {fileName && (
+                        <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                          <FileText className="h-3.5 w-3.5" />
+                          <span>{fileName}</span>
+                        </div>
+                      )}
                     </div>
                     <input 
                       id="dropzone-file"
@@ -311,35 +326,38 @@ export function QuizClient() {
                   </label>
                 </div>
               </TabsContent>
-              <TabsContent value="paste">
+
+              <TabsContent value="paste" className="mt-4">
                 <Textarea
                   id="lecture-text"
-                  placeholder="e.g., The mitochondria is the powerhouse of the cell..."
-                  rows={10}
+                  placeholder="Paste lecture notes, article excerpts, or textbook chapters here (at least 100 characters)..."
+                  rows={8}
                   value={lectureText}
                   onChange={(e) => setLectureText(e.target.value)}
                   disabled={isLoading}
-                  className="text-base bg-secondary/80 mt-2"
+                  className="font-sans text-sm bg-background border-border/80 rounded-xl focus-visible:ring-primary"
                 />
               </TabsContent>
             </Tabs>
-            
-            <div className="grid grid-cols-1 gap-8 mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            {/* Parameters Grid */}
+            <div className="space-y-4 pt-3 border-t border-border/60">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
                 {/* Number of Questions */}
-                <div className="flex flex-col gap-4">
-                  <label className="text-sm font-medium text-muted-foreground">Number of Questions</label>
-                  <div className="flex bg-secondary/50 rounded-lg p-1 border border-border/50">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Number of Questions</label>
+                  <div className="grid grid-cols-4 gap-2 bg-muted/40 rounded-lg p-1 border border-border/60">
                     {[5, 10, 15, 20].map((num) => (
                       <button
                         key={num}
                         onClick={() => setNumQuestions(num)}
                         disabled={isLoading}
                         className={cn(
-                          "flex-1 py-2 rounded-md text-sm font-medium transition-colors",
+                          "py-1.5 rounded-md text-xs font-semibold transition-all",
                           numQuestions === num 
                             ? "bg-primary text-primary-foreground shadow-sm" 
-                            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
                         )}
                       >
                         {num}
@@ -348,20 +366,20 @@ export function QuizClient() {
                   </div>
                 </div>
 
-                {/* Difficulty */}
-                <div className="flex flex-col gap-4">
-                  <label className="text-sm font-medium text-muted-foreground">Difficulty Level</label>
-                  <div className="flex bg-secondary/50 rounded-lg p-1 border border-border/50">
+                {/* Difficulty Level */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Difficulty Level</label>
+                  <div className="grid grid-cols-3 gap-2 bg-muted/40 rounded-lg p-1 border border-border/60">
                     {(['easy', 'medium', 'hard'] as const).map((diff) => (
                       <button
                         key={diff}
                         onClick={() => setDifficulty(diff)}
                         disabled={isLoading}
                         className={cn(
-                          "flex-1 py-2 rounded-md text-sm font-medium capitalize transition-colors",
+                          "py-1.5 rounded-md text-xs font-semibold capitalize transition-all",
                           difficulty === diff 
                             ? "bg-primary text-primary-foreground shadow-sm" 
-                            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
                         )}
                       >
                         {diff}
@@ -369,19 +387,20 @@ export function QuizClient() {
                     ))}
                   </div>
                 </div>
+
               </div>
 
-              {/* Question Type */}
-              <div className="flex flex-col gap-4">
-                <label className="text-sm font-medium text-muted-foreground">Question Type</label>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {/* Question Types Grid Tile */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Question Format</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
                   {[
                     { id: 'multiple_choice', label: 'Multiple Choice', icon: CircleDot },
                     { id: 'true_false', label: 'True / False', icon: CheckSquare },
                     { id: 'fill_in_the_blank', label: 'Fill in Blank', icon: Edit3 },
-                    { id: 'matching', label: 'Matching', icon: Link },
+                    { id: 'matching', label: 'Matching Pairs', icon: LinkIcon },
                     { id: 'situational', label: 'Situational', icon: Lightbulb },
-                    { id: 'mixed', label: 'Mixed', icon: Shuffle }
+                    { id: 'mixed', label: 'Mixed Types', icon: Shuffle }
                   ].map((type) => {
                     const Icon = type.icon;
                     const isActive = questionType === type.id;
@@ -391,133 +410,204 @@ export function QuizClient() {
                         onClick={() => setQuestionType(type.id as any)}
                         disabled={isLoading}
                         className={cn(
-                          "rounded-xl p-4 border flex flex-col items-center justify-center gap-3 transition-all duration-200 text-center",
+                          "rounded-lg p-2 border flex flex-col items-center justify-center gap-1.5 transition-all duration-200 text-center text-xs font-medium",
                           isActive
-                            ? "bg-primary/10 border-primary text-primary shadow-sm"
-                            : "border-border/50 hover:border-border bg-card hover:bg-secondary/50 text-muted-foreground hover:text-foreground"
+                            ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/40 font-semibold shadow-sm"
+                            : "border-border/60 bg-background text-muted-foreground hover:border-border hover:text-foreground hover:bg-muted/40"
                         )}
                       >
-                        <Icon className={cn("w-6 h-6", isActive ? "text-primary" : "text-muted-foreground")} />
-                        <span className="text-sm font-medium leading-tight">{type.label}</span>
+                        <Icon className="w-4 h-4" />
+                        <span>{type.label}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
             </div>
+          </CardContent>
 
-            <Button onClick={() => handleGenerateQuiz()} disabled={isLoading || lectureText.length < 50} size="lg" className="rounded-full font-bold text-base">
+          <CardFooter className="p-0 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border/60 mt-4">
+            <p className="text-xs italic text-muted-foreground text-center sm:text-left max-w-sm">
+              "{currentQuote}"
+            </p>
+            <Button
+              onClick={handleGenerateQuiz}
+              disabled={isLoading || (!lectureText.trim() && !fileName)}
+              className="w-full sm:w-auto h-11 px-6 bg-primary text-primary-foreground font-semibold rounded-lg shadow transition-all hover:bg-primary/90"
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Generating Quiz...
                 </>
               ) : (
-                 <>
-                  <Sparkles className="mr-2 h-4 w-4" />
+                <>
+                  <Sparkles className="mr-2 h-5 w-5" />
                   Generate Quiz
-                 </>
+                </>
               )}
             </Button>
-             {currentQuote && !isLoading && (
-              <p className="text-center text-muted-foreground italic text-sm mt-2">
-                &ldquo;{currentQuote}&rdquo;
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-8 animate-in fade-in duration-500">
+          </CardFooter>
+        </Card>
+      ) : (
+        /* Quiz Active Layout Section */
+        <div className="space-y-8">
           
-            <SummaryCard 
-                summary={quiz.summary} 
-                onGenerate={handleGenerateSummary}
-                isLoading={isSummaryLoading}
-            />
+          {/* Header Info Banner */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-border/80 bg-card">
+            <div>
+              <div className="inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider">
+                <Sparkles className="w-3.5 h-3.5" /> Quiz Active
+              </div>
+              <h2 className="text-lg font-bold text-foreground mt-0.5">
+                {quiz.questions.length} {questionType.replace('_', ' ')} Questions ({difficulty})
+              </h2>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateSummary}
+                disabled={isSummaryLoading}
+                className="h-9 px-3 border-border/80 text-xs font-medium text-foreground hover:bg-muted"
+              >
+                {isSummaryLoading ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    Summarizing...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="mr-1.5 h-3.5 w-3.5 text-primary" />
+                    {quiz.summary ? 'Toggle Summary' : 'Generate Summary'}
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRegenerateQuiz}
+                className="h-9 px-3 border-border/80 text-xs font-medium text-foreground hover:bg-muted"
+              >
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                Settings
+              </Button>
+            </div>
+          </div>
 
-            <div className="space-y-6">
-              {quiz.questions.map((q, qIndex) => {
-                if (q.type === 'matching') {
-                  return (
-                    <MatchingQuestionCard
-                      key={`matching-${q.question}-${qIndex}`}
-                      question={q}
-                      questionIndex={qIndex}
-                      userAnswer={userAnswers[qIndex] as MatchingAnswer | undefined}
-                      onUpdate={(answer) => handleMatchingUpdate(qIndex, answer)}
-                    />
-                  );
-                }
+          {/* AI Summary Container if generated */}
+          {quiz.summary && showSummary && (
+            <Card className="surface-card border-primary/30 bg-primary/5 p-6 animate-in fade-in duration-300">
+              <CardHeader className="p-0 pb-3 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm font-bold tracking-wide uppercase text-primary flex items-center gap-2">
+                  <FileText className="h-4 w-4" /> AI Study Summary
+                </CardTitle>
+                <button 
+                  onClick={() => setShowSummary(false)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Hide
+                </button>
+              </CardHeader>
+              <CardContent className="p-0 text-sm leading-relaxed text-foreground whitespace-pre-line">
+                {quiz.summary}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Questions Array */}
+          <div className="space-y-6">
+            {quiz.questions.map((q, index) => {
+              if (q.type === 'matching') {
                 return (
-                  <StandardQuestionCard 
-                    key={`standard-${q.question}-${qIndex}`} 
-                    question={q} 
-                    questionIndex={qIndex} 
-                    userAnswer={userAnswers[qIndex] as StandardAnswer | undefined} 
-                    onAnswer={handleStandardAnswer}
-                    toast={toast}
+                  <MatchingQuestionCard
+                    key={index}
+                    question={q}
+                    questionIndex={index}
+                    userAnswer={userAnswers[index] as MatchingAnswer}
+                    onUpdate={(answer) => handleMatchingUpdate(index, answer)}
                   />
                 );
-              })}
-            </div>
-
-             {allAnswered && (
-                 <Card className="bg-gradient-to-br from-green-500/20 to-cyan-500/20 border-green-500/30 mt-8">
-                    <CardHeader className="text-center">
-                        <CardTitle>Quiz Complete!</CardTitle>
-                        <div className="text-4xl font-bold mt-2">{score} / {quiz.questions.length}</div>
-                        <p className="text-xl">({scorePercentage.toFixed(0)}%)</p>
-                        <CardDescription className="mt-2 font-semibold">{getFeedbackMessage()}</CardDescription>
-                    </CardHeader>
-                    <CardFooter className="flex-col gap-4">
-                        <Button onClick={handleRegenerateQuiz} variant="outline" className="w-full">
-                             <RotateCcw className="mr-2 h-4 w-4" />
-                            New Quiz
-                        </Button>
-                        <Button onClick={handleStartOver} variant="outline" className="w-full">
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Start Over
-                        </Button>
-                        {currentQuote && (
-                          <p className="text-muted-foreground italic text-sm pt-4">
-                            &ldquo;{currentQuote}&rdquo;
-                          </p>
-                        )}
-                    </CardFooter>
-                 </Card>
-            )}
-
+              }
+              return (
+                <StandardQuestionCard
+                  key={index}
+                  question={q}
+                  questionIndex={index}
+                  userAnswer={userAnswers[index] as StandardAnswer}
+                  onAnswer={handleStandardAnswer}
+                />
+              );
+            })}
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          {/* Scorecard Container (Appears when complete) */}
+          {allAnswered && (
+            <Card className="surface-card border-emerald-500/30 bg-emerald-500/5 p-8 text-center animate-in fade-in duration-500">
+              <div className="max-w-md mx-auto space-y-4">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 font-bold">
+                  <CheckCircle2 className="h-6 w-6" />
+                </div>
+
+                <div>
+                  <h3 className="text-2xl font-bold text-foreground">Quiz Completed!</h3>
+                  <p className="text-sm text-muted-foreground mt-1">{getFeedbackMessage()}</p>
+                </div>
+
+                <div className="p-4 rounded-xl border border-emerald-500/20 bg-background/80 flex items-center justify-around">
+                  <div>
+                    <div className="text-3xl font-extrabold text-foreground">{score} / {quiz.questions.length}</div>
+                    <div className="text-xs text-muted-foreground font-medium mt-0.5">Correct Answers</div>
+                  </div>
+                  <div className="h-8 w-px bg-border/60" />
+                  <div>
+                    <div className="text-3xl font-extrabold text-emerald-500">{Math.round(scorePercentage)}%</div>
+                    <div className="text-xs text-muted-foreground font-medium mt-0.5">Final Score</div>
+                  </div>
+                </div>
+
+                <p className="text-xs italic text-muted-foreground pt-2">"{currentQuote}"</p>
+
+                <div className="flex items-center justify-center gap-3 pt-2">
+                  <Button onClick={handleRegenerateQuiz} variant="outline" className="h-10 px-5 border-border">
+                    <RefreshCw className="mr-2 h-4 w-4" /> Regenerate Quiz
+                  </Button>
+                  <Button onClick={handleStartOver} className="h-10 px-5 bg-primary text-primary-foreground font-medium">
+                    <RotateCcw className="mr-2 h-4 w-4" /> Start Over
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
+        </div>
+      )}
+    </div>
   );
 }
 
-function Label({ htmlFor, children }: { htmlFor: string, children: React.ReactNode }) {
-    return <label htmlFor={htmlFor} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{children}</label>
-}
-
-// =========================================
-// Standard Question Card (existing behavior)
-// =========================================
-
+/* =========================================
+ * Standard Question Card Component
+ * ========================================= */
 interface StandardQuestionCardProps {
   question: StandardQuestion;
   questionIndex: number;
   userAnswer: StandardAnswer | undefined;
   onAnswer: (questionIndex: number, optionIndex: number) => void;
-  toast: (options: { title: string; description: string; variant?: "default" | "destructive" }) => void;
 }
 
-function StandardQuestionCard({ question, questionIndex, userAnswer, onAnswer, toast }: StandardQuestionCardProps) {
-  const isAnswered = userAnswer !== undefined;
+function StandardQuestionCard({ question, questionIndex, userAnswer, onAnswer }: StandardQuestionCardProps) {
+  const [explanation, setExplanation] = useState<string>('');
   const [isExplanationLoading, setIsExplanationLoading] = useState(false);
-  const [explanation, setExplanation] = useState('');
+  const { toast } = useToast();
+
+  const isAnswered = userAnswer !== undefined;
 
   const handleGetExplanation = async () => {
-    if (explanation) { // If explanation is already there, hide it.
-        setExplanation('');
-        return;
+    if (explanation) {
+      setExplanation('');
+      return;
     }
 
     setIsExplanationLoading(true);
@@ -540,86 +630,107 @@ function StandardQuestionCard({ question, questionIndex, userAnswer, onAnswer, t
   };
 
   useEffect(() => {
-    // Reset explanation when question changes
     setExplanation('');
   }, [question]);
 
-
   return (
-    <Card className="bg-card/80 backdrop-blur-sm border-white/10 shadow-lg transition-all duration-300 hover:border-white/20">
-      <CardHeader>
-        <CardTitle className="text-xl font-semibold">
-          {questionIndex + 1}. {question.question}
-        </CardTitle>
+    <Card className="surface-card p-6 border-border/80 bg-card">
+      <CardHeader className="p-0 pb-4">
+        <div className="flex items-start justify-between gap-4">
+          <CardTitle className="text-base sm:text-lg font-semibold leading-snug text-foreground">
+            <span className="text-primary font-bold mr-2">{questionIndex + 1}.</span>
+            {question.question}
+          </CardTitle>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      
+      <CardContent className="p-0 space-y-2.5">
         {question.options.map((option, oIndex) => {
           const isCorrectAnswer = oIndex === question.correctAnswerIndex;
           const isSelected = userAnswer !== undefined && oIndex === userAnswer.selectedIndex;
-          const optionLetter = String.fromCharCode(65 + oIndex); // A, B, C, D
+          const optionLetter = String.fromCharCode(65 + oIndex);
 
-          const buttonClass = cn(
-            'justify-start text-left h-auto py-3 px-4 whitespace-normal relative rounded-lg border flex items-center gap-4 text-base transition-all duration-300',
-            {
-              'bg-success/80 text-success-foreground border-success-foreground/20 shadow-lg shadow-success/20': isAnswered && isCorrectAnswer,
-              'bg-destructive/80 text-destructive-foreground border-destructive-foreground/20 shadow-lg shadow-destructive/20': isAnswered && isSelected && !isCorrectAnswer,
-              'bg-muted/50 text-muted-foreground opacity-60': isAnswered && !isCorrectAnswer && !isSelected,
-              'hover:bg-muted/50 hover:border-white/20': !isAnswered,
+          let optionStyle = "border-border/60 bg-muted/20 text-foreground hover:bg-muted/50 hover:border-border";
+          
+          if (isAnswered) {
+            if (isCorrectAnswer) {
+              optionStyle = "border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium";
+            } else if (isSelected) {
+              optionStyle = "border-destructive/50 bg-destructive/10 text-destructive font-medium";
+            } else {
+              optionStyle = "border-border/30 bg-muted/10 text-muted-foreground opacity-50";
             }
-          );
+          }
 
           return (
-            <Button
+            <button
               key={oIndex}
-              variant="outline"
-              className={buttonClass}
               onClick={() => onAnswer(questionIndex, oIndex)}
               disabled={isAnswered}
+              className={cn(
+                "w-full text-left p-3.5 rounded-xl border flex items-center justify-between gap-3 text-sm transition-all duration-200",
+                optionStyle
+              )}
             >
-              <div className="flex items-center justify-center w-6 h-6 rounded-full border mr-4 flex-shrink-0 font-semibold">{optionLetter}</div>
-              <div className="flex-grow">{option}</div>
-              {isAnswered && isCorrectAnswer && <CheckCircle2 className="flex-shrink-0 w-5 h-5 ml-auto" />}
-              {isAnswered && isSelected && !isCorrectAnswer && <XCircle className="flex-shrink-0 w-5 h-5 ml-auto" />}
-            </Button>
+              <div className="flex items-center gap-3">
+                <span className={cn(
+                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold",
+                  isAnswered && isCorrectAnswer ? "border-emerald-500 bg-emerald-500 text-white" :
+                  isAnswered && isSelected ? "border-destructive bg-destructive text-white" :
+                  "border-border bg-background text-muted-foreground"
+                )}>
+                  {optionLetter}
+                </span>
+                <span>{option}</span>
+              </div>
+
+              {isAnswered && isCorrectAnswer && <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500 ml-2" />}
+              {isAnswered && isSelected && !isCorrectAnswer && <XCircle className="h-4 w-4 shrink-0 text-destructive ml-2" />}
+            </button>
           );
         })}
-         {explanation && (
-          <div className="p-4 bg-secondary/80 rounded-md text-secondary-foreground animate-in fade-in duration-300 mt-4">
-            <h4 className="font-semibold mb-2 flex items-center"><Lightbulb className="mr-2 h-4 w-4 text-primary"/>Explanation</h4>
-            <p>{explanation}</p>
+
+        {/* Explanation Callout Box */}
+        {explanation && (
+          <div className="mt-4 p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 text-sm leading-relaxed animate-in fade-in duration-200">
+            <div className="font-bold text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-2 text-xs uppercase tracking-wide">
+              <Lightbulb className="h-4 w-4" /> Explanation
+            </div>
+            <p className="text-foreground">{explanation}</p>
           </div>
         )}
       </CardContent>
-        {isAnswered && (
-          <CardFooter>
-            <Button 
-                variant="link" 
-                onClick={handleGetExplanation} 
-                disabled={isExplanationLoading}
-                className="text-primary hover:text-primary/80"
-            >
-                {isExplanationLoading ? (
-                    <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Generating...
-                    </>
-                ) : (
-                    <>
-                        <Lightbulb className="mr-2 h-4 w-4" />
-                        {explanation ? 'Hide Explanation' : 'Show Explanation'}
-                    </>
-                )}
-            </Button>
-          </CardFooter>
-        )}
+
+      {isAnswered && (
+        <CardFooter className="p-0 pt-4 mt-4 border-t border-border/60 flex justify-end">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleGetExplanation} 
+            disabled={isExplanationLoading}
+            className="text-xs font-semibold text-primary hover:bg-primary/10 hover:text-primary"
+          >
+            {isExplanationLoading ? (
+              <>
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                Generating Explanation...
+              </>
+            ) : (
+              <>
+                <Lightbulb className="mr-1.5 h-3.5 w-3.5" />
+                {explanation ? 'Hide Explanation' : 'Explain Answer'}
+              </>
+            )}
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 }
 
-// =========================================
-// Matching Question Card — click-to-match, mobile-friendly
-// =========================================
-
+/* =========================================
+ * Matching Question Card Component
+ * ========================================= */
 interface MatchingQuestionCardProps {
   question: MatchingQuestion;
   questionIndex: number;
@@ -631,12 +742,10 @@ function MatchingQuestionCard({ question, questionIndex, userAnswer, onUpdate }:
   const pairs = question.pairs;
   const shuffledResponseIndices = question.shuffledResponseIndices || pairs.map((_, i) => i);
   
-  // Local state for the matching interaction
   const [matches, setMatches] = useState<Record<number, number>>(userAnswer?.matches || {});
   const [selectedPremise, setSelectedPremise] = useState<number | null>(null);
   const [checked, setChecked] = useState(userAnswer?.checked || false);
 
-  // Reverse map: response index → premise index (for highlighting which response is taken)
   const responseToMatchedPremise = useMemo(() => {
     const map: Record<number, number> = {};
     Object.entries(matches).forEach(([pIdx, rIdx]) => {
@@ -650,7 +759,6 @@ function MatchingQuestionCard({ question, questionIndex, userAnswer, onUpdate }:
   const handlePremiseClick = useCallback((premiseIdx: number) => {
     if (checked) return;
     
-    // If already matched, unmatch it
     if (matches[premiseIdx] !== undefined) {
       setMatches(prev => {
         const next = { ...prev };
@@ -661,14 +769,12 @@ function MatchingQuestionCard({ question, questionIndex, userAnswer, onUpdate }:
       return;
     }
 
-    // Toggle selection
     setSelectedPremise(prev => prev === premiseIdx ? null : premiseIdx);
   }, [checked, matches]);
 
   const handleResponseClick = useCallback((responseOriginalIdx: number) => {
     if (checked) return;
 
-    // If this response is already matched to something, unmatch it
     if (responseToMatchedPremise[responseOriginalIdx] !== undefined) {
       const matchedPremise = responseToMatchedPremise[responseOriginalIdx];
       setMatches(prev => {
@@ -676,14 +782,11 @@ function MatchingQuestionCard({ question, questionIndex, userAnswer, onUpdate }:
         delete next[matchedPremise];
         return next;
       });
-      // If we had a selected premise, don't auto-match it to this response
       return;
     }
 
-    // If no premise selected, select this response's premise (reverse flow)
     if (selectedPremise === null) return;
 
-    // Create the match
     setMatches(prev => ({
       ...prev,
       [selectedPremise]: responseOriginalIdx,
@@ -696,30 +799,14 @@ function MatchingQuestionCard({ question, questionIndex, userAnswer, onUpdate }:
     onUpdate({ type: 'matching', matches, checked: true });
   }, [matches, onUpdate]);
 
-  const handleReset = useCallback(() => {
-    if (checked) return;
-    setMatches({});
-    setSelectedPremise(null);
-  }, [checked]);
-
-  // Get match color for a premise (after checking)
   const getMatchResult = useCallback((premiseIdx: number): 'correct' | 'incorrect' | null => {
     if (!checked) return null;
     if (matches[premiseIdx] === undefined) return 'incorrect';
-    // Correct if the response's original index matches the premise's original index
     return matches[premiseIdx] === premiseIdx ? 'correct' : 'incorrect';
   }, [checked, matches]);
 
-  // Count correct pairs
-  const correctPairCount = useMemo(() => {
-    if (!checked) return 0;
-    return pairs.filter((_, idx) => matches[idx] === idx).length;
-  }, [checked, pairs, matches]);
-
-  // Get the matching label index (1, 2, 3...) for visual connection lines
   const getMatchLabel = useCallback((premiseIdx: number): number | null => {
     if (matches[premiseIdx] === undefined) return null;
-    // Return a 1-indexed label based on creation order
     const sortedPremises = Object.keys(matches).map(Number).sort((a, b) => a - b);
     return sortedPremises.indexOf(premiseIdx) + 1;
   }, [matches]);
@@ -730,50 +817,38 @@ function MatchingQuestionCard({ question, questionIndex, userAnswer, onUpdate }:
     return getMatchLabel(premiseIdx);
   }, [responseToMatchedPremise, getMatchLabel]);
 
-  // Color palette for match lines
   const matchColors = [
-    'bg-blue-500/30 border-blue-400', 
-    'bg-purple-500/30 border-purple-400', 
-    'bg-amber-500/30 border-amber-400', 
-    'bg-cyan-500/30 border-cyan-400', 
-    'bg-pink-500/30 border-pink-400', 
-    'bg-emerald-500/30 border-emerald-400',
-    'bg-orange-500/30 border-orange-400',
-    'bg-indigo-500/30 border-indigo-400',
-  ];
-
-  const matchTextColors = [
-    'text-blue-400', 
-    'text-purple-400', 
-    'text-amber-400', 
-    'text-cyan-400', 
-    'text-pink-400', 
-    'text-emerald-400',
-    'text-orange-400',
-    'text-indigo-400',
+    'border-blue-500/50 bg-blue-500/10 text-blue-600 dark:text-blue-400', 
+    'border-purple-500/50 bg-purple-500/10 text-purple-600 dark:text-purple-400', 
+    'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400', 
+    'border-cyan-500/50 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400', 
+    'border-pink-500/50 bg-pink-500/10 text-pink-600 dark:text-pink-400', 
+    'border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
   ];
 
   return (
-    <Card className="bg-card/80 backdrop-blur-sm border-white/10 shadow-lg transition-all duration-300 hover:border-white/20">
-      <CardHeader>
+    <Card className="surface-card p-6 border-border/80 bg-card space-y-4">
+      <CardHeader className="p-0 pb-2">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-md bg-primary/10 border border-primary/20">
-            <Link2 className="w-4 h-4 text-primary" />
+          <div className="p-1 rounded bg-primary/10 text-primary">
+            <Link2 className="w-4 h-4" />
           </div>
-          <CardTitle className="text-xl font-semibold">
-            {questionIndex + 1}. {question.question}
+          <CardTitle className="text-base sm:text-lg font-semibold text-foreground">
+            <span className="text-primary font-bold mr-2">{questionIndex + 1}.</span>
+            {question.question}
           </CardTitle>
         </div>
-        <CardDescription className="mt-1">
-          Tap a term on the left, then tap its match on the right. Tap a matched pair to unmatch it.
+        <CardDescription className="text-xs text-muted-foreground mt-1">
+          Tap a term on the left column, then tap its matching pair on the right. Tap a pair to unmatch.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        {/* Two-column matching grid */}
-        <div className="grid grid-cols-2 gap-3 md:gap-4">
-          {/* Left column — Premises */}
+
+      <CardContent className="p-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          
+          {/* Terms Column */}
           <div className="space-y-2">
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 px-1">Terms</div>
+            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1">Terms</div>
             {pairs.map((pair, pIdx) => {
               const isSelected = selectedPremise === pIdx;
               const isMatched = matches[pIdx] !== undefined;
@@ -787,186 +862,86 @@ function MatchingQuestionCard({ question, questionIndex, userAnswer, onUpdate }:
                   onClick={() => handlePremiseClick(pIdx)}
                   disabled={checked}
                   className={cn(
-                    'w-full text-left p-3 rounded-lg border-2 transition-all duration-200 text-sm md:text-base relative',
-                    'active:scale-[0.98] touch-manipulation',
+                    'w-full text-left p-3 rounded-xl border text-sm transition-all duration-200 flex items-center justify-between gap-2',
                     {
-                      // Not answered yet states
-                      'border-primary bg-primary/10 shadow-md shadow-primary/20 ring-2 ring-primary/30': isSelected && !checked,
+                      'border-primary bg-primary/15 text-primary ring-2 ring-primary/30 font-medium': isSelected && !checked,
                       [matchColors[colorIdx]]: isMatched && !checked,
-                      'border-border/50 bg-card/60 hover:border-border hover:bg-card/80': !isSelected && !isMatched && !checked,
-                      // After check states
-                      'bg-success/20 border-success/50': matchResult === 'correct',
-                      'bg-destructive/20 border-destructive/50': matchResult === 'incorrect',
-                      'opacity-50 cursor-not-allowed': checked,
+                      'border-border/60 bg-muted/20 hover:border-border hover:bg-muted/50': !isSelected && !isMatched && !checked,
+                      'bg-emerald-500/10 border-emerald-500/50 text-emerald-600 dark:text-emerald-400': matchResult === 'correct',
+                      'bg-destructive/10 border-destructive/50 text-destructive': matchResult === 'incorrect',
+                      'opacity-60 cursor-not-allowed': checked,
                     }
                   )}
                 >
-                  <div className="flex items-center gap-2">
-                    {matchLabel !== null && (
-                      <span className={cn(
-                        'flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold',
-                        checked 
-                          ? matchResult === 'correct' ? 'bg-success/50 text-success-foreground' : 'bg-destructive/50 text-destructive-foreground'
-                          : `${matchColors[colorIdx]} ${matchTextColors[colorIdx]}`
-                      )}>
-                        {matchLabel}
-                      </span>
-                    )}
-                    <span className="flex-grow">{pair.premise}</span>
-                    {matchResult === 'correct' && <CheckCircle2 className="flex-shrink-0 w-4 h-4 text-success ml-1" />}
-                    {matchResult === 'incorrect' && <XCircle className="flex-shrink-0 w-4 h-4 text-destructive ml-1" />}
-                  </div>
+                  <span className="font-medium">{pair.premise}</span>
+                  {matchLabel !== null && (
+                    <span className="h-5 w-5 rounded-full border border-current text-[11px] font-bold flex items-center justify-center shrink-0">
+                      {matchLabel}
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
 
-          {/* Right column — Responses (shuffled) */}
+          {/* Definitions Column */}
           <div className="space-y-2">
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 px-1">Definitions</div>
-            {shuffledResponseIndices.map((originalIdx) => {
-              const pair = pairs[originalIdx];
-              const isMatchedToSomePremise = responseToMatchedPremise[originalIdx] !== undefined;
-              const matchLabel = getResponseMatchLabel(originalIdx);
+            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1">Matches</div>
+            {shuffledResponseIndices.map((responseOriginalIdx, rDisplayIdx) => {
+              const responseText = pairs[responseOriginalIdx].response;
+              const isMatched = responseToMatchedPremise[responseOriginalIdx] !== undefined;
+              const matchedPremiseIdx = responseToMatchedPremise[responseOriginalIdx];
+              const matchResult = matchedPremiseIdx !== undefined ? getMatchResult(matchedPremiseIdx) : null;
+              const matchLabel = getResponseMatchLabel(responseOriginalIdx);
               const colorIdx = matchLabel !== null ? (matchLabel - 1) % matchColors.length : 0;
-              
-              // After check: determine if the match to this response is correct
-              const matchedPremise = responseToMatchedPremise[originalIdx];
-              const isCorrectMatch = checked && matchedPremise !== undefined && matchedPremise === originalIdx;
-              const isIncorrectMatch = checked && matchedPremise !== undefined && matchedPremise !== originalIdx;
-              // This response wasn't matched at all but should have been
-              const isUnmatched = checked && matchedPremise === undefined;
 
               return (
                 <button
-                  key={`response-${originalIdx}`}
-                  onClick={() => handleResponseClick(originalIdx)}
+                  key={`response-${rDisplayIdx}`}
+                  onClick={() => handleResponseClick(responseOriginalIdx)}
                   disabled={checked}
                   className={cn(
-                    'w-full text-left p-3 rounded-lg border-2 transition-all duration-200 text-sm md:text-base',
-                    'active:scale-[0.98] touch-manipulation',
+                    'w-full text-left p-3 rounded-xl border text-sm transition-all duration-200 flex items-center justify-between gap-2',
                     {
-                      // Before check states
-                      [matchColors[colorIdx]]: isMatchedToSomePremise && !checked,
-                      'border-border/50 bg-card/60 hover:border-border hover:bg-card/80': !isMatchedToSomePremise && !checked,
-                      'border-primary/50 bg-primary/5': selectedPremise !== null && !isMatchedToSomePremise && !checked,
-                      // After check states
-                      'bg-success/20 border-success/50': isCorrectMatch,
-                      'bg-destructive/20 border-destructive/50': isIncorrectMatch || isUnmatched,
-                      'opacity-50 cursor-not-allowed': checked,
+                      [matchColors[colorIdx]]: isMatched && !checked,
+                      'border-border/60 bg-muted/20 hover:border-border hover:bg-muted/50': !isMatched && !checked,
+                      'bg-emerald-500/10 border-emerald-500/50 text-emerald-600 dark:text-emerald-400': matchResult === 'correct',
+                      'bg-destructive/10 border-destructive/50 text-destructive': matchResult === 'incorrect',
+                      'opacity-60 cursor-not-allowed': checked,
                     }
                   )}
                 >
-                  <div className="flex items-center gap-2">
-                    {matchLabel !== null && (
-                      <span className={cn(
-                        'flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold',
-                        checked
-                          ? isCorrectMatch ? 'bg-success/50 text-success-foreground' : 'bg-destructive/50 text-destructive-foreground'
-                          : `${matchColors[colorIdx]} ${matchTextColors[colorIdx]}`
-                      )}>
-                        {matchLabel}
-                      </span>
-                    )}
-                    <span className="flex-grow">{pair.response}</span>
-                    {isCorrectMatch && <CheckCircle2 className="flex-shrink-0 w-4 h-4 text-success ml-1" />}
-                    {isIncorrectMatch && <XCircle className="flex-shrink-0 w-4 h-4 text-destructive ml-1" />}
-                  </div>
+                  <span>{responseText}</span>
+                  {matchLabel !== null && (
+                    <span className="h-5 w-5 rounded-full border border-current text-[11px] font-bold flex items-center justify-center shrink-0">
+                      {matchLabel}
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
+
+        </div>
+      </CardContent>
+
+      <CardFooter className="p-0 pt-4 flex items-center justify-between border-t border-border/60 mt-4">
+        <div className="text-xs text-muted-foreground font-medium">
+          {Object.keys(matches).length} of {pairs.length} pairs linked
         </div>
 
-        {/* Correct answers reveal after checking */}
-        {checked && (
-          <div className="mt-4 p-4 bg-secondary/60 rounded-lg border border-border/30 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <h4 className="font-semibold mb-2 text-sm flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-primary" />
-              Correct Matches — {correctPairCount} / {pairs.length} pairs correct
-            </h4>
-            <div className="space-y-1">
-              {pairs.map((pair, idx) => (
-                <div key={`answer-${idx}`} className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">{pair.premise}</span>
-                  <span className="text-primary">→</span>
-                  <span>{pair.response}</span>
-                  {matches[idx] === idx ? (
-                    <CheckCircle2 className="w-3 h-3 text-success flex-shrink-0" />
-                  ) : (
-                    <XCircle className="w-3 h-3 text-destructive flex-shrink-0" />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </CardContent>
-      
-      {!checked && (
-        <CardFooter className="flex gap-3">
+        {!checked && (
           <Button
+            size="sm"
             onClick={handleCheck}
             disabled={!allPairsMatched}
-            className="flex-1 rounded-lg font-semibold"
+            className="h-8 px-4 bg-primary text-primary-foreground text-xs font-semibold shadow"
           >
-            <CheckCircle2 className="mr-2 h-4 w-4" />
-            Check Matches
+            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+            Check Matching Pairs
           </Button>
-          <Button
-            onClick={handleReset}
-            variant="outline"
-            disabled={Object.keys(matches).length === 0}
-            className="rounded-lg"
-          >
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Reset
-          </Button>
-        </CardFooter>
-      )}
+        )}
+      </CardFooter>
     </Card>
   );
-}
-
-// =========================================
-// Summary Card
-// =========================================
-
-interface SummaryCardProps {
-    summary?: string;
-    onGenerate: () => void;
-    isLoading: boolean;
-}
-
-function SummaryCard({ summary, onGenerate, isLoading }: SummaryCardProps) {
-    if (summary) {
-        return (
-            <Card className="bg-secondary/50 border-border">
-                <CardHeader>
-                    <CardTitle>Summary</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground">{summary}</p>
-                </CardContent>
-            </Card>
-        );
-    }
-
-    return (
-        <div className="flex justify-center">
-            <Button variant="outline" onClick={onGenerate} disabled={isLoading}>
-                {isLoading ? (
-                    <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Generating Summary...
-                    </>
-                ) : (
-                    <>
-                        <FileText className="mr-2 h-4 w-4" />
-                        Show Summary
-                    </>
-                )}
-            </Button>
-        </div>
-    );
 }

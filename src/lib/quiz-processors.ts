@@ -22,12 +22,20 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 export const processFile = async (file: File): Promise<string> => {
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error('File size exceeds the 10MB limit. Please upload a smaller file.');
+  }
+
   if (file.type === 'application/pdf') {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
     const textContent = [];
     
-    for (let i = 1; i <= pdf.numPages; i++) {
+    const MAX_PAGES = 50;
+    const pagesToProcess = Math.min(pdf.numPages, MAX_PAGES);
+    
+    for (let i = 1; i <= pagesToProcess; i++) {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
       const pageText = content.items

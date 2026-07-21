@@ -11,6 +11,9 @@ export async function createQuiz(input: Omit<GenerateQuizInput, 'model'>): Promi
   if (!input.lectureText || input.lectureText.trim().length < 100) {
     return { error: 'Please provide a more substantial lecture text (at least 100 characters).' };
   }
+  if (input.lectureText.trim().length > 100000) {
+    return { error: 'The provided text is too long. Please limit it to 100,000 characters.' };
+  }
 
   try {
     const quizResult = await generateQuiz(input);

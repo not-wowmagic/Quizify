@@ -18,7 +18,7 @@ import { callGemini, extractJSON } from '@/ai/gemini';
  * Input validation schema for quiz generation
  */
 const GenerateQuizInputSchema = z.object({
-  lectureText: z.string().min(1).describe('The text to generate questions from'),
+  lectureText: z.string().min(1).max(100000).describe('The text to generate questions from'),
   numQuestions: z.number().min(1).max(50).describe('Number of questions to generate'),
   difficulty: z.enum(['easy', 'medium', 'hard']).describe('Quiz difficulty level'),
   questionType: z.enum(['multiple_choice', 'situational', 'fill_in_the_blank', 'true_false', 'matching', 'mixed'])

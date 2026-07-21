@@ -166,7 +166,8 @@ function getResponseText(data: any): string {
     if (data?.promptFeedback?.blockReason) {
       throw new Error(`Gemini API request was blocked: ${data.promptFeedback.blockReason}`);
     }
-    throw new Error(`Gemini API returned no content. Response payload: ${JSON.stringify(data)}`);
+    console.error('Raw Gemini Response:', JSON.stringify(data)); // Keep for server logs
+    throw new Error('Gemini API returned no content or an unexpected response structure.');
   }
   
   return String(content);
