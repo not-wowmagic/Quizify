@@ -35,7 +35,11 @@ type StandardAnswer = { type: 'standard'; selectedIndex: number };
 type MatchingAnswer = { type: 'matching'; matches: Record<number, number>; checked: boolean };
 type QuizAnswer = StandardAnswer | MatchingAnswer;
 
-export function QuizClient() {
+interface QuizClientProps {
+  onQuizStateChange?: (hasQuiz: boolean) => void;
+}
+
+export function QuizClient({ onQuizStateChange }: QuizClientProps = {}) {
   // Core quiz state
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [userAnswers, setUserAnswers] = useState<Record<number, QuizAnswer>>({});
@@ -64,6 +68,11 @@ export function QuizClient() {
     setIsMounted(true);
     setCurrentQuote(getRandomQuote());
   }, []);
+
+  useEffect(() => {
+    onQuizStateChange?.(!!quiz);
+  }, [quiz, onQuizStateChange]);
+
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

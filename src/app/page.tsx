@@ -1,9 +1,21 @@
+'use client';
+
+import { useState } from 'react';
 import { QuizClient } from '@/components/quiz-client';
+import { cn } from '@/lib/utils';
 
 export default function Home() {
+  const [hasQuiz, setHasQuiz] = useState(false);
+
   return (
-    <main className="flex-1 flex flex-col h-screen overflow-hidden">
-      <div className="container mx-auto max-w-5xl px-4 sm:px-6 flex flex-col flex-1 overflow-hidden py-6">
+    <main className={cn(
+      "flex-1 flex flex-col transition-all duration-300",
+      hasQuiz ? "min-h-screen overflow-y-auto" : "h-screen overflow-hidden"
+    )}>
+      <div className={cn(
+        "container mx-auto max-w-5xl px-4 sm:px-6 flex flex-col flex-1 py-6",
+        hasQuiz ? "min-h-screen" : "overflow-hidden"
+      )}>
         
         {/* Hero Section */}
         <header className="text-center flex flex-col items-center shrink-0 mb-4">
@@ -18,10 +30,11 @@ export default function Home() {
 
         {/* Main Quiz Generator */}
         <div id="setup" className="mx-auto w-full max-w-4xl flex-1">
-          <QuizClient />
+          <QuizClient onQuizStateChange={setHasQuiz} />
         </div>
 
       </div>
     </main>
   );
 }
+
