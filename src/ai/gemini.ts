@@ -167,6 +167,7 @@ async function fetchWithRetry(url: string, body: Record<string, unknown>, retrie
   }
   throw new GeminiAPIError('Max retries exceeded');
 }
+
 function getResponseText(data: GeminiResponse): string {
   const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   
@@ -205,14 +206,8 @@ export async function callGemini(prompt: string, options: GeminiOptions = {}) {
           }
         ]
       }
-    ],
-    generationConfig: {}
+    ]
   };
-
-  if (options.jsonMode) {
-    // The v1 API endpoint does not currently support the responseMimeType parameter 
-    // in generationConfig, so we rely solely on prompting and extractJSON to parse the output.
-  }
 
   if (options.systemInstruction) {
     body.systemInstruction = {
