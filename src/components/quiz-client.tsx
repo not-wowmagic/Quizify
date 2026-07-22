@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import type { Quiz, QuizQuestion, StandardQuestion, MatchingQuestion } from '@/types/quiz';
+import type { Quiz, StandardQuestion, MatchingQuestion } from '@/types/quiz';
 import { createQuiz, explainAnswer, createSummary } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   Loader2, RefreshCw, CheckCircle2, Upload, Lightbulb, XCircle, FileText, 
   Sparkles, RotateCcw, CircleDot, CheckSquare, Edit3, Link as LinkIcon, Shuffle, Link2, 
-  HelpCircle, ChevronDown, ChevronUp, FileCode
+
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -290,7 +290,7 @@ export function QuizClient() {
                     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
                       if (fileInputRef.current) {
                         fileInputRef.current.files = e.dataTransfer.files;
-                        handleFileChange({ target: fileInputRef.current } as any);
+                        handleFileChange({ target: fileInputRef.current } as React.ChangeEvent<HTMLInputElement>);
                       }
                     }
                   }}
@@ -407,7 +407,7 @@ export function QuizClient() {
                     return (
                       <button
                         key={type.id}
-                        onClick={() => setQuestionType(type.id as any)}
+                        onClick={() => setQuestionType(type.id as 'multiple_choice' | 'situational' | 'fill_in_the_blank' | 'true_false' | 'matching' | 'mixed')}
                         disabled={isLoading}
                         className={cn(
                           "rounded-lg p-2 border flex flex-col items-center justify-center gap-1.5 transition-all duration-200 text-center text-xs font-medium",

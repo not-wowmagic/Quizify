@@ -7,7 +7,7 @@
 
 import { callGemini, extractJSON } from '@/ai/gemini';
 import type { GenerateExplanationInput, GenerateExplanationOutput } from '@/types/explanation';
-import { GenerateExplanationInputSchema, GenerateExplanationOutputSchema } from '@/types/explanation';
+import { GenerateExplanationOutputSchema } from '@/types/explanation';
 
 
 export async function generateExplanation(

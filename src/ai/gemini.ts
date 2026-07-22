@@ -3,6 +3,18 @@ export interface GeminiOptions {
   jsonMode?: boolean;
 }
 
+interface GeminiResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ text?: string }>;
+    };
+    finishReason?: string;
+  }>;
+  promptFeedback?: {
+    blockReason?: string;
+  };
+}
+
 export class GeminiAPIError extends Error {
   status?: number;
   constructor(message: string, status?: number) {
@@ -16,7 +28,7 @@ export class GeminiAPIError extends Error {
  * Extract the first complete, balanced JSON object (or array) from a string.
  * Handles strings, escapes, and brackets balancing.
  */
-export function extractJSON(str: string): any {
+export function extractJSON(str: string): unknown {
   const start = str.indexOf('{');
   const startArray = str.indexOf('[');
   
@@ -90,8 +102,8 @@ export function extractJSON(str: string): any {
           const candidate = str.substring(startIndex, i + 1);
           try {
             return JSON.parse(candidate);
-          } catch (e: any) {
-            throw new Error(`Failed to parse extracted JSON structure: ${e.message}. Content: ${candidate}`);
+          } catch (e: unknown) {
+            throw new Error(`Failed to parse extracted JSON structure: ${(e as Error).message}. Content: ${candidate}`);
           }
         }
       }
@@ -101,7 +113,7 @@ export function extractJSON(str: string): any {
   throw new Error('No balanced JSON structure found in the response.');
 }
 
-async function fetchWithRetry(url: string, body: any, retries = 2, delay = 1000): Promise<any> {
+async function fetchWithRetry(url: string, body: Record<string, unknown>, retries = 2, delay = 1000): Promise<GeminiResponse> {
   const timeoutMs = 15000; // 15s timeout — quiz generation needs time for JSON output
 
   for (let i = 0; i <= retries; i++) {
@@ -134,15 +146,15 @@ async function fetchWithRetry(url: string, body: any, retries = 2, delay = 1000)
       }
 
       throw new GeminiAPIError(`Gemini API error ${res.status}: ${txt}`, res.status);
-    } catch (err: any) {
+    } catch (err: unknown) {
       clearTimeout(timeoutId);
 
       if (err instanceof GeminiAPIError) {
         throw err;
       }
 
-      const isTimeout = err.name === 'AbortError';
-      const errorMessage = isTimeout ? `Request timed out after ${timeoutMs}ms` : err.message;
+      const isTimeout = (err as Error).name === 'AbortError';
+      const errorMessage = isTimeout ? `Request timed out after ${timeoutMs}ms` : (err as Error).message;
 
       if (i === retries) {
         throw new GeminiAPIError(`Failed to contact Gemini API: ${errorMessage}`);
@@ -153,9 +165,9 @@ async function fetchWithRetry(url: string, body: any, retries = 2, delay = 1000)
       delay *= 2;
     }
   }
+  throw new GeminiAPIError('Max retries exceeded');
 }
-
-function getResponseText(data: any): string {
+function getResponseText(data: GeminiResponse): string {
   const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   
   if (!content) {
@@ -184,7 +196,7 @@ export async function callGemini(prompt: string, options: GeminiOptions = {}) {
   const model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
   const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${primaryKey}`;
 
-  const body: any = {
+  const body: Record<string, unknown> = {
     contents: [
       {
         parts: [
@@ -215,7 +227,7 @@ export async function callGemini(prompt: string, options: GeminiOptions = {}) {
   try {
     const data = await fetchWithRetry(url, body);
     return getResponseText(data);
-  } catch (err: any) {
+  } catch (err: unknown) {
     const isRateLimit = err instanceof GeminiAPIError && (err.status === 429 || err.status === 403);
     
     if (isRateLimit && fallbackKey) {
@@ -224,7 +236,7 @@ export async function callGemini(prompt: string, options: GeminiOptions = {}) {
       try {
         const data = await fetchWithRetry(fallbackUrl, body);
         return getResponseText(data);
-      } catch (fallbackErr: any) {
+      } catch (fallbackErr: unknown) {
         console.error('Fallback Gemini API execution error:', fallbackErr);
         throw fallbackErr;
       }
