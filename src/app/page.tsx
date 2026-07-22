@@ -2,7 +2,7 @@ import { QuizClient } from '@/components/quiz-client';
 
 export default function Home() {
   return (
-    <main className="flex-1 flex flex-col h-[calc(100vh-0px)] overflow-hidden">
+    <main className="flex-1 flex flex-col h-screen overflow-hidden">
       <div className="container mx-auto max-w-5xl px-4 sm:px-6 flex flex-col flex-1 overflow-hidden py-6">
         
         {/* Hero Section */}

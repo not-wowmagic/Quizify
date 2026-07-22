@@ -39,7 +39,7 @@ export const processFile = async (file: File): Promise<string> => {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
       const pageText = content.items
-        .map((item: any) => item.str)
+        .map((item: unknown) => { const t = item as { str?: string }; return t.str ?? ''; })
         .join(' ');
       textContent.push(pageText);
     }

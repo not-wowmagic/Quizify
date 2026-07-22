@@ -28,42 +28,6 @@ const GenerateQuizInputSchema = z.object({
 export type GenerateQuizInput = z.infer<typeof GenerateQuizInputSchema>;
 type QuestionType = GenerateQuizInput['questionType'];
 
-/**
- * Standard question format validation schema
- */
-const StandardQuizQuestionSchema = z.object({
-  question: z.string().describe('The question text'),
-  options: z.array(z.string()).length(4).describe('Four answer options'),
-  correctAnswerIndex: z.number().min(0).max(3).describe('Index of the correct answer (0-3)'),
-});
-
-/**
- * Matching question format validation schema
- */
-const MatchingPairSchema = z.object({
-  premise: z.string().describe('The item on the left column'),
-  response: z.string().describe('The matching item on the right column'),
-});
-
-const MatchingQuizQuestionSchema = z.object({
-  question: z.string().describe('The instruction text for matching'),
-  pairs: z.array(MatchingPairSchema).min(3).max(8).describe('Array of matching pairs'),
-});
-
-/**
- * Output validation schema for standard quiz generation
- */
-const GenerateQuizOutputSchema = z.object({
-  questions: z.array(StandardQuizQuestionSchema).describe('Array of generated questions'),
-});
-
-/**
- * Output validation schema for matching quiz generation
- */
-const GenerateMatchingQuizOutputSchema = z.object({
-  questions: z.array(MatchingQuizQuestionSchema).describe('Array of generated matching questions'),
-});
-
 export type GenerateQuizOutput = {
   questions: Array<{
     type: 'standard';
@@ -85,6 +49,21 @@ const QUESTION_TYPE_GUIDANCE: Record<QuestionType, string> = {
   matching: 'Create matching exercises where the learner must pair related items. Generate 4-6 pairs of related items from the text (e.g., term↔definition, concept↔example, cause↔effect, event↔date). Each pair must be clearly and unambiguously connected based on the text. Premises should be distinct from each other, and responses should also be distinct.',
   mixed: 'Generate a balanced mix of multiple-choice, situational, fill-in-the-blank, true/false, and matching questions. Alternate formats so the learner experiences variety while keeping every question answerable strictly from the text.',
 };
+
+interface StandardQuestionRaw {
+  question: string;
+  options: string[];
+  correctAnswerIndex: number;
+  type: 'standard';
+}
+
+interface MatchingQuestionRaw {
+  question: string;
+  pairs: { premise: string; response: string }[];
+  type: 'matching';
+}
+
+type QuestionRaw = StandardQuestionRaw | MatchingQuestionRaw;
 
 // =========================================
 // Helper Functions
@@ -143,7 +122,7 @@ async function processStandardChunk(chunk: string, params: {
   questionsPerChunk: number;
   questionType: string;
   difficulty: string;
-}): Promise<any[]> {
+}): Promise<StandardQuestionRaw[]> {
   const questionType = params.questionType as QuestionType;
   const typeGuidance = QUESTION_TYPE_GUIDANCE[questionType] ?? QUESTION_TYPE_GUIDANCE.multiple_choice;
 
@@ -183,8 +162,8 @@ Return questions in this exact JSON format:
   const response = await callGemini(prompt, { jsonMode: true });
   
   try {
-    const result = extractJSON(response);
-    return (result?.questions || []).map((q: any) => ({
+    const result = extractJSON(response) as { questions?: StandardQuestionRaw[] } | undefined;
+    return (result?.questions || []).map((q: StandardQuestionRaw) => ({
       ...q,
       type: 'standard',
     }));
@@ -200,7 +179,7 @@ Return questions in this exact JSON format:
 async function processMatchingChunk(chunk: string, params: {
   questionsPerChunk: number;
   difficulty: string;
-}): Promise<any[]> {
+}): Promise<MatchingQuestionRaw[]> {
   const prompt = `You are an assistant that helps generate matching-type quiz questions from text content.
 Follow these strict rules:
 
@@ -237,8 +216,8 @@ Return questions in this exact JSON format:
   const response = await callGemini(prompt, { jsonMode: true });
   
   try {
-    const result = extractJSON(response);
-    return (result?.questions || []).map((q: any) => ({
+    const result = extractJSON(response) as { questions?: MatchingQuestionRaw[] } | undefined;
+    return (result?.questions || []).map((q: MatchingQuestionRaw) => ({
       ...q,
       type: 'matching',
     }));
@@ -255,14 +234,14 @@ Return questions in this exact JSON format:
 async function processMixedChunk(chunk: string, params: {
   questionsPerChunk: number;
   difficulty: string;
-}): Promise<any[]> {
+}): Promise<QuestionRaw[]> {
   // Allocate roughly 1 matching question per 4 total, minimum 1
   const matchingCount = Math.max(1, Math.floor(params.questionsPerChunk / 4));
   const standardCount = params.questionsPerChunk - matchingCount;
 
   // Distribute standard questions across the four standard types
   const standardTypes: QuestionType[] = ['multiple_choice', 'situational', 'fill_in_the_blank', 'true_false'];
-  const standardPromises: Promise<any[]>[] = [];
+  const standardPromises: Promise<StandardQuestionRaw[]>[] = [];
 
   if (standardCount > 0) {
     // Evenly distribute, with remainder going to the first types
@@ -348,7 +327,7 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
   });
   
   const results = await Promise.all(chunkPromises);
-  const allQuestions: any[] = [];
+  const allQuestions: QuestionRaw[] = [];
   for (const chunkQuestions of results) {
     allQuestions.push(...chunkQuestions);
   }
@@ -376,3 +355,4 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
 
   return result;
 }
+
