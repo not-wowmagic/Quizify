@@ -38,8 +38,8 @@ With built-in AI summaries, step-by-step explanations, and customizable difficul
 ## Getting Started
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) v18 or higher
-- An AI API key (see `.env.local.example` for configuration details)
+- [Node.js](https://nodejs.org/) v20 or higher
+- An AI API key (see `.env.local.example` for configuration details). The default provider is **OpenCode Zen** (`OPENCODE_API_KEY` from https://opencode.ai/auth); the direct **Gemini** provider is available as a fallback via `AI_PROVIDER=gemini`.
 
 ### Setup
 
@@ -50,7 +50,7 @@ With built-in AI summaries, step-by-step explanations, and customizable difficul
 
 2. **Configure your environment:**
 
-   Copy `.env.local.example` to `.env.local` and fill in your credentials:
+   Copy `.env.local.example` to `.env.local` and fill in your credentials (`.env.local` is gitignored — keys never reach GitHub):
    ```bash
    cp .env.local.example .env.local
    ```
@@ -59,6 +59,11 @@ With built-in AI summaries, step-by-step explanations, and customizable difficul
    ```bash
    npm run dev
    ```
+
+> **Deploying to Netlify:** add the environment variables in the Netlify dashboard
+> (Site settings → Environment variables) instead of `.env.local`. Required:
+> `OPENCODE_API_KEY`; optional: `AI_PROVIDER`, `OPENCODE_MODEL`, `NEXT_PUBLIC_SITE_URL`,
+> `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`.
 
 ---
 
@@ -73,7 +78,7 @@ With built-in AI summaries, step-by-step explanations, and customizable difficul
 
 ## Tech Stack
 
-Built with [Next.js](https://nextjs.org/), [TypeScript](https://www.typescriptlang.org/), [Tailwind CSS](https://tailwindcss.com/), [PDF.js](https://mozilla.github.io/pdf.js/), and [Mammoth.js](https://github.com/mwilliamson/mammoth.js).
+Built with [Next.js](https://nextjs.org/), [TypeScript](https://www.typescriptlang.org/), [Tailwind CSS](https://tailwindcss.com/), [PDF.js](https://mozilla.github.io/pdf.js/), and [Mammoth.js](https://github.com/mwilliamson/mammoth.js). Quiz generation runs server-side via [OpenCode Zen](https://opencode.ai/docs/zen/) (with an optional direct [Gemini](https://ai.google.dev/) provider).
 
 ---
 
