@@ -1,0 +1,23 @@
+# Quizify
+
+> Turn lecture notes, textbook excerpts, and study documents into interactive AI-generated quizzes in seconds. Supports PDF and DOCX uploads, multiple question formats, difficulty levels, AI explanations, and study summaries.
+
+## What it does
+Quizify is a free web application that converts study material into interactive quizzes using AI. Users upload a PDF or DOCX document, or paste text directly, and receive a customized quiz.
+
+## Features
+- Question formats: multiple choice, true/false, fill-in-the-blank, matching pairs, situational scenarios, or a mixed set
+- Adjustable difficulty (easy, medium, hard) and question count (1-50)
+- AI-generated explanations for any question
+- AI-generated one-paragraph study summaries
+- Instant scoring and answer feedback
+- Dark and light mode
+
+## How to use
+1. Upload a PDF/DOCX file or paste at least 100 characters of study text.
+2. Choose the number of questions, difficulty, and question format.
+3. Generate the quiz, answer the questions, and review explanations.
+
+## Technical notes
+- Built with Next.js, TypeScript, and Tailwind CSS; quiz generation runs server-side via an AI API (OpenCode Zen by default).
+- Uploaded documents are parsed locally in the browser; only extracted text is sent to the server and nothing is stored.
