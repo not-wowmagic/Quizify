@@ -10,7 +10,7 @@ import { extractTextFromImage, ImageOcrInputSchema, type ImageOcrInput, type Ima
 import { checkRateLimit, getClientIp, hashPayload, TtlCache, verifyTurnstile } from '@/lib/rate-limit';
 import { getSupabase, DEVICE_ID_PATTERN } from '@/lib/supabase-server';
 import { sanitizeText } from '@/lib/sanitize';
-import { extractArticle, fetchPublicPage } from '@/lib/web-reader';
+import { fetchPublicPage } from '@/lib/web-reader';
 import type { Quiz } from '@/types/quiz';
 import type { AttemptAnswer, QuizAttempt } from '@/types/history';
 
@@ -28,8 +28,8 @@ const TUTOR_LIMIT = 60;
 // Identical quiz requests within the TTL are served from cache (per instance)
 const quizCache = new TtlCache<Pick<Quiz, 'questions'>>(50, HOUR_MS);
 
-// Extracted articles are cached by URL hash for 24h (per instance)
-const webCache = new TtlCache<{ title: string; text: string }>(100, 24 * HOUR_MS);
+// Fetched pages are cached by URL hash for 24h (per instance)
+const webCache = new TtlCache<{ html: string; finalUrl: string }>(100, 24 * HOUR_MS);
 
 export type CreateQuizInput = GenerateQuizInput & { turnstileToken?: string; bypassCache?: boolean };
 
@@ -133,8 +133,8 @@ export async function askTutorFollowUp(input: TutorInput): Promise<TutorOutput |
     }
 }
 
-/** Extracts clean article text from a public web URL (SSRF-hardened). */
-export async function extractFromWebUrl(rawUrl: string): Promise<{ title: string; text: string } | { error: string }> {
+/** Fetches a public web URL (SSRF-hardened). Article extraction happens client-side. */
+export async function extractFromWebUrl(rawUrl: string): Promise<{ html: string; finalUrl: string } | { error: string }> {
     const url = rawUrl.trim();
     if (!/^https?:\/\//i.test(url)) {
       return { error: 'Enter a full URL starting with http:// or https://.' };
@@ -151,12 +151,7 @@ export async function extractFromWebUrl(rawUrl: string): Promise<{ title: string
     if (cached) return cached;
 
     try {
-      const { html, finalUrl } = await fetchPublicPage(url);
-      const article = await extractArticle(html, finalUrl);
-      const result = {
-        title: article.title,
-        text: sanitizeText(article.text),
-      };
+      const result = await fetchPublicPage(url);
       webCache.set(cacheKey, result);
       return result;
     } catch (e) {

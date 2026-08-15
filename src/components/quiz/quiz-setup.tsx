@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TurnstileWidget } from '@/components/turnstile-widget';
 import { extractFromWebUrl, extractTextFromImageAction } from '@/app/actions';
+import { sanitizeText } from '@/lib/sanitize';
 import {
   Loader2, Upload, Lightbulb, FileText,
   Sparkles, CircleDot, CheckSquare, Edit3, Link as LinkIcon, Shuffle, Lock,
@@ -98,10 +99,24 @@ export function QuizSetup({
       const result = await extractFromWebUrl(url);
       if ('error' in result) {
         setWebStatus({ ok: false, message: result.error });
-      } else {
-        onLectureTextChange(result.text);
-        setWebStatus({ ok: true, message: `Extracted ${result.text.length.toLocaleString()} characters${result.title ? ` (from "${result.title}")` : ''}. Ready to generate!` });
+        return;
       }
+      // Article extraction runs in the browser (DOMParser + readability) so the
+      // server never needs jsdom, which is not Netlify-compatible.
+      const { Readability } = await import('@mozilla/readability');
+      const doc = new DOMParser().parseFromString(result.html, 'text/html');
+      const article = new Readability(doc).parse();
+      if (!article) {
+        setWebStatus({ ok: false, message: 'Could not extract readable content from that page. It may be a paywall, a PDF, or a non-article page. Try pasting the text instead.' });
+        return;
+      }
+      const text = sanitizeText((article.textContent ?? '').replace(/\s+/g, ' ').trim());
+      if (text.length < 100) {
+        setWebStatus({ ok: false, message: 'That page contains too little readable text. Try pasting the text instead.' });
+        return;
+      }
+      onLectureTextChange(text);
+      setWebStatus({ ok: true, message: `Extracted ${text.length.toLocaleString()} characters${article.title?.trim() ? ` (from "${article.title.trim()}")` : ''}. Ready to generate!` });
     } catch {
       setWebStatus({ ok: false, message: 'Something went wrong. Please try again.' });
     } finally {

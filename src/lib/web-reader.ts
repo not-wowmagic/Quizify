@@ -1,8 +1,8 @@
 // src/lib/web-reader.ts
-// Server-only web article extraction with SSRF hardening.
-// Fetches a URL, verifies the resolved host is public, and extracts clean
-// article text via @mozilla/readability (ads, navbars, cookie banners are
-// stripped by readability's DOM cleanup).
+// Server-only web article fetching with SSRF hardening.
+// Fetches a URL, verifies the resolved host is public, and returns the raw
+// HTML. Article extraction (@mozilla/readability) runs client-side in the
+// browser via DOMParser, so the Netlify Node runtime never loads jsdom.
 import 'server-only';
 
 import { lookup } from 'node:dns/promises';
@@ -10,7 +10,6 @@ import { lookup } from 'node:dns/promises';
 const MAX_PAGE_BYTES = 2_000_000;
 const MAX_REDIRECTS = 3;
 const FETCH_TIMEOUT_MS = 10_000;
-const MIN_EXTRACTED_CHARS = 100;
 
 /** Blocks private, loopback, link-local, and reserved IP ranges (IPv4 + IPv6). */
 function isBlockedAddress(address: string): boolean {
@@ -113,25 +112,4 @@ export async function fetchPublicPage(urlStr: string): Promise<{ html: string; f
     return { html, finalUrl: current };
   }
   throw new Error('Too many redirects.');
-}
-
-/** Extracts clean article text (and title) from an HTML page. */
-export async function extractArticle(html: string, finalUrl: string): Promise<{ title: string; text: string }> {
-  // jsdom is heavy, so it is dynamically imported to stay out of edge bundles.
-  const [{ JSDOM }, { Readability }] = await Promise.all([
-    import('jsdom'),
-    import('@mozilla/readability'),
-  ]);
-
-  const dom = new JSDOM(html, { url: finalUrl });
-  const article = new Readability(dom.window.document).parse();
-  if (!article) {
-    throw new Error('Could not extract readable content from that page. It may be a paywall, a PDF, or a non-article page. Try pasting the text instead.');
-  }
-
-  const text = (article.textContent ?? '').replace(/\s+/g, ' ').trim();
-  if (text.length < MIN_EXTRACTED_CHARS) {
-    throw new Error('That page contains too little readable text. Try pasting the text instead.');
-  }
-  return { title: article.title?.trim() || 'Untitled', text };
 }
