@@ -1,7 +1,7 @@
 'use client';
 
 // src/components/quiz/matching-question-card.tsx
-import React, { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import type { MatchingQuestion } from '@/types/quiz';
 import type { MatchingAnswer } from '@/components/quiz/types';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,15 @@ interface MatchingQuestionCardProps {
   userAnswer: MatchingAnswer | undefined;
   onUpdate: (answer: MatchingAnswer) => void;
 }
+
+const matchColors = [
+  'border-blue-500/50 bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  'border-purple-500/50 bg-purple-500/10 text-purple-600 dark:text-purple-400',
+  'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  'border-cyan-500/50 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400',
+  'border-pink-500/50 bg-pink-500/10 text-pink-600 dark:text-pink-400',
+  'border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+];
 
 export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUpdate }: MatchingQuestionCardProps) {
   const pairs = question.pairs;
@@ -94,15 +103,6 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
     if (premiseIdx === undefined) return null;
     return getMatchLabel(premiseIdx);
   }, [responseToMatchedPremise, getMatchLabel]);
-
-  const matchColors = [
-    'border-blue-500/50 bg-blue-500/10 text-blue-600 dark:text-blue-400',
-    'border-purple-500/50 bg-purple-500/10 text-purple-600 dark:text-purple-400',
-    'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400',
-    'border-cyan-500/50 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400',
-    'border-pink-500/50 bg-pink-500/10 text-pink-600 dark:text-pink-400',
-    'border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  ];
 
   return (
     <Card className="surface-card p-6 border-border/80 bg-card space-y-4">
