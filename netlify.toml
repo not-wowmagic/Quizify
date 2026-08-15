@@ -3,7 +3,11 @@
   publish = ".next"
 
 [build.environment]
-  NODE_VERSION = "20"
+  NODE_VERSION = "22"
+
+# Long-running AI generation needs more than the 10s default function timeout
+[functions]
+  timeout = 120
 
 # Required for Next.js Server Actions and SSR on Netlify
 [[plugins]]

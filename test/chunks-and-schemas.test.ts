@@ -40,13 +40,14 @@ describe('splitTextIntoChunks', () => {
 
 describe('computeChunkSize (adaptive chunking)', () => {
   it('keeps the 8000-char floor for large question counts', () => {
-    expect(computeChunkSize(100_000, 50)).toBe(8000);
-    expect(computeChunkSize(100_000, 25)).toBe(8000);
+    expect(computeChunkSize(100_000, 50)).toBe(8000); // 13 chunks → below floor
   });
 
   it('uses fewer, larger chunks for small question counts', () => {
-    // 10 questions → at most 5 chunks → 20k per chunk
-    expect(computeChunkSize(100_000, 10)).toBe(20_000);
+    // 25 questions → at most 7 chunks → ~14.3k per chunk
+    expect(computeChunkSize(100_000, 25)).toBe(14_286);
+    // 10 questions → at most 3 chunks → ~33.3k per chunk
+    expect(computeChunkSize(100_000, 10)).toBe(33_334);
     // 2 questions → single chunk covering the whole document
     expect(computeChunkSize(100_000, 2)).toBe(100_000);
   });
@@ -55,11 +56,11 @@ describe('computeChunkSize (adaptive chunking)', () => {
     expect(computeChunkSize(5_000, 10)).toBe(8000);
   });
 
-  it('produces at most ceil(numQuestions/2) chunks on typical text', () => {
+  it('produces at most ceil(numQuestions/4) chunks on typical text', () => {
     const text = Array.from({ length: 2200 }, (_, i) => `Sentence ${i} about study material with enough words.`).join(' ');
     const chunkSize = computeChunkSize(text.length, 10);
     const chunks = splitTextIntoChunks(text, chunkSize);
-    expect(chunks.length).toBeLessThanOrEqual(6); // ceil(10/2) = 5 (+1 tolerance)
+    expect(chunks.length).toBeLessThanOrEqual(4); // ceil(10/4) = 3 (+1 tolerance)
     expect(chunks.length).toBeGreaterThan(0);
     for (const chunk of chunks) {
       expect(chunk.length).toBeLessThanOrEqual(chunkSize);

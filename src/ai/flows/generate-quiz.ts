@@ -369,7 +369,7 @@ async function processMixedChunk(chunk: string, params: {
   }
 
   // Bounded concurrency inside mixed mode as well
-  const standardResults = (await mapWithConcurrency(standardTasks, 3, task => task())).flat();
+  const standardResults = (await mapWithConcurrency(standardTasks, 4, task => task())).flat();
   const matchingQuestions = matchingCount > 0
     ? await processMatchingChunk(chunk, {
         questionsPerChunk: matchingCount,
@@ -401,7 +401,9 @@ export const QUIZ_GENERATION_DEADLINE_MS = 110_000;
  * whole document), which is both faster and better quality.
  */
 export function computeChunkSize(textLength: number, numQuestions: number, minChunkSize = 8000): number {
-  const maxChunks = Math.max(1, Math.ceil(numQuestions / 2));
+  // One question per ~4k chars of budget yields fewer, larger calls than the
+  // former /2 divisor — roughly half the LLM round-trips for large quizzes.
+  const maxChunks = Math.max(1, Math.ceil(numQuestions / 4));
   return Math.max(minChunkSize, Math.ceil(textLength / maxChunks));
 }
 
@@ -422,7 +424,7 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
 
   // Generate questions from each chunk with bounded concurrency
   const deadlineMs = Date.now() + QUIZ_GENERATION_DEADLINE_MS;
-  const results = await mapWithConcurrency(chunks, 3, chunk => {
+  const results = await mapWithConcurrency(chunks, 4, chunk => {
     if (isMatching) {
       return processMatchingChunk(chunk, {
         questionsPerChunk,
