@@ -35,7 +35,6 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@oxlint/binding-win32-x64-msvc": "^1.78.0",
     "@oxlint/plugins": "^1.78.0",
     "@types/node": "^20",
     "@types/react": "^19",
