@@ -2,28 +2,28 @@
 // Strict dynamic Content Security Policy with a per-request nonce.
 //
 // Next.js 16: "middleware" is renamed to "proxy"; the behavior is identical.
-// Next.js automatically extracts the nonce from the CSP header (script-src /
-// default-src) and applies it to framework-injected scripts and <Script>
-// components (see app-render.js: getScriptNonceFromHeader). Scripts rendered
-// manually (JSON-LD, service-worker registration) must receive the nonce from
-// layout.tsx, which reads it back from the x-nonce response header.
-import { NextResponse } from 'next/server';
+// The nonce must reach BOTH the browser and the render pipeline:
+//   - content-security-policy is set on the REQUEST headers so Next's
+//     app-render (parseRequestHeaders -> getScriptNonceFromHeader) applies
+//     the nonce to framework-injected scripts and <Script> components.
+//   - x-nonce is set on the REQUEST headers so layout.tsx can read it back
+//     via headers() and apply it to manually rendered scripts (JSON-LD,
+//     next-themes init, service-worker registration, Umami).
+//   - Content-Security-Policy is also set on the RESPONSE for the browser.
+import { NextRequest, NextResponse } from 'next/server';
 
 const isDev = process.env.NODE_ENV === 'development';
 
 const UMAMI_ORIGIN = 'https://cloud.umami.is';
 
-export function proxy() {
+export function proxy(request: NextRequest) {
   // CSP nonces must be base64 (a UUID contains hyphens, which are invalid in
   // a nonce source). Web Crypto works on both the Edge and Node runtimes.
   const nonce = Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString('base64');
 
-  // 'unsafe-inline' is kept alongside the nonce as a safety net: CSP3 makes
-  // it inert in browsers where a nonce is present (including with
-  // 'strict-dynamic'), but it keeps older browsers from breaking.
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com ${UMAMI_ORIGIN}` +
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com ${UMAMI_ORIGIN}` +
       (isDev ? " 'unsafe-eval'" : ''),
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https://*",
@@ -38,9 +38,15 @@ export function proxy() {
     "form-action 'self'",
   ].join('; ');
 
-  const response = NextResponse.next();
+  // Mirror the nonce into the request headers so the render pipeline and
+  // layout.tsx can both see it (request headers, not response headers, are
+  // what Next's renderer and headers() observe).
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('content-security-policy', csp);
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', csp);
-  response.headers.set('x-nonce', nonce);
   return response;
 }
 
