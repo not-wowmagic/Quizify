@@ -19,5 +19,5 @@ Quizify is a free web application that converts study material into interactive 
 3. Generate the quiz, answer the questions, and review explanations.
 
 ## Technical notes
-- Built with Next.js, TypeScript, and Tailwind CSS; quiz generation runs server-side via an AI API (OpenCode Zen by default).
+- Built with Next.js, TypeScript, and Tailwind CSS; quiz generation runs server-side via an AI API (opencode by default).
 - Uploaded documents are parsed locally in the browser; only extracted text is sent to the server and nothing is stored.

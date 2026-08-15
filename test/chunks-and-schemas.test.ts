@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { splitTextIntoChunks, computeChunkSize } from '@/ai/flows/generate-quiz';
 import { GenerateQuizInputSchema } from '@/ai/flows/generate-quiz';
-import { GenerateExplanationInputSchema } from '@/types/explanation';
 
 describe('splitTextIntoChunks', () => {
   it('returns a single chunk for short text', () => {
@@ -122,17 +121,5 @@ describe('GenerateQuizInputSchema (strict input validation)', () => {
   it('rejects an empty or overlong language', () => {
     expect(GenerateQuizInputSchema.strict().safeParse({ ...validInput, language: '  ' }).success).toBe(false);
     expect(GenerateQuizInputSchema.strict().safeParse({ ...validInput, language: 'x'.repeat(51) }).success).toBe(false);
-  });
-});
-
-describe('GenerateExplanationInputSchema', () => {
-  it('enforces the 5000-char bound on both fields', () => {
-    const ok = GenerateExplanationInputSchema.safeParse({ question: 'q', correctAnswer: 'a' });
-    expect(ok.success).toBe(true);
-    const tooLong = GenerateExplanationInputSchema.safeParse({
-      question: 'x'.repeat(5001),
-      correctAnswer: 'a',
-    });
-    expect(tooLong.success).toBe(false);
   });
 });

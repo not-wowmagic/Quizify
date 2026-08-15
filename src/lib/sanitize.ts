@@ -1,5 +1,5 @@
 // src/lib/sanitize.ts
-// Shared text sanitizer — no dependencies, safe for both server and client use.
+// Shared text sanitizer with no dependencies, safe for both server and client use.
 
 /** Strips ASCII control characters (keeps tab, LF, CR) from study text. */
 export function sanitizeText(text: string): string {

@@ -4,11 +4,11 @@ import 'server-only';
  * Unified LLM client for Quizify.
  *
  * Provider is selected via the AI_PROVIDER env variable:
- *   - "opencode" (default) — OpenCode AI gateway (OpenAI-compatible
- *     chat/completions endpoint). Defaults to the Go subscription endpoint
+ *   - "opencode" (default), the opencode AI gateway (OpenAI-compatible
+ *     chat/completions endpoint). Defaults to the subscription endpoint
  *     (https://opencode.ai/zen/go/v1/chat/completions); override with
- *     OPENCODE_BASE_URL for Zen pay-as-you-go.
- *   - "gemini" — direct Google Generative Language API (optional fallback)
+ *     OPENCODE_BASE_URL for opencode Zen pay-as-you-go.
+ *   - "gemini", the direct Google Generative Language API (optional fallback)
  *
  * Both providers share the same call signature and options, so the quiz
  * flows are provider-agnostic.
@@ -39,7 +39,7 @@ export class LLMAPIError extends Error {
 // JSON extraction (provider-agnostic)
 // =========================================
 
-/** Named domain type for unparsed JSON values — the boundary contract of extractors. */
+/** Named domain type for unparsed JSON values (the boundary contract of extractors). */
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 /**
@@ -220,7 +220,7 @@ async function fetchWithRetry<TBody>(
 }
 
 // =========================================
-// Provider: OpenCode Zen (OpenAI-compatible chat/completions)
+// Provider: opencode (OpenAI-compatible chat/completions)
 // =========================================
 
 export interface OpenAIMessage {
@@ -228,7 +228,7 @@ export interface OpenAIMessage {
   content: string;
 }
 
-/** Builds the messages array — system instruction first, then user content. */
+/** Builds the messages array with the system instruction first, then user content. */
 export function buildChatMessages(prompt: string, systemInstruction?: string): OpenAIMessage[] {
   const messages: OpenAIMessage[] = [];
   if (systemInstruction) {
@@ -249,17 +249,17 @@ export interface OpenAIChatResponse {
 /** Extracts the assistant text from a chat/completions response. */
 export function parseOpenAIChatResponse(data: OpenAIChatResponse): string {
   if (data?.error?.message) {
-    throw new LLMAPIError(`OpenCode AI API error: ${data.error.message}`);
+    throw new LLMAPIError(`opencode AI API error: ${data.error.message}`);
   }
   const content = data?.choices?.[0]?.message?.content;
   if (!content) {
     const finishReason = data?.choices?.[0]?.finish_reason;
     if (finishReason && finishReason !== 'stop') {
-      throw new Error(`OpenCode AI API failed to generate a complete response. Finish reason: ${finishReason}`);
+      throw new Error(`opencode AI API failed to generate a complete response. Finish reason: ${finishReason}`);
     }
-    // Trimmed log — the raw response may contain user-supplied text
-    console.error('OpenCode AI response (truncated):', JSON.stringify(data).slice(0, 500));
-    throw new Error('OpenCode AI API returned no content or an unexpected response structure.');
+    // Trimmed log (the raw response may contain user-supplied text)
+    console.error('opencode AI response (truncated):', JSON.stringify(data).slice(0, 500));
+    throw new Error('opencode AI API returned no content or an unexpected response structure.');
   }
   return content;
 }
@@ -271,7 +271,7 @@ async function callOpenCodeChat(prompt: string, options: LLMOptions = {}): Promi
   }
 
   const model = process.env.OPENCODE_MODEL || 'deepseek-v4-flash';
-  // OpenCode Go (subscription) endpoint by default — see https://opencode.ai/docs/go/
+  // opencode (subscription) endpoint by default. See https://opencode.ai/docs/go/
   const url = process.env.OPENCODE_BASE_URL || 'https://opencode.ai/zen/go/v1/chat/completions';
   const timeoutMs = options.timeoutMs ?? 30000;
 
@@ -290,20 +290,20 @@ async function callOpenCodeChat(prompt: string, options: LLMOptions = {}): Promi
       },
       body,
       timeoutMs,
-      'OpenCode AI API',
+      'opencode AI API',
       options.deadlineMs
     );
     // SAFETY: response is JSON from the documented OpenAI-compatible API;
     // parseOpenAIChatResponse validates the shape and surfaces API errors.
     return parseOpenAIChatResponse(data as OpenAIChatResponse);
   } catch (err: unknown) {
-    console.error('OpenCode AI API execution error:', err);
+    console.error('opencode AI API execution error:', err);
     throw err;
   }
 }
 
 // =========================================
-// Provider: Gemini (direct Google API — optional fallback)
+// Provider: Gemini (direct Google API, optional fallback)
 // =========================================
 
 interface GeminiResponse {
@@ -329,7 +329,7 @@ function getGeminiResponseText(data: GeminiResponse): string {
     if (data?.promptFeedback?.blockReason) {
       throw new Error(`Gemini API request was blocked: ${data.promptFeedback.blockReason}`);
     }
-    // Trimmed log — the raw response may contain user-supplied text
+    // Trimmed log (the raw response may contain user-supplied text)
     console.error('Gemini Response (truncated):', JSON.stringify(data).slice(0, 500));
     throw new Error('Gemini API returned no content or an unexpected response structure.');
   }
@@ -417,4 +417,70 @@ export async function callLLM(prompt: string, options: LLMOptions = {}): Promise
     return callGeminiDirect(prompt, options);
   }
   return callOpenCodeChat(prompt, options);
+}
+
+// =========================================
+// Vision (multimodal image input)
+// =========================================
+
+/**
+ * Calls a vision-capable model through the opencode gateway using
+ * OpenAI-compatible image parts. The model is configurable via
+ * OPENCODE_VISION_MODEL (defaults to "mimo-v2.5", which is vision-capable
+ * and included in the opencode subscription with zero-retention).
+ */
+export async function callLLMVision(
+  prompt: string,
+  imageDataUrl: string,
+  options: LLMOptions = {},
+): Promise<string> {
+  const apiKey = process.env.OPENCODE_API_KEY;
+  if (!apiKey) {
+    throw new Error('OPENCODE_API_KEY environment variable is not set. Add it in the Netlify dashboard (or local .env.local for development).');
+  }
+
+  const model = process.env.OPENCODE_VISION_MODEL || 'mimo-v2.5';
+  const url = process.env.OPENCODE_BASE_URL || 'https://opencode.ai/zen/go/v1/chat/completions';
+  const timeoutMs = options.timeoutMs ?? 45000;
+
+  // OpenAI-compatible content parts; text and image_url are the documented
+  // shapes for multimodal chat/completions requests.
+  type VisionContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
+  const messages: Array<{ role: 'system' | 'user'; content: string | VisionContentPart[] }> = [];
+  if (options.systemInstruction) {
+    messages.push({ role: 'system', content: options.systemInstruction });
+  }
+  messages.push({
+    role: 'user',
+    content: [
+      { type: 'text', text: prompt },
+      { type: 'image_url', image_url: { url: imageDataUrl } },
+    ],
+  });
+
+  try {
+    const data = await fetchWithRetry(
+      url,
+      {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      { model, messages },
+      timeoutMs,
+      'opencode Vision API',
+      options.deadlineMs
+    );
+    // SAFETY: response is JSON from the documented OpenAI-compatible API;
+    // parseOpenAIChatResponse validates the shape and surfaces API errors.
+    return parseOpenAIChatResponse(data as OpenAIChatResponse);
+  } catch (err: unknown) {
+    if (err instanceof LLMAPIError) {
+      // Models without image support commonly reject with 400, so surface it.
+      throw new LLMAPIError(
+        `Vision request failed: ${err.message}. If the model rejects image input, set OPENCODE_VISION_MODEL to a vision-capable model (e.g. mimo-v2.5).`,
+        err.status,
+      );
+    }
+    throw err;
+  }
 }

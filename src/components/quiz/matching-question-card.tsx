@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { CheckCircle2, Link2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AskTutor } from '@/components/quiz/ask-tutor';
 
 interface MatchingQuestionCardProps {
   question: MatchingQuestion;
@@ -32,6 +33,7 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
   const [matches, setMatches] = useState<Record<number, number>>(userAnswer?.matches || {});
   const [selectedPremise, setSelectedPremise] = useState<number | null>(null);
   const [checked, setChecked] = useState(userAnswer?.checked || false);
+  const [askTutorOpen, setAskTutorOpen] = useState(false);
 
   const responseToMatchedPremise = useMemo(() => {
     const map: Record<number, number> = {};
@@ -115,6 +117,16 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
             <span className="text-primary font-bold mr-2">{questionIndex + 1}.</span>
             {question.question}
           </CardTitle>
+          {question.difficultyTier && (
+            <span className={cn(
+              "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+              question.difficultyTier === 'easy' && "border-emerald-500/30 bg-emerald-500/10 text-emerald-500",
+              question.difficultyTier === 'medium' && "border-amber-500/30 bg-amber-500/10 text-amber-500",
+              question.difficultyTier === 'hard' && "border-red-500/30 bg-red-500/10 text-red-500",
+            )}>
+              {question.difficultyTier === 'easy' ? '🟢 Easy' : question.difficultyTier === 'medium' ? '🟡 Medium' : '🔴 Hard'}
+            </span>
+          )}
         </div>
         <CardDescription className="text-xs text-muted-foreground mt-1">
           Select a term on the left, then its matching pair on the right. Select a matched pair to unmatch. Keyboard: Tab to focus, Enter to select.
@@ -221,6 +233,20 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
           </Button>
         )}
       </CardFooter>
+
+      <div className="mt-4 pt-4 border-t border-border/60">
+        <AskTutor
+          question={question.question}
+          context={pairs.map(p => `${p.premise} → ${p.response}`).join('\n')}
+          chips={[
+            'Explain why these pairs match',
+            'Give me a memory trick for these pairs',
+            'Explain like I\u2019m 10 years old',
+          ]}
+          open={askTutorOpen}
+          onToggle={() => setAskTutorOpen(prev => !prev)}
+        />
+      </div>
     </Card>
   );
 }

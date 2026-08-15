@@ -3,18 +3,21 @@ import 'server-only';
 
 import { headers } from 'next/headers';
 import { createHash } from 'node:crypto';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 
 /**
- * Lightweight in-memory rate limiting and caching for server actions.
+ * Rate limiting and caching for server actions.
  *
- * Note: on serverless platforms (Netlify Functions) each function instance
- * has its own memory, so limits are per-instance rather than global. This is
- * still effective at stopping naive abuse. For strict global limits, swap the
- * Map for a shared store (e.g. Upstash Redis) — the API stays the same.
+ * When UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are configured, a
+ * global sliding-window limiter (Upstash Redis) is used, which is safe across all
+ * serverless instances. Otherwise it falls back to the lightweight
+ * in-memory fixed-window limiter below (per-instance on serverless
+ * platforms, which still stops naive abuse).
  */
 
 // =========================================
-// Fixed-window rate limiter
+// In-memory fixed-window rate limiter
 // =========================================
 
 interface WindowEntry {
@@ -31,7 +34,7 @@ export interface RateLimitResult {
   retryAfterSec: number;
 }
 
-export function checkRateLimit(key: string, limit: number, windowMs: number): RateLimitResult {
+function checkRateLimitInMemory(key: string, limit: number, windowMs: number): RateLimitResult {
   const now = Date.now();
 
   // Lazy cleanup to bound memory usage
@@ -54,6 +57,59 @@ export function checkRateLimit(key: string, limit: number, windowMs: number): Ra
 
   entry.count++;
   return { allowed: true, retryAfterSec: 0 };
+}
+
+// =========================================
+// Upstash Redis global limiter (optional)
+// =========================================
+
+// One Ratelimit instance per (limit, window) combination; the Upstash
+// sliding-window config is fixed at construction time.
+const upstashLimiters = new Map<string, Ratelimit>();
+
+function getUpstashLimiter(limit: number, windowSec: number): Ratelimit | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+
+  const key = `${limit}:${windowSec}`;
+  let limiter = upstashLimiters.get(key);
+  if (!limiter) {
+    limiter = new Ratelimit({
+      redis: Redis.fromEnv(),
+      limiter: Ratelimit.slidingWindow(limit, `${windowSec} s`),
+    });
+    upstashLimiters.set(key, limiter);
+  }
+  return limiter;
+}
+
+/**
+ * Checks the rate limit for a key. Uses the global Upstash sliding-window
+ * limiter when configured, otherwise falls back to the in-memory fixed-window
+ * limiter (local development, tests, or deployments without Upstash).
+ */
+export async function checkRateLimit(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {
+  const windowSec = Math.max(1, Math.ceil(windowMs / 1000));
+  const limiter = getUpstashLimiter(limit, windowSec);
+
+  if (!limiter) {
+    return checkRateLimitInMemory(key, limit, windowMs);
+  }
+
+  try {
+    const result = await limiter.limit(key);
+    // Upstash returns `reset` as a Unix timestamp in milliseconds.
+    return {
+      allowed: result.success,
+      retryAfterSec: Math.max(0, Math.ceil((result.reset - Date.now()) / 1000)),
+    };
+  } catch (err) {
+    // Fail open to the in-memory limiter rather than breaking generation
+    // when Redis is unreachable.
+    console.error('[rate-limit] Upstash request failed, using in-memory fallback:', err);
+    return checkRateLimitInMemory(key, limit, windowMs);
+  }
 }
 
 /** Resolves the caller IP from proxy headers inside a server action. */

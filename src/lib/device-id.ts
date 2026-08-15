@@ -15,7 +15,7 @@ export function getDeviceId(): string {
     try {
       localStorage.setItem(DEVICE_ID_KEY, id);
     } catch {
-      // Storage may be unavailable (private mode) — fall back to an in-memory id
+      // Storage may be unavailable (private mode), so fall back to an in-memory id
     }
   }
   return id;

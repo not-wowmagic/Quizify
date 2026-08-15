@@ -71,11 +71,46 @@ export function downloadTextFile(filename: string, content: string, mime = 'text
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Opens the print dialog for the given HTML document (used by both the quiz
+ * print view and the cram sheet). Opens a dedicated print popup first; when
+ * popups are blocked it falls back to printing from a hidden same-origin
+ * iframe so the "Save as PDF" dialog always appears.
+ */
+function printHtml(title: string, html: string): void {
+  const printWindow = window.open('', '_blank', 'width=800,height=600');
+  if (printWindow) {
+    printWindow.document.write(html);
+    printWindow.document.close();
+    return;
+  }
+
+  // Popup blocked, so print via a hidden iframe instead.
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.title = title;
+  document.body.appendChild(iframe);
+
+  const iframeDoc = iframe.contentDocument;
+  if (!iframeDoc) {
+    iframe.remove();
+    return;
+  }
+  iframeDoc.open();
+  iframeDoc.write(html);
+  iframeDoc.close();
+  // The embedded script triggers window.print() on load; remove the iframe
+  // after printing so it never lingers in the DOM.
+  setTimeout(() => iframe.remove(), 60_000);
+}
+
 /** Opens a print-friendly study sheet for the quiz. */
 export function printQuiz(quiz: Quiz, title: string): void {
-  const printWindow = window.open('', '_blank', 'width=800,height=600');
-  if (!printWindow) return;
-
   const questions = quiz.questions
     .map((q, index) => {
       if (q.type === 'matching') {
@@ -103,7 +138,7 @@ export function printQuiz(quiz: Quiz, title: string): void {
     })
     .join('');
 
-  printWindow.document.write(`<!DOCTYPE html>
+  printHtml(title, `<!DOCTYPE html>
 <html><head><title>${escapeHtml(title)}</title>
 <style>
   body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; max-width: 720px; margin: 24px auto; padding: 0 16px; color: #1e293b; }
@@ -124,7 +159,74 @@ ${questions}
 </div>
 <script>window.onload = () => window.print();</script>
 </body></html>`);
-  printWindow.document.close();
+}
+
+/** Opens a print-optimized, US Letter (8.5×11 in) "Cram Sheet" study guide (no answer key). */
+export function printCramSheet(quiz: Quiz, title: string): void {
+  // Group by topic so the cram sheet reads like a summary, not a quiz.
+  const grouped = new Map<string, typeof quiz.questions>();
+  for (const q of quiz.questions) {
+    const key = q.topic?.trim() || 'Key Points';
+    const bucket = grouped.get(key);
+    if (bucket) bucket.push(q);
+    else grouped.set(key, [q]);
+  }
+
+  const sections = [...grouped.entries()]
+    .map(([topic, questions]) => {
+      const bullets = questions
+        .map(q => {
+          if (q.type === 'matching') {
+            return q.pairs
+              .map(p => `<li><strong>${escapeHtml(p.premise)}</strong> is ${escapeHtml(p.response)}</li>`)
+              .join('');
+          }
+          const wrong = q.options
+            .filter((_, i) => i !== q.correctAnswerIndex)
+            .map(escapeHtml)
+            .join(', ');
+          return `
+            <li><strong>${escapeHtml(q.question)}</strong><br>
+              <span class="answer">→ ${escapeHtml(q.options[q.correctAnswerIndex])}</span>
+              ${wrong ? `<span class="distractors"> · watch out for: ${wrong}</span>` : ''}
+            </li>`;
+        })
+        .join('');
+      return `
+        <div class="section">
+          <h2>${escapeHtml(topic)}</h2>
+          <ul>${bullets}</ul>
+        </div>`;
+    })
+    .join('');
+
+  const statLine = `${quiz.questions.length} key ${quiz.questions.length === 1 ? 'point' : 'points'} · ${grouped.size} ${grouped.size === 1 ? 'topic' : 'topics'}`;
+
+  printHtml(`Cram Sheet for ${escapeHtml(title)}`, `<!DOCTYPE html>
+<html><head><title>Cram Sheet for ${escapeHtml(title)}</title>
+<style>
+  /* US Letter page (the print dialog's "Save as PDF" will use 8.5 x 11 in.) */
+  @page { size: 8.5in 11in; margin: 0.55in 0.6in; }
+  body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; max-width: 7.3in; margin: 0 auto; color: #1e293b; }
+  header { border-bottom: 3px solid #d97706; padding-bottom: 12px; margin-bottom: 20px; }
+  h1 { font-size: 1.5rem; margin: 0; color: #111827; }
+  .sub { font-size: 0.8rem; color: #64748b; margin-top: 4px; }
+  .section { margin-bottom: 18px; page-break-inside: avoid; }
+  h2 { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.06em; color: #b45309; margin: 0 0 8px; }
+  ul { margin: 0; padding-left: 18px; }
+  li { margin-bottom: 8px; font-size: 0.86rem; line-height: 1.5; }
+  .answer { color: #15803d; font-weight: 600; }
+  .distractors { color: #64748b; font-size: 0.78rem; }
+  footer { margin-top: 20px; font-size: 0.75rem; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+</style></head><body>
+<header>
+  <h1>Cram Sheet for ${escapeHtml(title)}</h1>
+  <p class="sub">${escapeHtml(statLine)} · generated by Quizify</p>
+</header>
+${sections}
+<footer>Quizify · quick-revision sheet · answers in green</footer>
+<script>window.onload = () => window.print();</script>
+</body></html>`);
 }
 
 function escapeHtml(value: string): string {

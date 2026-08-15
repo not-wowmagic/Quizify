@@ -4,26 +4,34 @@
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import { generateQuiz, GenerateQuizInputSchema, QuizPayloadSchema, QuizQuestionSchema, type GenerateQuizInput } from '@/ai/flows/generate-quiz';
-import { generateExplanation } from '@/ai/flows/generate-explanation';
 import { generateSummary, type GenerateSummaryInput, type GenerateSummaryOutput } from '@/ai/flows/generate-summary';
+import { generateTutorGuidance, TutorInputSchema, type TutorInput, type TutorOutput } from '@/ai/flows/tutor';
+import { extractTextFromImage, ImageOcrInputSchema, type ImageOcrInput, type ImageOcrOutput } from '@/ai/flows/image-ocr';
 import { checkRateLimit, getClientIp, hashPayload, TtlCache, verifyTurnstile } from '@/lib/rate-limit';
 import { getSupabase, DEVICE_ID_PATTERN } from '@/lib/supabase-server';
 import { sanitizeText } from '@/lib/sanitize';
-import type { GenerateExplanationInput, GenerateExplanationOutput } from '@/types/explanation';
+import { extractArticle, fetchPublicPage } from '@/lib/web-reader';
 import type { Quiz } from '@/types/quiz';
 import type { AttemptAnswer, QuizAttempt } from '@/types/history';
 
 const HOUR_MS = 60 * 60 * 1000;
 
-// Per-IP hourly budgets for the paid Gemini endpoints
+// Per-IP hourly budgets for the paid AI endpoints
 const QUIZ_LIMIT = 30;
 const SUMMARY_LIMIT = 50;
-const EXPLANATION_LIMIT = 80;
+
+// Per-IP hourly budgets for the ingestion / tutor endpoints
+const WEB_LIMIT = 20;
+const OCR_LIMIT = 20;
+const TUTOR_LIMIT = 60;
 
 // Identical quiz requests within the TTL are served from cache (per instance)
 const quizCache = new TtlCache<Pick<Quiz, 'questions'>>(50, HOUR_MS);
 
-export type CreateQuizInput = GenerateQuizInput & { turnstileToken?: string };
+// Extracted articles are cached by URL hash for 24h (per instance)
+const webCache = new TtlCache<{ title: string; text: string }>(100, 24 * HOUR_MS);
+
+export type CreateQuizInput = GenerateQuizInput & { turnstileToken?: string; bypassCache?: boolean };
 
 export async function createQuiz(input: CreateQuizInput): Promise<Pick<Quiz, 'questions'> | { error: string }> {
   // Bot protection (no-op unless TURNSTILE_SECRET_KEY is configured)
@@ -33,27 +41,35 @@ export async function createQuiz(input: CreateQuizInput): Promise<Pick<Quiz, 'qu
 
   // Rate limit the paid endpoint
   const ip = await getClientIp();
-  const limit = checkRateLimit(`quiz:${ip}`, QUIZ_LIMIT, HOUR_MS);
+  const limit = await checkRateLimit(`quiz:${ip}`, QUIZ_LIMIT, HOUR_MS);
   if (!limit.allowed) {
-    return { error: `Rate limit reached. You can generate ${QUIZ_LIMIT} quizzes per hour — try again in ${Math.ceil(limit.retryAfterSec / 60)} minutes.` };
+    return { error: `Rate limit reached. You can generate ${QUIZ_LIMIT} quizzes per hour. Try again in ${Math.ceil(limit.retryAfterSec / 60)} minutes.` };
   }
 
-  // Canonical, strict validation (unknown/tampered fields are rejected)
+  // Canonical, strict validation (unknown/tampered fields are rejected).
+  // turnstileToken/bypassCache are action-only fields (not quiz settings) and
+  // React serializes undefined-valued keys too, so they MUST be stripped
+  // before the strict parse or every request would fail validation.
+  const quizInput = { ...input };
+  delete quizInput.turnstileToken;
+  delete quizInput.bypassCache;
   let validated: GenerateQuizInput;
   try {
     validated = GenerateQuizInputSchema.strict().parse({
-      ...input,
+      ...quizInput,
       lectureText: sanitizeText(input.lectureText ?? ''),
     });
   } catch {
     return { error: 'Invalid quiz settings. Provide 100–100,000 characters of text, 1–50 questions, and a valid difficulty and question type.' };
   }
 
-  // Serve identical requests from cache
+  // Serve identical requests from cache (skipped in incognito mode)
   const cacheKey = hashPayload(validated);
-  const cached = quizCache.get(cacheKey);
-  if (cached) {
-    return cached;
+  if (!input.bypassCache) {
+    const cached = quizCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
   }
 
   try {
@@ -64,7 +80,9 @@ export async function createQuiz(input: CreateQuizInput): Promise<Pick<Quiz, 'qu
     }
 
     const output = { questions: quizResult.questions };
-    quizCache.set(cacheKey, output);
+    if (!input.bypassCache) {
+      quizCache.set(cacheKey, output);
+    }
     return output;
   } catch (e) {
     // Full detail stays in server logs; the client gets a stable message.
@@ -78,25 +96,9 @@ export async function createQuiz(input: CreateQuizInput): Promise<Pick<Quiz, 'qu
 }
 
 
-export async function explainAnswer(input: GenerateExplanationInput): Promise<GenerateExplanationOutput | { error: string }> {
-    const ip = await getClientIp();
-    const limit = checkRateLimit(`explain:${ip}`, EXPLANATION_LIMIT, HOUR_MS);
-    if (!limit.allowed) {
-      return { error: 'Too many explanation requests. Please try again later.' };
-    }
-
-    try {
-        const explanation = await generateExplanation(input);
-        return explanation;
-    } catch (e) {
-        console.error('ExplainAnswer Error:', e);
-        return { error: 'An unexpected error occurred while generating the explanation. Please try again later.' };
-    }
-}
-
 export async function createSummary(input: GenerateSummaryInput): Promise<GenerateSummaryOutput | { error: string }> {
     const ip = await getClientIp();
-    const limit = checkRateLimit(`summary:${ip}`, SUMMARY_LIMIT, HOUR_MS);
+    const limit = await checkRateLimit(`summary:${ip}`, SUMMARY_LIMIT, HOUR_MS);
     if (!limit.allowed) {
       return { error: 'Too many summary requests. Please try again later.' };
     }
@@ -107,6 +109,88 @@ export async function createSummary(input: GenerateSummaryInput): Promise<Genera
     } catch (e) {
         console.error('CreateSummary Error:', e);
         return { error: 'An unexpected error occurred while generating the summary. Please try again later.' };
+    }
+}
+
+/** Socratic follow-up guidance for a quiz question ("Ask Tutor"). */
+export async function askTutorFollowUp(input: TutorInput): Promise<TutorOutput | { error: string }> {
+    const ip = await getClientIp();
+    const limit = await checkRateLimit(`tutor:${ip}`, TUTOR_LIMIT, HOUR_MS);
+    if (!limit.allowed) {
+      return { error: 'Too many tutor requests. Please try again later.' };
+    }
+
+    const parsed = TutorInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return { error: 'Invalid tutor request.' };
+    }
+
+    try {
+        return await generateTutorGuidance(parsed.data);
+    } catch (e) {
+        console.error('AskTutorFollowUp Error:', e);
+        return { error: 'An unexpected error occurred while getting guidance. Please try again later.' };
+    }
+}
+
+/** Extracts clean article text from a public web URL (SSRF-hardened). */
+export async function extractFromWebUrl(rawUrl: string): Promise<{ title: string; text: string } | { error: string }> {
+    const url = rawUrl.trim();
+    if (!/^https?:\/\//i.test(url)) {
+      return { error: 'Enter a full URL starting with http:// or https://.' };
+    }
+
+    const ip = await getClientIp();
+    const limit = await checkRateLimit(`web:${ip}`, WEB_LIMIT, HOUR_MS);
+    if (!limit.allowed) {
+      return { error: 'Too many URL fetches. Please try again later.' };
+    }
+
+    const cacheKey = hashPayload(url);
+    const cached = webCache.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const { html, finalUrl } = await fetchPublicPage(url);
+      const article = await extractArticle(html, finalUrl);
+      const result = {
+        title: article.title,
+        text: sanitizeText(article.text),
+      };
+      webCache.set(cacheKey, result);
+      return result;
+    } catch (e) {
+      console.error('ExtractFromWebUrl Error:', e);
+      return { error: e instanceof Error ? e.message : 'Failed to read that page. Please try again.' };
+    }
+}
+
+/** Extracts clean text from a photographed image via vision OCR. */
+export async function extractTextFromImageAction(input: ImageOcrInput): Promise<ImageOcrOutput | { error: string }> {
+    if (!/^data:image\/(?:png|jpe?g|webp|heic);base64,/i.test(input.imageDataUrl)) {
+      return { error: 'Unsupported image format. Use PNG, JPEG, or WebP.' };
+    }
+
+    const ip = await getClientIp();
+    const limit = await checkRateLimit(`ocr:${ip}`, OCR_LIMIT, HOUR_MS);
+    if (!limit.allowed) {
+      return { error: 'Too many image scans. Please try again later.' };
+    }
+
+    const parsed = ImageOcrInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return { error: 'Invalid image data.' };
+    }
+
+    try {
+      const result = await extractTextFromImage(parsed.data);
+      if (result.text.trim().length < 20) {
+        return { error: 'No readable text found in the image. Try a clearer photo with better lighting.' };
+      }
+      return { text: sanitizeText(result.text) };
+    } catch (e) {
+      console.error('ExtractTextFromImage Error:', e);
+      return { error: e instanceof Error ? e.message : 'Failed to read the image. Please try again.' };
     }
 }
 
@@ -142,9 +226,9 @@ export async function publishQuiz(input: PublishQuizInput): Promise<PublishedQui
   }
 
   const ip = await getClientIp();
-  const limit = checkRateLimit(`share:${ip}`, SHARE_LIMIT, HOUR_MS);
+  const limit = await checkRateLimit(`share:${ip}`, SHARE_LIMIT, HOUR_MS);
   if (!limit.allowed) {
-    return { error: `Too many shares. You can share ${SHARE_LIMIT} quizzes per hour — try again in ${Math.ceil(limit.retryAfterSec / 60)} minutes.` };
+    return { error: `Too many shares. You can share ${SHARE_LIMIT} quizzes per hour. Try again in ${Math.ceil(limit.retryAfterSec / 60)} minutes.` };
   }
 
   let validated;

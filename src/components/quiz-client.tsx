@@ -8,9 +8,17 @@ import { createQuiz, createSummary, publishQuiz, saveAttempt } from '@/app/actio
 import { useToast } from '@/hooks/use-toast';
 import { processQuiz, quizHelpers } from '@/lib/quiz-processors';
 import { getDeviceId } from '@/lib/device-id';
-import { buildAnkiTxt, buildQuizCsv, downloadTextFile, printQuiz } from '@/lib/quiz-export';
+import { buildAnkiTxt, buildQuizCsv, downloadTextFile, printQuiz, printCramSheet } from '@/lib/quiz-export';
+import {
+  trackQuizGenerated,
+  trackQuizCompleted,
+  trackQuizShared,
+  trackQuizExported,
+  trackPracticeMissedStarted,
+} from '@/lib/analytics';
 import { QuizSetup } from '@/components/quiz/quiz-setup';
 import { QuizRunner, type ExportFormat } from '@/components/quiz/quiz-runner';
+import { ShareQrCard } from '@/components/quiz/share-qr';
 import type { AttemptAnswer } from '@/types/history';
 import type { Difficulty, MatchingAnswer, QuestionTypeId, QuizAnswer } from '@/components/quiz/types';
 
@@ -58,21 +66,27 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
   const [fileName, setFileName] = useState('');
   const [showSummary, setShowSummary] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  // Incognito: no history saved, server cache bypassed, sharing hidden
+  const [incognito, setIncognito] = useState(false);
 
   // Refs
   const quizHeaderRef = useRef<HTMLHeadingElement>(null);
-  // Raw (unshuffled) questions from the server — used for sharing and history
+  // Raw (unshuffled) questions from the server, used for sharing and history
   const rawQuizRef = useRef<Pick<Quiz, 'questions'> | null>(null);
   // Guards: record an attempt exactly once per quiz completion
   const attemptSavedRef = useRef(false);
   const quizStartedAtRef = useRef<number | null>(null);
+  // Original title when running a "Practice Missed Questions" session
+  const practiceTitleRef = useRef<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
+  // Share URL once a quiz is published, driving the QR share card
+  const [sharedUrl, setSharedUrl] = useState<string | null>(null);
 
   const { toast } = useToast();
 
   // Quote is picked after mount so SSR and first client render match
   useEffect(() => {
-    // ponytail: hydration guard — a random value can't be computed during render
+    // ponytail: hydration guard because a random value can't be computed during render
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentQuote(getRandomQuote());
   }, []);
@@ -127,6 +141,63 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     }
   };
 
+  /** Shared generation core that validates nothing and uses current inputs as-is. */
+  const runQuizGeneration = async () => {
+    try {
+      setIsLoading(true);
+      setCurrentQuote(getRandomQuote());
+      setQuiz(null);
+      setUserAnswers({});
+
+      const result = await createQuiz({
+        lectureText,
+        numQuestions: Number(numQuestions) || 10,
+        difficulty,
+        questionType,
+        language,
+        turnstileToken: turnstileToken ?? undefined,
+        bypassCache: incognito,
+      });
+
+      if ('error' in result) {
+        toast({
+          title: 'Error Generating Quiz',
+          description: result.error,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      rawQuizRef.current = result;
+      attemptSavedRef.current = false;
+      practiceTitleRef.current = null;
+      quizStartedAtRef.current = Date.now();
+      const processedQuiz = processQuiz(result);
+      if (difficulty === 'adaptive') {
+        // Adaptive v1: warm-up ramp (easy questions first, then medium, then hard).
+        const tierRank = (q: Quiz['questions'][number]): number =>
+          q.difficultyTier === 'easy' ? 0 : q.difficultyTier === 'hard' ? 2 : 1;
+        processedQuiz.questions.sort((a, b) => tierRank(a) - tierRank(b));
+      }
+      setQuiz(processedQuiz);
+
+      trackQuizGenerated({
+        questionCount: Number(numQuestions) || 10,
+        difficulty,
+        format: questionType,
+        language,
+      });
+    } catch (error) {
+      toast({
+        title: 'Unexpected Error',
+        description: error instanceof Error ? error.message : 'Failed to generate quiz. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleGenerateQuiz = async () => {
     if (!quizHelpers.isValidInput(lectureText, numQuestions)) {
       toast({
@@ -146,44 +217,21 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
       return;
     }
 
-    try {
-      setIsLoading(true);
-      setCurrentQuote(getRandomQuote());
-      setQuiz(null);
-      setUserAnswers({});
+    await runQuizGeneration();
+  };
 
-      const result = await createQuiz({
-        lectureText,
-        numQuestions: Number(numQuestions) || 10,
-        difficulty,
-        questionType,
-        language,
-        turnstileToken: turnstileToken ?? undefined,
-      });
-
-      if ('error' in result) {
-        toast({
-          title: 'Error Generating Quiz',
-          description: result.error,
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      rawQuizRef.current = result;
-      attemptSavedRef.current = false;
-      quizStartedAtRef.current = Date.now();
-      const processedQuiz = processQuiz(result);
-      setQuiz(processedQuiz);
-    } catch (error) {
+  /** Regenerates a fresh quiz from the SAME material and settings. */
+  const handleRegenerateQuiz = async () => {
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
       toast({
-        title: 'Unexpected Error',
-        description: error instanceof Error ? error.message : 'Failed to generate quiz. Please try again.',
+        title: 'Verification Required',
+        description: 'Please complete the bot check before generating a quiz.',
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
+      return;
     }
+    setShowSummary(false);
+    await runQuizGeneration();
   };
 
   const handleSummaryClick = async () => {
@@ -252,15 +300,20 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     setShowSummary(false);
     rawQuizRef.current = null;
     attemptSavedRef.current = false;
+    practiceTitleRef.current = null;
+    setSharedUrl(null);
     quizStartedAtRef.current = null;
   };
 
-  const handleRegenerateQuiz = () => {
+  /** Returns to the setup screen with the current input/settings preserved. */
+  const handleOpenSettings = () => {
     setQuiz(null);
     setUserAnswers({});
     setShowSummary(false);
     setCurrentQuote(getRandomQuote());
     attemptSavedRef.current = false;
+    practiceTitleRef.current = null;
+    setSharedUrl(null);
     quizStartedAtRef.current = null;
   };
 
@@ -272,6 +325,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     if (!retakeQuiz) return;
     rawQuizRef.current = { questions: retakeQuiz.questions };
     attemptSavedRef.current = false;
+    practiceTitleRef.current = null;
     quizStartedAtRef.current = Date.now();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Rehydrating the runner from the History panel's retake request
     setQuiz(processQuiz({ questions: retakeQuiz.questions }));
@@ -287,9 +341,15 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
 
   const handleExport = (format: ExportFormat) => {
     if (!quiz) return;
+    trackQuizExported(format);
 
     if (format === 'print') {
       printQuiz(quiz, fileName || 'Quizify Study Sheet');
+      return;
+    }
+
+    if (format === 'cram') {
+      printCramSheet(quiz, fileName || 'Quizify Study Sheet');
       return;
     }
 
@@ -299,7 +359,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     }
 
     downloadTextFile('quizify-anki.txt', buildAnkiTxt(quiz));
-    toast({ title: 'Exported', description: 'Anki deck downloaded — import it in Anki (File ▸ Import).' });
+    toast({ title: 'Exported', description: 'Anki deck downloaded. Import it in Anki (File ▸ Import).' });
   };
 
   // =========================================
@@ -327,6 +387,8 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
       }
 
       const url = `${window.location.origin}${result.url}`;
+      trackQuizShared(result.slug);
+      setSharedUrl(url);
       try {
         await navigator.clipboard.writeText(url);
         toast({ title: 'Link Copied', description: `${url}` });
@@ -340,32 +402,55 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     }
   };
 
-  const { score, answeredQuestions, scorePercentage } = useMemo(() => {
-    if (!quiz) return { score: 0, answeredQuestions: 0, scorePercentage: 0 };
+  const { score, answeredQuestions, scorePercentage, missedIndices, masteryPercentage } = useMemo(() => {
+    if (!quiz) {
+      // SAFETY: the empty array literal is already number[], so no runtime
+      // narrowing or assumption is introduced by this cast.
+      return { score: 0, answeredQuestions: 0, scorePercentage: 0, missedIndices: [] as number[], masteryPercentage: 0 };
+    }
 
     let totalCorrect = 0;
     let totalAnswered = 0;
+    let weightedCorrect = 0;
+    let weightedTotal = 0;
+    const missed: number[] = [];
+
+    // Adaptive weighting: hard ×3, medium ×2, easy/unknown ×1
+    const tierWeight = (tier?: 'easy' | 'medium' | 'hard'): number =>
+      tier === 'hard' ? 3 : tier === 'medium' ? 2 : 1;
 
     quiz.questions.forEach((q, qIndex) => {
+      const weight = tierWeight(q.difficultyTier);
+      weightedTotal += weight;
       const answer = userAnswers[qIndex];
-      if (!answer) return;
+      if (!answer) {
+        missed.push(qIndex);
+        return;
+      }
 
       if (q.type === 'standard' && answer.type === 'standard') {
         totalAnswered++;
         if (q.correctAnswerIndex === answer.selectedIndex) {
           totalCorrect++;
+          weightedCorrect += weight;
+        } else {
+          missed.push(qIndex);
         }
       } else if (q.type === 'matching' && answer.type === 'matching' && answer.checked) {
         totalAnswered++;
         const allCorrect = q.pairs.every((_, pairIdx) => answer.matches[pairIdx] === pairIdx);
         if (allCorrect) {
           totalCorrect++;
+          weightedCorrect += weight;
+        } else {
+          missed.push(qIndex);
         }
       }
     });
 
     const percentage = quiz.questions.length > 0 ? (totalCorrect / quiz.questions.length) * 100 : 0;
-    return { score: totalCorrect, answeredQuestions: totalAnswered, scorePercentage: percentage };
+    const mastery = weightedTotal > 0 ? (weightedCorrect / weightedTotal) * 100 : 0;
+    return { score: totalCorrect, answeredQuestions: totalAnswered, scorePercentage: percentage, missedIndices: missed, masteryPercentage: mastery };
   }, [userAnswers, quiz]);
 
   const allAnswered = !!(quiz && answeredQuestions === quiz.questions.length);
@@ -389,6 +474,19 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
   useEffect(() => {
     if (!allAnswered || !quiz || attemptSavedRef.current) return;
     attemptSavedRef.current = true;
+    // Incognito mode: zero database footprint, so never persist the attempt.
+    if (incognito) return;
+
+    const durationSec = quizStartedAtRef.current
+      ? Math.round((Date.now() - quizStartedAtRef.current) / 1000)
+      : 0;
+
+    trackQuizCompleted({
+      score,
+      total: quiz.questions.length,
+      percentage: scorePercentage,
+      durationSec,
+    });
 
     const answers: AttemptAnswer[] = quiz.questions.map((q, qIndex) => {
       const answer = userAnswers[qIndex];
@@ -412,10 +510,9 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
       return null;
     }).filter((a): a is AttemptAnswer => a !== null);
 
-    const title = fileName || `Quiz • ${new Date().toLocaleDateString()}`;
-    const durationSec = quizStartedAtRef.current
-      ? Math.round((Date.now() - quizStartedAtRef.current) / 1000)
-      : 0;
+    const title = practiceTitleRef.current
+      ? `Practice: ${practiceTitleRef.current} (${quiz.questions.length} missed)`
+      : fileName || `Quiz • ${new Date().toLocaleDateString()}`;
 
     void saveAttempt({
       deviceId: getDeviceId(),
@@ -433,10 +530,41 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
         console.warn('[quiz-client] Failed to save attempt:', result.error);
       }
     });
-  }, [allAnswered, quiz, userAnswers, score, difficulty, questionType, language, fileName]);
+  }, [allAnswered, quiz, userAnswers, score, scorePercentage, difficulty, questionType, language, fileName, incognito]);
+
+  // =========================================
+  // Practice missed questions (spaced repetition)
+  // =========================================
+
+  const handlePracticeMissed = () => {
+    if (!quiz || missedIndices.length === 0) return;
+
+    // Raw (unshuffled) questions at the same indices as the processed quiz;
+    // processQuiz shuffles the array without reordering indices (see
+    // src/lib/quiz-processors.ts), so missedIndices maps 1:1 onto the raw set.
+    const raw = rawQuizRef.current?.questions ?? quiz.questions;
+    const missedQuestions = missedIndices
+      .map(i => raw[i])
+      .filter((q): q is NonNullable<(typeof raw)[number]> => q !== undefined);
+    if (missedQuestions.length === 0) return;
+
+    // Store the BASE title (never a nested "Practice: ..." prefix); the
+    // prefix is applied when the attempt is saved (see saveAttempt effect).
+    practiceTitleRef.current = practiceTitleRef.current || fileName || `Quiz • ${new Date().toLocaleDateString()}`;
+    rawQuizRef.current = { questions: missedQuestions };
+    attemptSavedRef.current = false;
+    quizStartedAtRef.current = Date.now();
+    setQuiz(processQuiz({ questions: missedQuestions }));
+    setUserAnswers({});
+    setShowSummary(false);
+    setCurrentQuote(getRandomQuote());
+
+    trackPracticeMissedStarted(missedQuestions.length);
+  };
 
   return (
     <div className="w-full space-y-8">
+      {sharedUrl && <ShareQrCard url={sharedUrl} onClose={() => setSharedUrl(null)} />}
       {!quiz ? (
         <QuizSetup
           lectureText={lectureText}
@@ -457,6 +585,8 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
           onGenerate={handleGenerateQuiz}
           turnstileSiteKey={TURNSTILE_SITE_KEY}
           onTurnstileToken={setTurnstileToken}
+          incognito={incognito}
+          onIncognitoChange={setIncognito}
         />
       ) : (
         <QuizRunner
@@ -468,7 +598,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
           isSummaryLoading={isSummaryLoading}
           showSummary={showSummary}
           onSummaryClick={handleSummaryClick}
-          onOpenSettings={handleRegenerateQuiz}
+          onOpenSettings={handleOpenSettings}
           onStandardAnswer={handleStandardAnswer}
           onMatchingUpdate={handleMatchingUpdate}
           score={score}
@@ -479,8 +609,11 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
           onRegenerate={handleRegenerateQuiz}
           onStartOver={handleStartOver}
           headerRef={quizHeaderRef}
+          missedCount={missedIndices.length}
+          onPracticeMissed={handlePracticeMissed}
+          masteryPercentage={difficulty === 'adaptive' ? masteryPercentage : undefined}
           onExport={handleExport}
-          onShare={handleShare}
+          onShare={incognito ? undefined : handleShare}
           isSharing={isSharing}
         />
       )}

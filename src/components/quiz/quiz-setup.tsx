@@ -7,9 +7,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TurnstileWidget } from '@/components/turnstile-widget';
+import { extractFromWebUrl, extractTextFromImageAction } from '@/app/actions';
 import {
   Loader2, Upload, Lightbulb, FileText,
-  Sparkles, CircleDot, CheckSquare, Edit3, Link as LinkIcon, Shuffle,
+  Sparkles, CircleDot, CheckSquare, Edit3, Link as LinkIcon, Shuffle, Lock,
+  Globe, Camera, CheckCircle2, XCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LANGUAGES } from '@/lib/languages';
@@ -29,12 +31,15 @@ interface QuizSetupProps {
   isLoading: boolean;
   fileName: string;
   currentQuote: string;
-  /** Seconds since loading started — used to show "still working" hints. */
+  /** Seconds since loading started, used to show "still working" hints. */
   elapsedSec: number;
   onFileSelected: (file: File) => void;
   onGenerate: () => void;
   turnstileSiteKey?: string;
   onTurnstileToken: (token: string | null) => void;
+  /** Incognito mode with no history saved and server cache bypassed. */
+  incognito?: boolean;
+  onIncognitoChange?: (value: boolean) => void;
 }
 
 const QUESTION_TYPES: Array<{ id: QuestionTypeId; label: string; icon: React.ComponentType<{ className?: string }> }> = [
@@ -67,10 +72,92 @@ export function QuizSetup({
   onGenerate,
   turnstileSiteKey,
   onTurnstileToken,
+  incognito = false,
+  onIncognitoChange,
 }: QuizSetupProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCustomCount, setIsCustomCount] = useState(false);
   const [customCount, setCustomCount] = useState('10');
+
+  // Web URL extraction state
+  const [webUrl, setWebUrl] = useState('');
+  const [isWebFetching, setIsWebFetching] = useState(false);
+  const [webStatus, setWebStatus] = useState<{ ok: boolean; message: string } | null>(null);
+
+  // Camera OCR state
+  const [ocrPreview, setOcrPreview] = useState<string | null>(null);
+  const [isOcrExtracting, setIsOcrExtracting] = useState(false);
+  const [ocrStatus, setOcrStatus] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const handleWebFetch = async () => {
+    const url = webUrl.trim();
+    if (!url || isWebFetching) return;
+    setIsWebFetching(true);
+    setWebStatus(null);
+    try {
+      const result = await extractFromWebUrl(url);
+      if ('error' in result) {
+        setWebStatus({ ok: false, message: result.error });
+      } else {
+        onLectureTextChange(result.text);
+        setWebStatus({ ok: true, message: `Extracted ${result.text.length.toLocaleString()} characters${result.title ? ` (from "${result.title}")` : ''}. Ready to generate!` });
+      }
+    } catch {
+      setWebStatus({ ok: false, message: 'Something went wrong. Please try again.' });
+    } finally {
+      setIsWebFetching(false);
+    }
+  };
+
+  /** Downsizes the photo client-side (canvas) to keep the OCR payload small. */
+  const downscaleImage = async (file: File, maxDim = 1600, quality = 0.85): Promise<string> => {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      // SAFETY: readAsDataURL always resolves to a string data URL; the
+      // FileReader API documents `result` as string for the readAsDataURL path.
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Failed to read the image.'));
+      reader.readAsDataURL(file);
+    });
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error('Failed to decode the image.'));
+      i.src = dataUrl;
+    });
+    let { width, height } = img;
+    const scale = Math.min(1, maxDim / Math.max(width, height));
+    width = Math.max(1, Math.round(width * scale));
+    height = Math.max(1, Math.round(height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas is not supported in this browser.');
+    ctx.drawImage(img, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', quality);
+  };
+
+  const handleCameraFile = async (file: File) => {
+    if (!file || isOcrExtracting) return;
+    setOcrStatus(null);
+    try {
+      const downscaled = await downscaleImage(file);
+      setOcrPreview(downscaled);
+      setIsOcrExtracting(true);
+      const result = await extractTextFromImageAction({ imageDataUrl: downscaled });
+      if ('error' in result) {
+        setOcrStatus({ ok: false, message: result.error });
+      } else {
+        onLectureTextChange(result.text);
+        setOcrStatus({ ok: true, message: `Extracted ${result.text.length.toLocaleString()} characters from the photo. Ready to generate!` });
+      }
+    } catch {
+      setOcrStatus({ ok: false, message: 'Could not process that image. Try another photo.' });
+    } finally {
+      setIsOcrExtracting(false);
+    }
+  };
 
   // Clear the native input when the parent resets the file name (Start Over)
   useEffect(() => {
@@ -109,12 +196,18 @@ export function QuizSetup({
       <CardContent className="p-0 space-y-4">
         {/* Input Selection Tabs */}
         <Tabs defaultValue="upload" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 rounded-lg bg-muted p-1 text-muted-foreground">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 rounded-lg bg-muted p-1 text-muted-foreground">
             <TabsTrigger value="upload" className="rounded-md text-xs font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
               Upload Document
             </TabsTrigger>
             <TabsTrigger value="paste" className="rounded-md text-xs font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
               Paste Text
+            </TabsTrigger>
+            <TabsTrigger value="web" className="rounded-md text-xs font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              Web URL
+            </TabsTrigger>
+            <TabsTrigger value="camera" className="rounded-md text-xs font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              Camera
             </TabsTrigger>
           </TabsList>
 
@@ -166,6 +259,100 @@ export function QuizSetup({
               disabled={isLoading}
               className="font-sans text-sm bg-background border-border/80 rounded-xl focus-visible:ring-primary"
             />
+          </TabsContent>
+
+          <TabsContent value="web" className="mt-4">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <input
+                    type="url"
+                    value={webUrl}
+                    onChange={e => setWebUrl(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') void handleWebFetch(); }}
+                    placeholder="https://en.wikipedia.org/wiki/…"
+                    disabled={isLoading || isWebFetching}
+                    aria-label="Article URL"
+                    className="w-full rounded-lg border border-border/80 bg-background pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+                <Button
+                  onClick={() => void handleWebFetch()}
+                  disabled={isLoading || isWebFetching || !webUrl.trim()}
+                  className="h-10 px-4 shrink-0"
+                >
+                  {isWebFetching ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <FileText className="mr-1.5 h-4 w-4" />}
+                  {isWebFetching ? 'Fetching…' : 'Fetch'}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Read clean article text from Wikipedia, blogs, docs, and papers. Ads, navbars, and cookie banners are stripped.
+              </p>
+              {webStatus && (
+                <p className={cn(
+                  "flex items-center gap-1.5 text-xs font-medium",
+                  webStatus.ok ? "text-emerald-500" : "text-destructive"
+                )} role="status" aria-live="polite">
+                  {webStatus.ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                  {webStatus.message}
+                </p>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="camera" className="mt-4">
+            <div className="space-y-3">
+              <label
+                htmlFor="camera-file"
+                className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border/80 rounded-xl cursor-pointer bg-muted/20 hover:bg-muted/40 transition-colors text-center px-4"
+              >
+                <div className="flex flex-col items-center justify-center">
+                  <div className="p-2 rounded-full bg-amber-500/10 text-amber-500 mb-2">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">
+                    <span className="text-primary font-bold">Snap a photo</span> of notes or a textbook page
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Opens your camera on mobile · or choose an image
+                  </p>
+                </div>
+                <input
+                  id="camera-file"
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  capture="environment"
+                  disabled={isLoading || isOcrExtracting}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleCameraFile(file);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+              {ocrPreview && (
+                <div className="flex items-center gap-3">
+                  {/* SAFETY: preview renders a user-chosen local data URL; the
+                      image is never uploaded elsewhere; only the OCR action sees it */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={ocrPreview} alt="Captured notes preview" className="h-16 w-16 rounded-lg object-cover border border-border/80" />
+                  <p className="text-xs text-muted-foreground">
+                    {isOcrExtracting ? 'Reading the photo…' : 'Photo ready to scan.'}
+                  </p>
+                </div>
+              )}
+              {ocrStatus && (
+                <p className={cn(
+                  "flex items-center gap-1.5 text-xs font-medium",
+                  ocrStatus.ok ? "text-emerald-500" : "text-destructive"
+                )} role="status" aria-live="polite">
+                  {ocrStatus.ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                  {ocrStatus.message}
+                </p>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
 
@@ -235,8 +422,8 @@ export function QuizSetup({
             {/* Difficulty Level */}
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Difficulty Level</label>
-              <div className="grid grid-cols-3 gap-2 bg-muted/40 rounded-lg p-1 border border-border/60">
-                {(['easy', 'medium', 'hard'] as const).map((diff) => (
+              <div className="grid grid-cols-4 gap-2 bg-muted/40 rounded-lg p-1 border border-border/60">
+                {(['easy', 'medium', 'hard', 'adaptive'] as const).map((diff) => (
                   <button
                     key={diff}
                     onClick={() => onDifficultyChange(diff)}
@@ -310,6 +497,29 @@ export function QuizSetup({
           {turnstileSiteKey && (
             <TurnstileWidget siteKey={turnstileSiteKey} onToken={onTurnstileToken} />
           )}
+          {onIncognitoChange && (
+            <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={incognito}
+                onClick={() => onIncognitoChange(!incognito)}
+                disabled={isLoading}
+                className={cn(
+                  "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                  incognito ? "bg-amber-500" : "bg-border"
+                )}
+              >
+                <span className={cn(
+                  "inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform",
+                  incognito ? "translate-x-[18px]" : "translate-x-[3px]"
+                )} />
+              </button>
+              <Lock className="h-3.5 w-3.5" />
+              Incognito Mode
+              <span className="text-[11px] text-muted-foreground/70">no history saved</span>
+            </label>
+          )}
           <Button
             onClick={onGenerate}
             disabled={isLoading || (!lectureText.trim() && !fileName)}
@@ -330,8 +540,8 @@ export function QuizSetup({
           {isLoading && elapsedSec >= 10 && (
             <p className="text-xs text-muted-foreground text-center max-w-[240px]" role="status" aria-live="polite">
               {elapsedSec >= 45
-                ? 'Taking longer than usual — the AI service may be busy. Hang tight…'
-                : 'Still working — large documents can take a minute or two…'}
+                ? 'Taking longer than usual. The AI service may be busy. Hang tight…'
+                : 'Still working. Large documents can take a minute or two…'}
             </p>
           )}
         </div>

@@ -16,7 +16,7 @@ export interface QuizAttempt {
   title: string;
   score: number;
   total: number;
-  /** Raw (unshuffled) questions — re-processed on retake for a fresh shuffle */
+  /** Raw (unshuffled) questions, re-processed on retake for a fresh shuffle */
   questions: QuizQuestion[];
   answers: AttemptAnswer[];
   difficulty: string | null;
