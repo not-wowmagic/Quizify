@@ -19,16 +19,11 @@ Security rules (highest priority):
 export async function generateExplanation(
   input: GenerateExplanationInput
 ): Promise<GenerateExplanationOutput> {
-  return generateExplanationFlow(input);
-}
-
-
-const generateExplanationFlow = async (input: GenerateExplanationInput): Promise<GenerateExplanationOutput> => {
   // Validate and bound the input — the schema exists precisely for this
   const { question, correctAnswer } = GenerateExplanationInputSchema.parse(input);
 
   const prompt = `Explain why the answer is correct.\n\n<question>\n${question}\n</question>\n\n<answer>\n${correctAnswer}\n</answer>\n\nReturn JSON: { "explanation": "..." }`;
-  const content = await callLLM(prompt, { jsonMode: true, systemInstruction: EXPLANATION_SYSTEM_INSTRUCTION, timeoutMs: 45000 });
+  const content = await callLLM(prompt, { systemInstruction: EXPLANATION_SYSTEM_INSTRUCTION, timeoutMs: 45000 });
   const parsed = extractJSON(content);
   return GenerateExplanationOutputSchema.parse(parsed);
-};
+}

@@ -16,7 +16,6 @@ import 'server-only';
 
 export interface LLMOptions {
   systemInstruction?: string;
-  jsonMode?: boolean;
   /** Per-attempt timeout in milliseconds. Defaults to 30s. */
   timeoutMs?: number;
   /**
@@ -40,11 +39,14 @@ export class LLMAPIError extends Error {
 // JSON extraction (provider-agnostic)
 // =========================================
 
+/** Named domain type for unparsed JSON values — the boundary contract of extractors. */
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
 /**
  * Extract the first complete, balanced JSON object (or array) from a string.
  * Handles strings, escapes, and brackets balancing.
  */
-export function extractJSON(str: string): unknown {
+export function extractJSON(str: string): JsonValue {
   const start = str.indexOf('{');
   const startArray = str.indexOf('[');
 
@@ -119,7 +121,8 @@ export function extractJSON(str: string): unknown {
           try {
             return JSON.parse(candidate);
           } catch (e: unknown) {
-            throw new Error(`Failed to parse extracted JSON structure: ${(e as Error).message}. Content: ${candidate}`);
+            const message = e instanceof Error ? e.message : String(e);
+            throw new Error(`Failed to parse extracted JSON structure: ${message}. Content: ${candidate}`);
           }
         }
       }
@@ -133,16 +136,16 @@ export function extractJSON(str: string): unknown {
 // Shared HTTP helper
 // =========================================
 
-async function fetchWithRetry(
+async function fetchWithRetry<TBody>(
   url: string,
   headers: Record<string, string>,
-  body: Record<string, unknown>,
+  body: TBody,
   timeoutMs: number,
   label: string,
   deadlineMs?: number,
   retries = 1,
   delay = 1000
-): Promise<unknown> {
+): Promise<JsonValue> {
   for (let i = 0; i <= retries; i++) {
     // Respect the global deadline: clamp the per-attempt timeout to the
     // remaining budget, and refuse to start a doomed attempt.
@@ -197,8 +200,12 @@ async function fetchWithRetry(
         throw err;
       }
 
-      const isTimeout = (err as Error).name === 'AbortError';
-      const errorMessage = isTimeout ? `Request timed out after ${timeoutMs}ms` : (err as Error).message;
+      const isTimeout = err instanceof Error && err.name === 'AbortError';
+      const errorMessage = isTimeout
+        ? `Request timed out after ${timeoutMs}ms`
+        : err instanceof Error
+          ? err.message
+          : String(err);
 
       if (i === retries) {
         throw new LLMAPIError(`Failed to contact ${label}: ${errorMessage}`);
@@ -268,7 +275,7 @@ async function callOpenCodeChat(prompt: string, options: LLMOptions = {}): Promi
   const url = process.env.OPENCODE_BASE_URL || 'https://opencode.ai/zen/go/v1/chat/completions';
   const timeoutMs = options.timeoutMs ?? 30000;
 
-  const body: Record<string, unknown> = {
+  const body = {
     model,
     messages: buildChatMessages(prompt, options.systemInstruction),
   };
@@ -286,6 +293,8 @@ async function callOpenCodeChat(prompt: string, options: LLMOptions = {}): Promi
       'OpenCode AI API',
       options.deadlineMs
     );
+    // SAFETY: response is JSON from the documented OpenAI-compatible API;
+    // parseOpenAIChatResponse validates the shape and surfaces API errors.
     return parseOpenAIChatResponse(data as OpenAIChatResponse);
   } catch (err: unknown) {
     console.error('OpenCode AI API execution error:', err);
@@ -328,6 +337,11 @@ function getGeminiResponseText(data: GeminiResponse): string {
   return String(content);
 }
 
+interface GeminiRequestBody {
+  contents: Array<{ parts: Array<{ text: string }> }>;
+  systemInstruction?: { parts: Array<{ text: string }> };
+}
+
 async function callGeminiDirect(prompt: string, options: LLMOptions = {}): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -338,7 +352,7 @@ async function callGeminiDirect(prompt: string, options: LLMOptions = {}): Promi
   const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent`;
   const timeoutMs = options.timeoutMs ?? 30000;
 
-  const body: Record<string, unknown> = {
+  const body: GeminiRequestBody = {
     contents: [
       {
         parts: [
@@ -373,6 +387,8 @@ async function callGeminiDirect(prompt: string, options: LLMOptions = {}): Promi
       'Gemini API',
       options.deadlineMs
     );
+    // SAFETY: response is JSON from the documented Gemini generateContent API;
+    // getGeminiResponseText validates the shape and surfaces block/error reasons.
     return getGeminiResponseText(data as GeminiResponse);
   } catch (err: unknown) {
     console.error('Gemini API execution error:', err);

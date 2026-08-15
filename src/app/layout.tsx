@@ -74,7 +74,7 @@ export default function RootLayout({
           </div>
 
           {/* Main Content Body */}
-          <div className="relative flex h-screen flex-col overflow-hidden">
+          <div className="relative flex min-h-screen flex-col">
             {children}
           </div>
 

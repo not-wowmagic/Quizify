@@ -9,7 +9,12 @@ import { useCallback, useEffect, useRef } from 'react';
 declare global {
   interface Window {
     turnstile?: {
-      render: (el: HTMLElement, options: Record<string, unknown>) => string;
+      render: (el: HTMLElement, options: {
+        sitekey: string;
+        callback: (token: string) => void;
+        'expired-callback': () => void;
+        'error-callback': () => void;
+      }) => string;
       remove: (widgetId: string) => void;
     };
   }
@@ -24,7 +29,9 @@ export function TurnstileWidget({ siteKey, onToken }: TurnstileWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const onTokenRef = useRef(onToken);
-  onTokenRef.current = onToken;
+  useEffect(() => {
+    onTokenRef.current = onToken;
+  }, [onToken]);
 
   const renderWidget = useCallback(() => {
     if (containerRef.current && window.turnstile && widgetIdRef.current === null) {

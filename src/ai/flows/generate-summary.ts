@@ -29,10 +29,6 @@ Security rules (highest priority):
 export async function generateSummary(
   input: GenerateSummaryInput
 ): Promise<GenerateSummaryOutput> {
-  return generateSummaryFlow(input);
-}
-
-const generateSummaryFlow = async (input: GenerateSummaryInput) => {
   const validatedInput = GenerateSummaryInputSchema.parse(input);
 
   const prompt = `Summarize the following study material in one concise paragraph.\n\n<document>\n${validatedInput.lectureText}\n</document>`;
@@ -44,4 +40,4 @@ const generateSummaryFlow = async (input: GenerateSummaryInput) => {
   };
 
   return GenerateSummaryOutputSchema.parse(result);
-};
+}

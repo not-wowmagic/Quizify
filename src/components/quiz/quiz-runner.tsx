@@ -29,7 +29,7 @@ interface QuizRunnerProps {
   currentQuote: string;
   onRegenerate: () => void;
   onStartOver: () => void;
-  headerRef: React.RefObject<HTMLHeadingElement>;
+  headerRef: React.RefObject<HTMLHeadingElement | null>;
 }
 
 export function QuizRunner({
@@ -123,6 +123,7 @@ export function QuizRunner({
                 key={index}
                 question={q}
                 questionIndex={index}
+                // SAFETY: the branch is keyed on q.type === 'matching', so a matching answer is the only valid payload
                 userAnswer={userAnswers[index] as MatchingAnswer}
                 onUpdate={(answer) => onMatchingUpdate(index, answer)}
               />
@@ -133,6 +134,7 @@ export function QuizRunner({
               key={index}
               question={q}
               questionIndex={index}
+              // SAFETY: this branch is the non-matching case, so a standard answer is the only valid payload
               userAnswer={userAnswers[index] as StandardAnswer}
               onAnswer={onStandardAnswer}
             />

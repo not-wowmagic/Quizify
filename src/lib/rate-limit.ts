@@ -104,7 +104,7 @@ export class TtlCache<T> {
 }
 
 /** Stable SHA-256 cache key for a normalized payload. */
-export function hashPayload(payload: unknown): string {
+export function hashPayload<T>(payload: T): string {
   return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
 
@@ -128,6 +128,8 @@ export async function verifyTurnstile(token: string | undefined): Promise<boolea
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ secret, response: token }),
     });
+    // SAFETY: Turnstile siteverify returns a documented JSON shape;
+    // `success` is the only field consumed and is boolean-checked below.
     const data = (await res.json()) as { success?: boolean };
     return data.success === true;
   } catch (err) {

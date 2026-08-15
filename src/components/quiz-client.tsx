@@ -50,8 +50,6 @@ export function QuizClient({ onQuizStateChange }: QuizClientProps = {}) {
   const [fileName, setFileName] = useState('');
   const [showSummary, setShowSummary] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  // Seconds since the current loading phase started (for "still working" hints)
-  const [elapsedSec, setElapsedSec] = useState(0);
 
   // Refs
   const quizHeaderRef = useRef<HTMLHeadingElement>(null);
@@ -60,15 +58,21 @@ export function QuizClient({ onQuizStateChange }: QuizClientProps = {}) {
 
   // Quote is picked after mount so SSR and first client render match
   useEffect(() => {
+    // ponytail: hydration guard — a random value can't be computed during render
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentQuote(getRandomQuote());
   }, []);
 
-  // Track elapsed time while loading so long generations don't feel stuck
+  // Seconds since the current loading phase started (for "still working" hints)
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [prevLoading, setPrevLoading] = useState(isLoading);
+  if (prevLoading !== isLoading) {
+    setPrevLoading(isLoading);
+    if (!isLoading) setElapsedSec(0);
+  }
+
   useEffect(() => {
-    if (!isLoading) {
-      setElapsedSec(0);
-      return;
-    }
+    if (!isLoading) return;
     const start = Date.now();
     const interval = setInterval(() => {
       setElapsedSec(Math.floor((Date.now() - start) / 1000));
@@ -273,11 +277,11 @@ export function QuizClient({ onQuizStateChange }: QuizClientProps = {}) {
     return "Keep reinforcing! Active practice will strengthen your recall.";
   };
 
-  useEffect(() => {
-    if (allAnswered) {
-      setCurrentQuote(getRandomQuote());
-    }
-  }, [allAnswered]);
+  const [prevAllAnswered, setPrevAllAnswered] = useState(allAnswered);
+  if (prevAllAnswered !== allAnswered) {
+    setPrevAllAnswered(allAnswered);
+    if (allAnswered) setCurrentQuote(getRandomQuote());
+  }
 
   return (
     <div className="w-full space-y-8">

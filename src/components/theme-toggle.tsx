@@ -17,6 +17,8 @@ export function ThemeToggle() {
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
+    // ponytail: mount-only flag so SSR/hydration never renders theme-dependent UI
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
 

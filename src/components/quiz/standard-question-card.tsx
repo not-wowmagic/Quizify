@@ -1,7 +1,7 @@
 'use client';
 
 // src/components/quiz/standard-question-card.tsx
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { StandardQuestion } from '@/types/quiz';
 import type { StandardAnswer } from '@/components/quiz/types';
 import { explainAnswer } from '@/app/actions';
@@ -25,6 +25,13 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
 
   const isAnswered = userAnswer !== undefined;
 
+  // Reset the explanation when the question changes (regenerated quiz)
+  const [prevQuestion, setPrevQuestion] = useState(question);
+  if (prevQuestion !== question) {
+    setPrevQuestion(question);
+    setExplanation('');
+  }
+
   const handleGetExplanation = async () => {
     if (explanation) {
       setExplanation('');
@@ -33,26 +40,31 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
 
     setIsExplanationLoading(true);
     setExplanation('');
-    const result = await explainAnswer({
-      question: question.question,
-      correctAnswer: question.options[question.correctAnswerIndex],
-    });
+    try {
+      const result = await explainAnswer({
+        question: question.question,
+        correctAnswer: question.options[question.correctAnswerIndex],
+      });
 
-    if ('error' in result) {
+      if ('error' in result) {
+        toast({
+          title: 'Error',
+          description: result.error,
+          variant: 'destructive',
+        });
+      } else {
+        setExplanation(result.explanation);
+      }
+    } catch {
       toast({
         title: 'Error',
-        description: result.error,
+        description: 'Failed to generate the explanation. Please try again.',
         variant: 'destructive',
       });
-    } else {
-      setExplanation(result.explanation);
+    } finally {
+      setIsExplanationLoading(false);
     }
-    setIsExplanationLoading(false);
   };
-
-  useEffect(() => {
-    setExplanation('');
-  }, [question]);
 
   return (
     <Card className="surface-card p-6 border-border/80 bg-card">

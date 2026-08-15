@@ -4,27 +4,17 @@
 // of parsing code out of the main bundle.
 import * as pdfjs from 'pdfjs-dist';
 import mammoth from 'mammoth';
+import { sanitizeText } from '@/lib/sanitize';
 
-// Set up the worker for pdfjs using Next.js Webpack asset bundling
-if (typeof window !== 'undefined') {
+export const processFile = async (file: File): Promise<string> => {
+  // Set up the worker for pdfjs using Next.js Webpack asset bundling.
+  // processFile is only ever called from the browser (dynamic import in a
+  // client event handler), so no environment guard is needed.
   pdfjs.GlobalWorkerOptions.workerSrc = new URL(
     'pdfjs-dist/build/pdf.worker.min.mjs',
     import.meta.url
   ).toString();
-}
 
-/** Strips ASCII control characters (keeps tab, LF, CR) from extracted text. */
-function cleanExtractedText(text: string): string {
-  let out = '';
-  for (const ch of text) {
-    const code = ch.charCodeAt(0);
-    const isControl = (code <= 31 && code !== 9 && code !== 10 && code !== 13) || code === 127;
-    if (!isControl) out += ch;
-  }
-  return out;
-}
-
-export const processFile = async (file: File): Promise<string> => {
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
   if (file.size > MAX_FILE_SIZE) {
     throw new Error('File size exceeds the 10MB limit. Please upload a smaller file.');
@@ -47,7 +37,7 @@ export const processFile = async (file: File): Promise<string> => {
       textContent.push(pageText);
     }
 
-    const fullText = cleanExtractedText(textContent.join('\n\n'));
+    const fullText = sanitizeText(textContent.join('\n\n'));
     if (fullText.trim().length < 10) {
       throw new Error('This PDF appears to be a scanned image or empty. It does not contain any readable text layers. Please use a text-based document or copy and paste the text manually.');
     }
@@ -57,7 +47,7 @@ export const processFile = async (file: File): Promise<string> => {
   if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
     const arrayBuffer = await file.arrayBuffer();
     const result = await mammoth.extractRawText({ arrayBuffer });
-    return cleanExtractedText(result.value);
+    return sanitizeText(result.value);
   }
 
   throw new Error('Unsupported file type. Please upload a PDF or DOCX file.');

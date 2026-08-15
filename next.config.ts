@@ -1,12 +1,13 @@
 import type {NextConfig} from 'next';
 
+// React dev mode requires eval() for debugging features (callstack
+// reconstruction). Production keeps a strict CSP without unsafe-eval.
+const isDev = process.env.NODE_ENV === 'development';
+
 const nextConfig: NextConfig = {
   /* config options here */
   typescript: {
     ignoreBuildErrors: false,
-  },
-  eslint: {
-    ignoreDuringBuilds: false,
   },
   // Do not advertise the framework in response headers
   poweredByHeader: false,
@@ -42,7 +43,8 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+              "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com" +
+                (isDev ? " 'unsafe-eval'" : ''),
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data:",
               "font-src 'self'",

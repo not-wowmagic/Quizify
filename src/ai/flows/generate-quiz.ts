@@ -50,7 +50,7 @@ export type GenerateQuizOutput = {
   }>;
 };
 
-const QUESTION_TYPE_GUIDANCE: Record<QuestionType, string> = {
+const QUESTION_TYPE_GUIDANCE = {
   multiple_choice: 'Write clear multiple-choice questions with exactly four plausible options (one correct and three distractors). Use direct phrasing that tests conceptual understanding or factual recall from the text.',
   situational: 'Craft scenario-based questions that describe a realistic situation. Ask the learner to apply concepts from the text to that scenario. Ensure the scenario details and the correct option are grounded explicitly in the provided text.',
   fill_in_the_blank: 'Select a key sentence from the text and replace one critical term with a blank ("___"). Provide four answer options that could fit. Only one option may be correct according to the text, and distractors must be plausible but incorrect.',
@@ -152,7 +152,7 @@ export function splitTextIntoChunks(text: string, maxLength = 8000): string[] {
  * Promise.all — prevents slamming the Gemini rate limit.
  */
 async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
-  const results: R[] = new Array(items.length);
+  const results: R[] = Array.from({ length: items.length });
   let nextIndex = 0;
   const workerCount = Math.min(Math.max(1, limit), items.length);
   const workers = Array.from({ length: workerCount }, async () => {
@@ -226,9 +226,10 @@ Return questions in this exact JSON format:
   ]
 }`;
 
-  const response = await callLLM(prompt, { jsonMode: true, systemInstruction: QUIZ_SYSTEM_INSTRUCTION, timeoutMs: 60000 });
+  const response = await callLLM(prompt, { systemInstruction: QUIZ_SYSTEM_INSTRUCTION, timeoutMs: 60000 });
 
   try {
+    // SAFETY: extractJSON returns parsed JSON; each element is validated against the schema below
     const result = extractJSON(response) as { questions?: Array<Omit<StandardQuestionRaw, 'type'>> } | undefined;
     return (result?.questions || []).map(q => ({
       ...q,
@@ -281,13 +282,13 @@ Return questions in this exact JSON format:
 }`;
 
   const response = await callLLM(prompt, {
-    jsonMode: true,
     systemInstruction: QUIZ_SYSTEM_INSTRUCTION,
     timeoutMs: 60000,
     deadlineMs: params.deadlineMs,
   });
 
   try {
+    // SAFETY: extractJSON returns parsed JSON; each element is validated against the schema below
     const result = extractJSON(response) as { questions?: Array<Omit<MatchingQuestionRaw, 'type'>> } | undefined;
     return (result?.questions || []).map(q => ({
       ...q,

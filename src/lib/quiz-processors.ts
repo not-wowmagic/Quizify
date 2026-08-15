@@ -25,8 +25,8 @@ function processStandardQuestion(q: StandardQuestion): StandardQuestion {
 
   // Don't shuffle for true/false questions
   const isTrueFalse = (q.options.length === 2 || q.options.length === 4) &&
-    q.options.some(o => typeof o === 'string' && o.toLowerCase() === 'true') &&
-    q.options.some(o => typeof o === 'string' && o.toLowerCase() === 'false');
+    q.options.some(o => o.toLowerCase() === 'true') &&
+    q.options.some(o => o.toLowerCase() === 'false');
 
   let shuffledObjects = optionObjects;
   if (!isTrueFalse) {
