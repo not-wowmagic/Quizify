@@ -1,7 +1,7 @@
 'use client';
 
 // src/components/quiz/quiz-setup.tsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import {
   Sparkles, CircleDot, CheckSquare, Edit3, Link as LinkIcon, Shuffle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LANGUAGES } from '@/lib/languages';
 import type { Difficulty, QuestionTypeId } from '@/components/quiz/types';
 
 interface QuizSetupProps {
@@ -23,6 +24,8 @@ interface QuizSetupProps {
   onDifficultyChange: (value: Difficulty) => void;
   questionType: QuestionTypeId;
   onQuestionTypeChange: (value: QuestionTypeId) => void;
+  language: string;
+  onLanguageChange: (value: string) => void;
   isLoading: boolean;
   fileName: string;
   currentQuote: string;
@@ -43,6 +46,8 @@ const QUESTION_TYPES: Array<{ id: QuestionTypeId; label: string; icon: React.Com
   { id: 'mixed', label: 'Mixed Types', icon: Shuffle },
 ];
 
+const clampCount = (value: number) => Math.min(50, Math.max(1, value));
+
 export function QuizSetup({
   lectureText,
   onLectureTextChange,
@@ -52,6 +57,8 @@ export function QuizSetup({
   onDifficultyChange,
   questionType,
   onQuestionTypeChange,
+  language,
+  onLanguageChange,
   isLoading,
   fileName,
   currentQuote,
@@ -62,6 +69,8 @@ export function QuizSetup({
   onTurnstileToken,
 }: QuizSetupProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isCustomCount, setIsCustomCount] = useState(false);
+  const [customCount, setCustomCount] = useState('10');
 
   // Clear the native input when the parent resets the file name (Start Over)
   useEffect(() => {
@@ -167,16 +176,16 @@ export function QuizSetup({
             {/* Number of Questions */}
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Number of Questions</label>
-              <div className="grid grid-cols-4 gap-2 bg-muted/40 rounded-lg p-1 border border-border/60">
+              <div className="grid grid-cols-5 gap-2 bg-muted/40 rounded-lg p-1 border border-border/60">
                 {[5, 10, 15, 20].map((num) => (
                   <button
                     key={num}
-                    onClick={() => onNumQuestionsChange(num)}
+                    onClick={() => { setIsCustomCount(false); onNumQuestionsChange(num); }}
                     disabled={isLoading}
-                    aria-pressed={numQuestions === num}
+                    aria-pressed={!isCustomCount && numQuestions === num}
                     className={cn(
                       "py-1.5 rounded-md text-xs font-semibold transition-all",
-                      numQuestions === num
+                      !isCustomCount && numQuestions === num
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted"
                     )}
@@ -184,7 +193,43 @@ export function QuizSetup({
                     {num}
                   </button>
                 ))}
+                <button
+                  onClick={() => { setIsCustomCount(true); onNumQuestionsChange(clampCount(parseInt(customCount, 10) || 10)); }}
+                  disabled={isLoading}
+                  aria-pressed={isCustomCount}
+                  className={cn(
+                    "py-1.5 rounded-md text-xs font-semibold transition-all",
+                    isCustomCount
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                >
+                  Custom
+                </button>
               </div>
+              {isCustomCount && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={customCount}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setCustomCount(value);
+                      const parsed = parseInt(value, 10);
+                      if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 50) {
+                        onNumQuestionsChange(parsed);
+                      }
+                    }}
+                    onBlur={() => setCustomCount(String(clampCount(parseInt(customCount, 10) || 10)))}
+                    disabled={isLoading}
+                    aria-label="Custom number of questions"
+                    className="w-24 h-9 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2"
+                  />
+                  <span className="text-xs text-muted-foreground">between 1 and 50</span>
+                </div>
+              )}
             </div>
 
             {/* Difficulty Level */}
@@ -210,6 +255,21 @@ export function QuizSetup({
               </div>
             </div>
 
+          </div>
+
+          {/* Language */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Language</label>
+            <select
+              value={language}
+              onChange={(e) => onLanguageChange(e.target.value)}
+              disabled={isLoading}
+              className="w-full h-9 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2"
+            >
+              {LANGUAGES.map(lang => (
+                <option key={lang} value={lang}>{lang}</option>
+              ))}
+            </select>
           </div>
 
           {/* Question Types Grid Tile */}

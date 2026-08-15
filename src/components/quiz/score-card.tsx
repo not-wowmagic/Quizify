@@ -1,10 +1,9 @@
 'use client';
 
 // src/components/quiz/score-card.tsx
-import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { RefreshCw, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, RotateCcw, CheckCircle2, Download } from 'lucide-react';
 
 interface ScoreCardProps {
   score: number;
@@ -14,6 +13,7 @@ interface ScoreCardProps {
   currentQuote: string;
   onRegenerate: () => void;
   onStartOver: () => void;
+  onExport?: () => void;
 }
 
 export function ScoreCard({
@@ -24,6 +24,7 @@ export function ScoreCard({
   currentQuote,
   onRegenerate,
   onStartOver,
+  onExport,
 }: ScoreCardProps) {
   return (
     <Card
@@ -55,7 +56,12 @@ export function ScoreCard({
 
         <p className="text-xs italic text-muted-foreground pt-2">&ldquo;{currentQuote}&rdquo;</p>
 
-        <div className="flex items-center justify-center gap-3 pt-2">
+        <div className="flex items-center justify-center gap-3 pt-2 flex-wrap">
+          {onExport && (
+            <Button onClick={onExport} variant="outline" className="h-10 px-5 border-border">
+              <Download className="mr-2 h-4 w-4" /> Export
+            </Button>
+          )}
           <Button onClick={onRegenerate} variant="outline" className="h-10 px-5 border-border">
             <RefreshCw className="mr-2 h-4 w-4" /> Regenerate Quiz
           </Button>

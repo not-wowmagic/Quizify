@@ -10,12 +10,16 @@ export interface StandardQuestion {
   question: string;
   options: string[];
   correctAnswerIndex: number;
+  /** Short topic label from the AI (e.g. "Cellular Respiration") — used for analytics */
+  topic?: string;
 }
 
 export interface MatchingQuestion {
   type: 'matching';
   question: string;
   pairs: MatchingPair[];
+  /** Short topic label from the AI (e.g. "Cellular Respiration") — used for analytics */
+  topic?: string;
   /** Shuffled response indices used by the UI — set during processQuiz */
   shuffledResponseIndices?: number[];
 }

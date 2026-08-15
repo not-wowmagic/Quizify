@@ -4,11 +4,14 @@
 // Orchestrator for the quiz flow. Presentation lives in src/components/quiz/*.
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { Quiz } from '@/types/quiz';
-import { createQuiz, createSummary } from '@/app/actions';
+import { createQuiz, createSummary, publishQuiz, saveAttempt } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { processQuiz, quizHelpers } from '@/lib/quiz-processors';
+import { getDeviceId } from '@/lib/device-id';
+import { buildAnkiTxt, buildQuizCsv, downloadTextFile, printQuiz } from '@/lib/quiz-export';
 import { QuizSetup } from '@/components/quiz/quiz-setup';
-import { QuizRunner } from '@/components/quiz/quiz-runner';
+import { QuizRunner, type ExportFormat } from '@/components/quiz/quiz-runner';
+import type { AttemptAnswer } from '@/types/history';
 import type { Difficulty, MatchingAnswer, QuestionTypeId, QuizAnswer } from '@/components/quiz/types';
 
 const motivationalQuotes = [
@@ -30,9 +33,13 @@ const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 interface QuizClientProps {
   onQuizStateChange?: (hasQuiz: boolean) => void;
+  /** Quiz handed in from the History panel for a retake. */
+  retakeQuiz?: Quiz | null;
+  /** Called once the retake quiz has been consumed. */
+  onRetakeHandled?: () => void;
 }
 
-export function QuizClient({ onQuizStateChange }: QuizClientProps = {}) {
+export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: QuizClientProps = {}) {
   // Core quiz state
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [userAnswers, setUserAnswers] = useState<Record<number, QuizAnswer>>({});
@@ -42,6 +49,7 @@ export function QuizClient({ onQuizStateChange }: QuizClientProps = {}) {
   const [numQuestions, setNumQuestions] = useState<number | ''>(10);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [questionType, setQuestionType] = useState<QuestionTypeId>('multiple_choice');
+  const [language, setLanguage] = useState('English');
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
@@ -53,6 +61,12 @@ export function QuizClient({ onQuizStateChange }: QuizClientProps = {}) {
 
   // Refs
   const quizHeaderRef = useRef<HTMLHeadingElement>(null);
+  // Raw (unshuffled) questions from the server — used for sharing and history
+  const rawQuizRef = useRef<Pick<Quiz, 'questions'> | null>(null);
+  // Guards: record an attempt exactly once per quiz completion
+  const attemptSavedRef = useRef(false);
+  const quizStartedAtRef = useRef<number | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
 
   const { toast } = useToast();
 
@@ -143,6 +157,7 @@ export function QuizClient({ onQuizStateChange }: QuizClientProps = {}) {
         numQuestions: Number(numQuestions) || 10,
         difficulty,
         questionType,
+        language,
         turnstileToken: turnstileToken ?? undefined,
       });
 
@@ -155,6 +170,9 @@ export function QuizClient({ onQuizStateChange }: QuizClientProps = {}) {
         return;
       }
 
+      rawQuizRef.current = result;
+      attemptSavedRef.current = false;
+      quizStartedAtRef.current = Date.now();
       const processedQuiz = processQuiz(result);
       setQuiz(processedQuiz);
     } catch (error) {
@@ -232,6 +250,9 @@ export function QuizClient({ onQuizStateChange }: QuizClientProps = {}) {
     setLectureText('');
     setFileName('');
     setShowSummary(false);
+    rawQuizRef.current = null;
+    attemptSavedRef.current = false;
+    quizStartedAtRef.current = null;
   };
 
   const handleRegenerateQuiz = () => {
@@ -239,6 +260,84 @@ export function QuizClient({ onQuizStateChange }: QuizClientProps = {}) {
     setUserAnswers({});
     setShowSummary(false);
     setCurrentQuote(getRandomQuote());
+    attemptSavedRef.current = false;
+    quizStartedAtRef.current = null;
+  };
+
+  // =========================================
+  // Retake from history panel
+  // =========================================
+
+  useEffect(() => {
+    if (!retakeQuiz) return;
+    rawQuizRef.current = { questions: retakeQuiz.questions };
+    attemptSavedRef.current = false;
+    quizStartedAtRef.current = Date.now();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Rehydrating the runner from the History panel's retake request
+    setQuiz(processQuiz({ questions: retakeQuiz.questions }));
+    setUserAnswers({});
+    setShowSummary(false);
+    setCurrentQuote(getRandomQuote());
+    onRetakeHandled?.();
+  }, [retakeQuiz, onRetakeHandled]);
+
+  // =========================================
+  // Export (Anki / CSV / Print)
+  // =========================================
+
+  const handleExport = (format: ExportFormat) => {
+    if (!quiz) return;
+
+    if (format === 'print') {
+      printQuiz(quiz, fileName || 'Quizify Study Sheet');
+      return;
+    }
+
+    if (format === 'csv') {
+      downloadTextFile('quizify-quiz.csv', buildQuizCsv(quiz), 'text/csv');
+      return;
+    }
+
+    downloadTextFile('quizify-anki.txt', buildAnkiTxt(quiz));
+    toast({ title: 'Exported', description: 'Anki deck downloaded — import it in Anki (File ▸ Import).' });
+  };
+
+  // =========================================
+  // Share (publish to Supabase, copy link)
+  // =========================================
+
+  const handleShare = async () => {
+    if (!quiz) return;
+    setIsSharing(true);
+    try {
+      const raw = rawQuizRef.current;
+      const result = await publishQuiz({
+        questions: raw?.questions ?? quiz.questions,
+        summary: quiz.summary,
+        title: fileName || undefined,
+        difficulty,
+        questionType,
+        language,
+        turnstileToken: turnstileToken ?? undefined,
+      });
+
+      if ('error' in result) {
+        toast({ title: 'Share Failed', description: result.error, variant: 'destructive' });
+        return;
+      }
+
+      const url = `${window.location.origin}${result.url}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast({ title: 'Link Copied', description: `${url}` });
+      } catch {
+        toast({ title: 'Share Link Ready', description: `Copy this link to share: ${url}` });
+      }
+    } catch {
+      toast({ title: 'Share Failed', description: 'Could not publish the quiz. Please try again.', variant: 'destructive' });
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   const { score, answeredQuestions, scorePercentage } = useMemo(() => {
@@ -283,6 +382,59 @@ export function QuizClient({ onQuizStateChange }: QuizClientProps = {}) {
     if (allAnswered) setCurrentQuote(getRandomQuote());
   }
 
+  // =========================================
+  // History: save the attempt once on completion
+  // =========================================
+
+  useEffect(() => {
+    if (!allAnswered || !quiz || attemptSavedRef.current) return;
+    attemptSavedRef.current = true;
+
+    const answers: AttemptAnswer[] = quiz.questions.map((q, qIndex) => {
+      const answer = userAnswers[qIndex];
+      if (!answer) return null;
+
+      if (q.type === 'standard' && answer.type === 'standard') {
+        const entry: AttemptAnswer = {
+          index: qIndex,
+          type: 'standard',
+          correct: q.correctAnswerIndex === answer.selectedIndex,
+        };
+        if (q.topic) entry.topic = q.topic;
+        return entry;
+      }
+      if (q.type === 'matching' && answer.type === 'matching' && answer.checked) {
+        const correct = q.pairs.every((_, pairIdx) => answer.matches[pairIdx] === pairIdx);
+        const entry: AttemptAnswer = { index: qIndex, type: 'matching', correct };
+        if (q.topic) entry.topic = q.topic;
+        return entry;
+      }
+      return null;
+    }).filter((a): a is AttemptAnswer => a !== null);
+
+    const title = fileName || `Quiz • ${new Date().toLocaleDateString()}`;
+    const durationSec = quizStartedAtRef.current
+      ? Math.round((Date.now() - quizStartedAtRef.current) / 1000)
+      : 0;
+
+    void saveAttempt({
+      deviceId: getDeviceId(),
+      title,
+      score,
+      total: quiz.questions.length,
+      questions: rawQuizRef.current?.questions ?? quiz.questions,
+      answers,
+      difficulty,
+      questionType,
+      language,
+      durationSec,
+    }).then(result => {
+      if ('error' in result) {
+        console.warn('[quiz-client] Failed to save attempt:', result.error);
+      }
+    });
+  }, [allAnswered, quiz, userAnswers, score, difficulty, questionType, language, fileName]);
+
   return (
     <div className="w-full space-y-8">
       {!quiz ? (
@@ -295,6 +447,8 @@ export function QuizClient({ onQuizStateChange }: QuizClientProps = {}) {
           onDifficultyChange={setDifficulty}
           questionType={questionType}
           onQuestionTypeChange={setQuestionType}
+          language={language}
+          onLanguageChange={setLanguage}
           isLoading={isLoading}
           fileName={fileName}
           currentQuote={currentQuote}
@@ -310,6 +464,7 @@ export function QuizClient({ onQuizStateChange }: QuizClientProps = {}) {
           userAnswers={userAnswers}
           questionTypeLabel={questionType.replaceAll('_', ' ')}
           difficulty={difficulty}
+          language={language}
           isSummaryLoading={isSummaryLoading}
           showSummary={showSummary}
           onSummaryClick={handleSummaryClick}
@@ -324,6 +479,9 @@ export function QuizClient({ onQuizStateChange }: QuizClientProps = {}) {
           onRegenerate={handleRegenerateQuiz}
           onStartOver={handleStartOver}
           headerRef={quizHeaderRef}
+          onExport={handleExport}
+          onShare={handleShare}
+          isSharing={isSharing}
         />
       )}
     </div>

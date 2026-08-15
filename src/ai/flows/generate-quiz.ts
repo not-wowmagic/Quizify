@@ -32,6 +32,7 @@ export const GenerateQuizInputSchema = z.object({
   difficulty: z.enum(['easy', 'medium', 'hard']).describe('Quiz difficulty level'),
   questionType: z.enum(['multiple_choice', 'situational', 'fill_in_the_blank', 'true_false', 'matching', 'mixed'])
     .describe('Type of questions to generate'),
+  language: z.string().trim().min(1).max(50).default('English').describe('Language the questions should be generated in'),
 });
 
 export type GenerateQuizInput = z.infer<typeof GenerateQuizInputSchema>;
@@ -43,10 +44,12 @@ export type GenerateQuizOutput = {
     question: string;
     options: string[];
     correctAnswerIndex: number;
+    topic?: string;
   } | {
     type: 'matching';
     question: string;
     pairs: { premise: string; response: string }[];
+    topic?: string;
   }>;
 };
 
@@ -57,7 +60,7 @@ const QUESTION_TYPE_GUIDANCE = {
   true_false: 'Create declarative statements about the text and provide four answer options that contain variations (e.g., True, False, Mostly True, Not Given). Only one option may be fully correct, and each distractor must be clearly incorrect according to the text.',
   matching: 'Create matching exercises where the learner must pair related items. Generate 4-6 pairs of related items from the text (e.g., term↔definition, concept↔example, cause↔effect, event↔date). Each pair must be clearly and unambiguously connected based on the text. Premises should be distinct from each other, and responses should also be distinct.',
   mixed: 'Generate a balanced mix of multiple-choice, situational, fill-in-the-blank, true/false, and matching questions. Alternate formats so the learner experiences variety while keeping every question answerable strictly from the text.',
-};
+} satisfies Record<QuestionType, string>;
 
 /**
  * System instruction delivered on the dedicated channel (never mixed with
@@ -80,6 +83,7 @@ const StandardQuestionSchema = z.object({
   question: z.string().min(1).max(2000),
   options: z.array(z.string().min(1).max(500)).min(2).max(6),
   correctAnswerIndex: z.number().int().min(0),
+  topic: z.string().min(1).max(200).optional(),
 }).refine(q => q.correctAnswerIndex < q.options.length, {
   message: 'correctAnswerIndex out of bounds',
 });
@@ -91,11 +95,29 @@ const MatchingQuestionSchema = z.object({
     premise: z.string().min(1).max(500),
     response: z.string().min(1).max(500),
   })).min(2).max(8),
+  topic: z.string().min(1).max(200).optional(),
 });
 
 type StandardQuestionRaw = z.infer<typeof StandardQuestionSchema>;
 type MatchingQuestionRaw = z.infer<typeof MatchingQuestionSchema>;
 type QuestionRaw = StandardQuestionRaw | MatchingQuestionRaw;
+
+/** A single validated quiz question (standard or matching). */
+export const QuizQuestionSchema = z.union([StandardQuestionSchema, MatchingQuestionSchema]);
+
+/**
+ * Validates a client-supplied quiz payload (used by publishQuiz for sharing).
+ * Non-strict on purpose: processed questions may carry extra UI-only fields
+ * (e.g. shuffledResponseIndices) which are stripped.
+ */
+export const QuizPayloadSchema = z.object({
+  questions: z.array(QuizQuestionSchema).min(1).max(50),
+  summary: z.string().min(1).max(20_000).optional(),
+  title: z.string().trim().min(1).max(200).optional(),
+  difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
+  questionType: z.string().trim().min(1).max(50).optional(),
+  language: z.string().trim().min(1).max(50).optional(),
+});
 
 // =========================================
 // Helper Functions
@@ -192,17 +214,19 @@ async function processStandardChunk(chunk: string, params: {
   questionsPerChunk: number;
   questionType: QuestionType;
   difficulty: string;
+  language: string;
   deadlineMs: number;
 }): Promise<StandardQuestionRaw[]> {
   const typeGuidance = QUESTION_TYPE_GUIDANCE[params.questionType];
 
-  const prompt = `Generate ${params.questionsPerChunk} ${params.questionType} question(s) at '${params.difficulty}' difficulty level from the study material below.
+  const prompt = `Generate ${params.questionsPerChunk} ${params.questionType} question(s) at '${params.difficulty}' difficulty level from the study material below, strictly in ${params.language}.
 
 For each question:
 - The question must be answerable from the document
 - All options must be relevant to the question
 - The correct answer must be supported by a specific phrase from the document
 - Incorrect options should be plausible but clearly wrong based on the document
+- Include a "topic" field with a short (1-4 word) topic label for the question, e.g. "Cellular Respiration" or "The French Revolution"
 - Match the difficulty level: ${
     params.difficulty === 'easy' ? 'basic recall and understanding' :
     params.difficulty === 'medium' ? 'application of concepts and relationships' :
@@ -221,6 +245,7 @@ Return questions in this exact JSON format:
       "question": "Question text here?",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correctAnswerIndex": 0,
+      "topic": "Short topic label",
       "supportingText": "Exact quote from the text that supports the correct answer"
     }
   ]
@@ -229,7 +254,8 @@ Return questions in this exact JSON format:
   const response = await callLLM(prompt, { systemInstruction: QUIZ_SYSTEM_INSTRUCTION, timeoutMs: 60000 });
 
   try {
-    // SAFETY: extractJSON returns parsed JSON; each element is validated against the schema below
+    // SAFETY: raw AI JSON parsed at the trust boundary; every question is
+    // re-validated by StandardQuestionSchema in validateQuestions below.
     const result = extractJSON(response) as { questions?: Array<Omit<StandardQuestionRaw, 'type'>> } | undefined;
     return (result?.questions || []).map(q => ({
       ...q,
@@ -247,15 +273,17 @@ Return questions in this exact JSON format:
 async function processMatchingChunk(chunk: string, params: {
   questionsPerChunk: number;
   difficulty: string;
+  language: string;
   deadlineMs: number;
 }): Promise<MatchingQuestionRaw[]> {
-  const prompt = `Generate ${params.questionsPerChunk} matching question(s) at '${params.difficulty}' difficulty level from the study material below.
+  const prompt = `Generate ${params.questionsPerChunk} matching question(s) at '${params.difficulty}' difficulty level from the study material below, strictly in ${params.language}.
 
 Rules:
 - Each matching question should have 4-6 pairs of related items from the document.
 - Pairs can be: term↔definition, concept↔example, cause↔effect, event↔date, person↔achievement, etc.
 - Every premise and every response MUST be unique within a single question — no duplicates.
 - Each pair must be clearly and unambiguously connected based on the document.
+- Include a "topic" field with a short (1-4 word) topic label for the question, e.g. "Cellular Respiration" or "The French Revolution"
 - Match the difficulty level: ${
     params.difficulty === 'easy' ? 'straightforward, directly stated relationships' :
     params.difficulty === 'medium' ? 'relationships requiring understanding of the concepts' :
@@ -276,7 +304,8 @@ Return questions in this exact JSON format:
         { "premise": "Term B", "response": "Definition of Term B" },
         { "premise": "Term C", "response": "Definition of Term C" },
         { "premise": "Term D", "response": "Definition of Term D" }
-      ]
+      ],
+      "topic": "Short topic label"
     }
   ]
 }`;
@@ -288,7 +317,8 @@ Return questions in this exact JSON format:
   });
 
   try {
-    // SAFETY: extractJSON returns parsed JSON; each element is validated against the schema below
+    // SAFETY: raw AI JSON parsed at the trust boundary; every question is
+    // re-validated by MatchingQuestionSchema in validateQuestions below.
     const result = extractJSON(response) as { questions?: Array<Omit<MatchingQuestionRaw, 'type'>> } | undefined;
     return (result?.questions || []).map(q => ({
       ...q,
@@ -307,6 +337,7 @@ Return questions in this exact JSON format:
 async function processMixedChunk(chunk: string, params: {
   questionsPerChunk: number;
   difficulty: string;
+  language: string;
   deadlineMs: number;
 }): Promise<QuestionRaw[]> {
   // Allocate roughly 1 matching question per 4 total, minimum 1
@@ -330,6 +361,7 @@ async function processMixedChunk(chunk: string, params: {
           questionsPerChunk: count,
           questionType: qType,
           difficulty: params.difficulty,
+          language: params.language,
           deadlineMs: params.deadlineMs,
         }));
       }
@@ -342,6 +374,7 @@ async function processMixedChunk(chunk: string, params: {
     ? await processMatchingChunk(chunk, {
         questionsPerChunk: matchingCount,
         difficulty: params.difficulty,
+        language: params.language,
         deadlineMs: params.deadlineMs,
       })
     : [];
@@ -394,12 +427,14 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
       return processMatchingChunk(chunk, {
         questionsPerChunk,
         difficulty: validatedInput.difficulty,
+        language: validatedInput.language,
         deadlineMs,
       });
     } else if (isMixed) {
       return processMixedChunk(chunk, {
         questionsPerChunk,
         difficulty: validatedInput.difficulty,
+        language: validatedInput.language,
         deadlineMs,
       });
     } else {
@@ -407,6 +442,7 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
         questionsPerChunk,
         questionType: validatedInput.questionType,
         difficulty: validatedInput.difficulty,
+        language: validatedInput.language,
         deadlineMs,
       });
     }
@@ -426,18 +462,20 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
       .slice(0, validatedInput.numQuestions)
       .map(q => {
         if (q.type === 'matching') {
-          return {
+          const base = {
             type: 'matching' as const,
             question: q.question,
             pairs: q.pairs,
           };
+          return q.topic ? { ...base, topic: q.topic } : base;
         }
-        return {
+        const base = {
           type: 'standard' as const,
           question: q.question,
           options: q.options,
           correctAnswerIndex: q.correctAnswerIndex,
         };
+        return q.topic ? { ...base, topic: q.topic } : base;
       })
   };
 

@@ -107,6 +107,21 @@ describe('GenerateQuizInputSchema (strict input validation)', () => {
     const tampered = { ...validInput, admin: true, model: 'gemini-pro' };
     expect(GenerateQuizInputSchema.strict().safeParse(tampered).success).toBe(false);
   });
+
+  it('defaults language to English when omitted', () => {
+    const parsed = GenerateQuizInputSchema.strict().parse(validInput);
+    expect(parsed.language).toBe('English');
+  });
+
+  it('accepts an explicit language and trims whitespace', () => {
+    const parsed = GenerateQuizInputSchema.strict().parse({ ...validInput, language: '  Español  ' });
+    expect(parsed.language).toBe('Español');
+  });
+
+  it('rejects an empty or overlong language', () => {
+    expect(GenerateQuizInputSchema.strict().safeParse({ ...validInput, language: '  ' }).success).toBe(false);
+    expect(GenerateQuizInputSchema.strict().safeParse({ ...validInput, language: 'x'.repeat(51) }).success).toBe(false);
+  });
 });
 
 describe('GenerateExplanationInputSchema', () => {
