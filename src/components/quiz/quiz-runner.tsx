@@ -3,19 +3,28 @@
 // src/components/quiz/quiz-runner.tsx
 import React from 'react';
 import type { Quiz } from '@/types/quiz';
-import type { MatchingAnswer, QuizAnswer, StandardAnswer } from '@/components/quiz/types';
+import type { MatchingAnswer, QuizAnswer } from '@/components/quiz/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, FileText, Sparkles, RotateCcw } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Loader2, FileText, Sparkles, RotateCcw, Share2, Download, Link2 } from 'lucide-react';
 import { StandardQuestionCard } from '@/components/quiz/standard-question-card';
 import { MatchingQuestionCard } from '@/components/quiz/matching-question-card';
 import { ScoreCard } from '@/components/quiz/score-card';
+
+export type ExportFormat = 'anki' | 'csv' | 'print';
 
 interface QuizRunnerProps {
   quiz: Quiz;
   userAnswers: Record<number, QuizAnswer>;
   questionTypeLabel: string;
   difficulty: string;
+  language?: string;
   isSummaryLoading: boolean;
   showSummary: boolean;
   onSummaryClick: () => void;
@@ -30,6 +39,9 @@ interface QuizRunnerProps {
   onRegenerate: () => void;
   onStartOver: () => void;
   headerRef: React.RefObject<HTMLHeadingElement | null>;
+  onExport?: (format: ExportFormat) => void;
+  onShare?: () => void;
+  isSharing?: boolean;
 }
 
 export function QuizRunner({
@@ -37,6 +49,7 @@ export function QuizRunner({
   userAnswers,
   questionTypeLabel,
   difficulty,
+  language,
   isSummaryLoading,
   showSummary,
   onSummaryClick,
@@ -51,6 +64,9 @@ export function QuizRunner({
   onRegenerate,
   onStartOver,
   headerRef,
+  onExport,
+  onShare,
+  isSharing,
 }: QuizRunnerProps) {
   return (
     <div className="space-y-8">
@@ -63,10 +79,54 @@ export function QuizRunner({
           </div>
           <h2 ref={headerRef} tabIndex={-1} className="text-lg font-bold text-foreground mt-0.5 outline-none">
             {quiz.questions.length} {questionTypeLabel} Questions ({difficulty})
+            {language ? ` · ${language}` : ''}
           </h2>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {onExport && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-3 border-border/80 text-xs font-medium text-foreground hover:bg-muted"
+                >
+                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onClick={() => onExport('anki')}>
+                  <Link2 className="mr-2 h-4 w-4" /> Anki (.txt)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onExport('csv')}>
+                  <FileText className="mr-2 h-4 w-4" /> CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onExport('print')}>
+                  <FileText className="mr-2 h-4 w-4" /> Print / PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          {onShare && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onShare}
+              disabled={isSharing}
+              className="h-9 px-3 border-border/80 text-xs font-medium text-foreground hover:bg-muted"
+            >
+              {isSharing ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Share2 className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Share
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="sm"
@@ -117,15 +177,15 @@ export function QuizRunner({
       {/* Questions Array */}
       <div className="space-y-6">
         {quiz.questions.map((q, index) => {
+          const answer = userAnswers[index];
           if (q.type === 'matching') {
             return (
               <MatchingQuestionCard
                 key={index}
                 question={q}
                 questionIndex={index}
-                // SAFETY: the branch is keyed on q.type === 'matching', so a matching answer is the only valid payload
-                userAnswer={userAnswers[index] as MatchingAnswer}
-                onUpdate={(answer) => onMatchingUpdate(index, answer)}
+                userAnswer={answer?.type === 'matching' ? answer : undefined}
+                onUpdate={(next) => onMatchingUpdate(index, next)}
               />
             );
           }
@@ -134,8 +194,7 @@ export function QuizRunner({
               key={index}
               question={q}
               questionIndex={index}
-              // SAFETY: this branch is the non-matching case, so a standard answer is the only valid payload
-              userAnswer={userAnswers[index] as StandardAnswer}
+              userAnswer={answer?.type === 'standard' ? answer : undefined}
               onAnswer={onStandardAnswer}
             />
           );
@@ -152,6 +211,7 @@ export function QuizRunner({
           currentQuote={currentQuote}
           onRegenerate={onRegenerate}
           onStartOver={onStartOver}
+          onExport={onExport ? () => onExport('anki') : undefined}
         />
       )}
 
