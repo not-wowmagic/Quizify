@@ -1,5 +1,5 @@
 // src/lib/quiz-processors.ts
-// Pure quiz logic — no heavy parser imports. This module is safe to include
+// Pure quiz logic with no heavy parser imports. This module is safe to include
 // in the main client bundle. File parsing lives in file-parsers.ts and is
 // dynamically imported only when a user actually uploads a document.
 import type { Quiz, QuizQuestion, StandardQuestion, MatchingQuestion } from '@/types/quiz';
@@ -15,7 +15,7 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 /**
- * Processes a standard (multiple-choice) question — shuffles options and updates correct index.
+ * Processes a standard (multiple-choice) question, shuffling options and updating the correct index.
  */
 function processStandardQuestion(q: StandardQuestion): StandardQuestion {
   const optionObjects = q.options.map((opt, index) => ({
@@ -45,7 +45,7 @@ function processStandardQuestion(q: StandardQuestion): StandardQuestion {
 }
 
 /**
- * Processes a matching question — shuffles the response column order.
+ * Processes a matching question by shuffling the response column order.
  */
 function processMatchingQuestion(q: MatchingQuestion): MatchingQuestion {
   // Create an array of response indices [0, 1, 2, ...] and shuffle them

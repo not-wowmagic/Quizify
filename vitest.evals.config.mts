@@ -3,19 +3,20 @@ import path from 'node:path';
 
 const root = import.meta.dirname;
 
+// OPT-IN live LLM eval suite: `npm run evals`.
+// Uses real API keys — deliberately separate from the default `npm test`
+// run, which must never make network calls.
 export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(root, 'src'),
-      // Next.js 'server-only' module throws outside RSC; stub it for tests
       'server-only': path.resolve(root, 'test/shims/server-only.ts'),
     },
   },
   test: {
     environment: 'node',
-    include: ['test/**/*.test.ts'],
-    // The live LLM eval suite is opt-in (`npm run evals`) — it needs real API
-    // keys and makes network calls, so it never runs in the default suite.
-    exclude: ['test/evals/**'],
+    include: ['test/evals/**/*.test.ts'],
+    testTimeout: 300_000,
+    hookTimeout: 60_000,
   },
 });

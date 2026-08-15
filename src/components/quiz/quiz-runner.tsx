@@ -17,7 +17,7 @@ import { StandardQuestionCard } from '@/components/quiz/standard-question-card';
 import { MatchingQuestionCard } from '@/components/quiz/matching-question-card';
 import { ScoreCard } from '@/components/quiz/score-card';
 
-export type ExportFormat = 'anki' | 'csv' | 'print';
+export type ExportFormat = 'anki' | 'csv' | 'print' | 'cram';
 
 interface QuizRunnerProps {
   quiz: Quiz;
@@ -42,6 +42,11 @@ interface QuizRunnerProps {
   onExport?: (format: ExportFormat) => void;
   onShare?: () => void;
   isSharing?: boolean;
+  /** Incorrect answers count; enables the "Practice Missed" action on the score card. */
+  missedCount?: number;
+  onPracticeMissed?: () => void;
+  /** Adaptive mastery score (weighted by difficulty tier), shown when adaptive. */
+  masteryPercentage?: number;
 }
 
 export function QuizRunner({
@@ -67,6 +72,9 @@ export function QuizRunner({
   onExport,
   onShare,
   isSharing,
+  missedCount = 0,
+  onPracticeMissed,
+  masteryPercentage,
 }: QuizRunnerProps) {
   return (
     <div className="space-y-8">
@@ -105,6 +113,9 @@ export function QuizRunner({
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onExport('print')}>
                   <FileText className="mr-2 h-4 w-4" /> Print / PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onExport('cram')}>
+                  <FileText className="mr-2 h-4 w-4" /> Study Cram Sheet
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -209,6 +220,9 @@ export function QuizRunner({
           scorePercentage={scorePercentage}
           feedbackMessage={feedbackMessage}
           currentQuote={currentQuote}
+          missedCount={missedCount}
+          onPracticeMissed={onPracticeMissed}
+          masteryPercentage={masteryPercentage}
           onRegenerate={onRegenerate}
           onStartOver={onStartOver}
           onExport={onExport ? () => onExport('anki') : undefined}

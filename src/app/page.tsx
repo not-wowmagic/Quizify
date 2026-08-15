@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Quiz } from '@/types/quiz';
 import { QuizClient } from '@/components/quiz-client';
 import { HistoryPanel } from '@/components/quiz/history-panel';
+import { useOnlineStatus } from '@/hooks/use-online-status';
 import { cn } from '@/lib/utils';
 import { History, Sparkles } from 'lucide-react';
 
@@ -13,6 +14,7 @@ export default function Home() {
   const [hasQuiz, setHasQuiz] = useState(false);
   const [view, setView] = useState<View>('setup');
   const [retakeQuiz, setRetakeQuiz] = useState<Quiz | null>(null);
+  const isOnline = useOnlineStatus();
 
   const handleRetake = (quiz: Quiz) => {
     setRetakeQuiz(quiz);
@@ -21,6 +23,15 @@ export default function Home() {
 
   return (
     <main className="flex-1 flex flex-col items-center justify-center min-h-screen py-8 px-4 sm:px-6">
+      {!isOnline && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-4 left-4 z-50 inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-500"
+        >
+          📡 Offline Mode
+        </div>
+      )}
       <div className={cn(
         "w-full max-w-4xl flex flex-col items-center justify-center my-auto transition-all duration-300",
         hasQuiz ? "py-4" : "py-2"
@@ -65,7 +76,7 @@ export default function Home() {
           </nav>
         </header>
 
-        {/* Main Quiz Generator — kept mounted so in-progress quizzes survive view switches */}
+        {/* Main Quiz Generator, kept mounted so in-progress quizzes survive view switches */}
         <div id="setup" className={cn("w-full", view !== 'setup' && "hidden")}>
           <QuizClient
             onQuizStateChange={setHasQuiz}
@@ -74,7 +85,7 @@ export default function Home() {
           />
         </div>
 
-        {/* History & Analytics — kept mounted so its data loads once */}
+        {/* History & Analytics, kept mounted so its data loads once */}
         <div id="history" className={cn("w-full", view !== 'history' && "hidden")}>
           <HistoryPanel onRetake={handleRetake} />
         </div>

@@ -2,7 +2,7 @@
 
 // src/components/quiz/history-panel.tsx
 // Quiz history + study insights (analytics) for the anonymous device id.
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getAttempts, deleteAttempt } from '@/app/actions';
 import { getDeviceId } from '@/lib/device-id';
 import { buildAnkiTxt, buildQuizCsv, downloadTextFile } from '@/lib/quiz-export';
@@ -11,10 +11,10 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, BarChart, Bar, Cell,
+  ResponsiveContainer, BarChart, Bar, Cell, LabelList,
 } from 'recharts';
 import {
-  Loader2, Trash2, RotateCcw, Download, TrendingUp, Target, Flame, Trophy, BookOpen, Inbox,
+  Loader2, Trash2, RotateCcw, Download, TrendingUp, Target, Flame, Trophy, BookOpen, Inbox, Search,
 } from 'lucide-react';
 import type { QuizAttempt } from '@/types/history';
 import type { Quiz } from '@/types/quiz';
@@ -36,6 +36,45 @@ export function HistoryPanel({ onRetake }: HistoryPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Search / filter / sort state for the attempt list
+  const [query, setQuery] = useState('');
+  const [scoreBand, setScoreBand] = useState<'all' | 'mastered' | 'review' | 'needs-work'>('all');
+  const [formatFilter, setFormatFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
+
+  const filteredAttempts = useMemo(() => {
+    if (!attempts) return null;
+
+    const q = query.trim().toLowerCase();
+    let list = attempts.filter(a => {
+      if (q) {
+        const titleMatch = a.title.toLowerCase().includes(q);
+        const topicMatch = a.answers.some(ans => ans.topic?.toLowerCase().includes(q));
+        if (!titleMatch && !topicMatch) return false;
+      }
+      const pct = (a.score / a.total) * 100;
+      if (scoreBand === 'mastered' && pct < 80) return false;
+      if (scoreBand === 'review' && (pct < 50 || pct >= 80)) return false;
+      if (scoreBand === 'needs-work' && pct >= 50) return false;
+      if (formatFilter !== 'all' && a.question_type !== formatFilter) return false;
+      return true;
+    });
+
+    list = [...list].sort((x, y) => {
+      switch (sortBy) {
+        case 'oldest':
+          return new Date(x.created_at).getTime() - new Date(y.created_at).getTime();
+        case 'highest':
+          return (y.score / y.total) - (x.score / x.total);
+        case 'lowest':
+          return (x.score / x.total) - (y.score / y.total);
+        default:
+          return new Date(y.created_at).getTime() - new Date(x.created_at).getTime();
+      }
+    });
+    return list;
+  }, [attempts, query, scoreBand, formatFilter, sortBy]);
 
   const load = useCallback(async () => {
     setError(null);
@@ -110,7 +149,11 @@ export function HistoryPanel({ onRetake }: HistoryPanelProps) {
       }
     }
     const topicData = [...topicMap.entries()]
-      .map(([topic, v]) => ({ topic, accuracy: Math.round((v.correct / v.total) * 100) }))
+      .map(([topic, v]) => {
+        const accuracy = Math.round((v.correct / v.total) * 100);
+        const mastery = accuracy >= 80 ? 'Mastered' : accuracy >= 60 ? 'Improving' : 'Needs Review';
+        return { topic, accuracy, mastery };
+      })
       .sort((a, b) => a.accuracy - b.accuracy);
 
     return { avg, best, streak, trend, topicData };
@@ -158,6 +201,7 @@ export function HistoryPanel({ onRetake }: HistoryPanelProps) {
       {/* Insights */}
       {stats && (
         <div className="space-y-6">
+          <DailyGoalCard attempts={attempts} />
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard icon={<BookOpen className="h-4 w-4" />} label="Quizzes" value={String(totalQuizzes)} />
             <StatCard icon={<TrendingUp className="h-4 w-4" />} label="Avg Score" value={`${Math.round(stats.avg)}%`} />
@@ -170,17 +214,15 @@ export function HistoryPanel({ onRetake }: HistoryPanelProps) {
               <h4 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-primary" /> Score Trend
               </h4>
-              <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={stats.trend} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid stroke="rgba(148,163,184,0.2)" strokeDasharray="3 3" />
-                    <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                    <YAxis domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: 'hsl(var(--foreground))' }} formatter={(value) => [`${value}%`, 'Score']} />
-                    <Line type="monotone" dataKey="pct" stroke="#6699CC" strokeWidth={2} dot={{ r: 3, fill: '#6699CC' }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              <MeasuredChart className="h-48">
+                <LineChart data={stats.trend} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid stroke="rgba(148,163,184,0.2)" strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: 'hsl(var(--foreground))' }} formatter={(value) => [`${value}%`, 'Score']} />
+                  <Line type="monotone" dataKey="pct" stroke="#6699CC" strokeWidth={2} dot={{ r: 3, fill: '#6699CC' }} />
+                </LineChart>
+              </MeasuredChart>
             </Card>
           )}
 
@@ -189,21 +231,28 @@ export function HistoryPanel({ onRetake }: HistoryPanelProps) {
               <h4 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
                 <Target className="h-4 w-4 text-primary" /> Topic Accuracy <span className="text-xs font-normal text-muted-foreground">(weakest first)</span>
               </h4>
-              <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={stats.topicData} layout="vertical" margin={{ top: 0, right: 24, left: 8, bottom: 0 }}>
-                    <CartesianGrid stroke="rgba(148,163,184,0.2)" strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                    <YAxis type="category" dataKey="topic" width={130} tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: 'hsl(var(--foreground))' }} formatter={(value) => [`${value}%`, 'Accuracy']} />
-                    <Bar dataKey="accuracy" radius={[0, 6, 6, 0]} barSize={16}>
-                      {stats.topicData.map((entry) => (
-                        <Cell key={entry.topic} fill={entry.accuracy < 60 ? '#f87171' : entry.accuracy < 80 ? '#fbbf24' : '#34d399'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <MeasuredChart className="h-48">
+                <BarChart data={stats.topicData} layout="vertical" margin={{ top: 0, right: 104, left: 8, bottom: 0 }}>
+                  <CartesianGrid stroke="rgba(148,163,184,0.2)" strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="topic" width={130} tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: 'hsl(var(--foreground))' }} formatter={(value) => [`${value}%`, 'Accuracy']} />
+                  <Bar dataKey="accuracy" radius={[0, 6, 6, 0]} barSize={16}>
+                    {stats.topicData.map((entry) => (
+                      <Cell key={entry.topic} fill={entry.accuracy < 60 ? '#f87171' : entry.accuracy < 80 ? '#fbbf24' : '#34d399'} />
+                    ))}
+                    <LabelList
+                      dataKey="mastery"
+                      position="right"
+                      offset={10}
+                      style={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                    />
+                  </Bar>
+                </BarChart>
+              </MeasuredChart>
+              <p className="text-xs text-muted-foreground mt-3">
+                You&rsquo;re weakest in: <span className="font-semibold text-foreground">{stats.topicData[0].topic}</span>. Consider practicing quizzes on this topic.
+              </p>
             </Card>
           )}
 
@@ -213,8 +262,82 @@ export function HistoryPanel({ onRetake }: HistoryPanelProps) {
 
       {/* Attempt list */}
       <div className="space-y-3">
-        <h4 className="text-sm font-bold text-foreground">Past Quizzes</h4>
-        {attempts.map((attempt) => {
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <h4 className="text-sm font-bold text-foreground">Past Quizzes</h4>
+          <span className="text-xs text-muted-foreground">
+            {filteredAttempts ? `${filteredAttempts.length} of ${attempts.length}` : ''}
+          </span>
+        </div>
+
+        {/* Search + filters */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search by title or topic…"
+              aria-label="Search history"
+              className="w-full rounded-lg border border-border/80 bg-background pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+          <select
+            value={scoreBand}
+            onChange={e => {
+              const v = e.target.value;
+              // SAFETY: <option> values are hardcoded to exactly these four
+              // literals, so the membership check keeps the union sound.
+              if (v === 'all' || v === 'mastered' || v === 'review' || v === 'needs-work') {
+                setScoreBand(v);
+              }
+            }}
+            aria-label="Filter by score"
+            className="rounded-lg border border-border/80 bg-background px-2.5 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+          >
+            <option value="all">Any score</option>
+            <option value="mastered">Mastered (80–100%)</option>
+            <option value="review">Review (50–79%)</option>
+            <option value="needs-work">Needs work (&lt;50%)</option>
+          </select>
+          <select
+            value={formatFilter}
+            onChange={e => setFormatFilter(e.target.value)}
+            aria-label="Filter by format"
+            className="rounded-lg border border-border/80 bg-background px-2.5 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+          >
+            <option value="all">Any format</option>
+            <option value="multiple_choice">Multiple choice</option>
+            <option value="matching">Matching</option>
+            <option value="mixed">Mixed</option>
+            <option value="situational">Situational</option>
+            <option value="fill_in_the_blank">Fill in the blank</option>
+            <option value="true_false">True / False</option>
+          </select>
+          <select
+            value={sortBy}
+            onChange={e => {
+              const v = e.target.value;
+              // SAFETY: <option> values are hardcoded to exactly these four
+              // literals, so the membership check keeps the union sound.
+              if (v === 'newest' || v === 'oldest' || v === 'highest' || v === 'lowest') {
+                setSortBy(v);
+              }
+            }}
+            aria-label="Sort attempts"
+            className="rounded-lg border border-border/80 bg-background px-2.5 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="highest">Highest score</option>
+            <option value="lowest">Lowest score</option>
+          </select>
+        </div>
+
+        {filteredAttempts?.length === 0 && (
+          <p className="text-xs text-muted-foreground py-2">No attempts match your filters.</p>
+        )}
+
+        {filteredAttempts?.map((attempt) => {
           const pct = Math.round((attempt.score / attempt.total) * 100);
           const meta = [
             attempt.difficulty,
@@ -291,6 +414,168 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
         <span className="text-xs font-semibold uppercase tracking-wider">{label}</span>
       </div>
       <p className="text-2xl font-extrabold text-foreground mt-1.5">{value}</p>
+    </Card>
+  );
+}
+
+const GOAL_KEY = 'quizify_daily_goal';
+
+/**
+ * Renders recharts charts only once their container has a real size.
+ * The history panel stays mounted while hidden (display: none), which makes
+ * ResponsiveContainer measure 0×0 and spam warnings / render broken charts.
+ * A ResizeObserver re-renders the chart as soon as the panel becomes visible.
+ */
+function MeasuredChart({ className, children }: { className?: string; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [hasSize, setHasSize] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // ResizeObserver fires at least once after observe(); setHasSize(true) is
+    // idempotent so no re-subscription is needed.
+    const observer = new ResizeObserver(() => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) setHasSize(true);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className={cn('min-w-0', className)}>
+      {hasSize && <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer>}
+    </div>
+  );
+}
+
+/** Daily question goal: setter, progress ring, and a 7-day activity heatmap. */
+function DailyGoalCard({ attempts }: { attempts: QuizAttempt[] }) {
+  const [goal, setGoal] = useState<number>(0);
+  const [editing, setEditing] = useState(false);
+  const [input, setInput] = useState('');
+
+  useEffect(() => {
+    const raw = localStorage.getItem(GOAL_KEY);
+    const parsed = raw ? parseInt(raw, 10) : NaN;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Hydrating the goal from localStorage is an external-data subscription
+    setGoal(Number.isFinite(parsed) && parsed > 0 ? parsed : 0);
+  }, []);
+
+  const dayProgress = useMemo(() => {
+    const today = new Date();
+    const dayKey = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const perDay = new Map<number, number>();
+    for (const a of attempts) {
+      const key = dayKey(new Date(a.created_at));
+      perDay.set(key, (perDay.get(key) ?? 0) + a.total);
+    }
+    const days: { key: number; date: Date; count: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+      days.push({ key: dayKey(d), date: d, count: perDay.get(dayKey(d)) ?? 0 });
+    }
+    const todayCount = days[days.length - 1].count;
+    const percent = goal > 0 ? Math.min(100, Math.round((todayCount / goal) * 100)) : 0;
+    return { days, todayCount, percent };
+  }, [attempts, goal]);
+
+  const saveGoal = () => {
+    const parsed = parseInt(input, 10);
+    const next = Number.isFinite(parsed) && parsed > 0 ? Math.min(500, parsed) : 0;
+    setGoal(next);
+    if (next > 0) localStorage.setItem(GOAL_KEY, String(next));
+    else localStorage.removeItem(GOAL_KEY);
+    setEditing(false);
+  };
+
+  // GitHub-style intensity buckets (relative to the goal)
+  const intensity = (count: number): string => {
+    if (count === 0) return 'bg-muted/20 border-border/50';
+    if (goal === 0 || count >= goal) return 'bg-emerald-500 border-emerald-600';
+    const ratio = count / goal;
+    if (ratio >= 0.75) return 'bg-emerald-500/80 border-emerald-600/80';
+    if (ratio >= 0.5) return 'bg-emerald-500/60 border-emerald-600/60';
+    if (ratio >= 0.25) return 'bg-emerald-500/40 border-emerald-600/40';
+    return 'bg-emerald-500/25 border-emerald-600/30';
+  };
+
+  const ringRadius = 26;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+  const ringOffset = ringCircumference - (dayProgress.percent / 100) * ringCircumference;
+
+  return (
+    <Card className="surface-card border-border/80 bg-card p-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+          <Flame className="h-4 w-4 text-amber-500" /> Daily Goal
+        </h4>
+
+        {editing ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              max={500}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') saveGoal(); }}
+              autoFocus
+              aria-label="Daily question goal"
+              className="w-24 h-8 rounded-lg border border-border/60 bg-background px-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <Button size="sm" className="h-8 px-2.5 text-xs" onClick={saveGoal}>Save</Button>
+            <Button size="sm" variant="ghost" className="h-8 px-2.5 text-xs" onClick={() => setEditing(false)}>Cancel</Button>
+          </div>
+        ) : (
+          <Button size="sm" variant="outline" className="h-8 px-2.5 text-xs border-border/80 font-medium" onClick={() => { setInput(String(goal || 10)); setEditing(true); }}>
+            <Target className="mr-1 h-3.5 w-3.5" /> {goal > 0 ? `Goal: ${goal}/day` : 'Set daily goal'}
+          </Button>
+        )}
+      </div>
+
+      <div className="mt-4 flex items-center gap-5 flex-wrap">
+        {/* Progress ring */}
+        <div className="relative h-20 w-20 shrink-0" role="img" aria-label={`${dayProgress.percent}% of daily goal`}>
+          <svg viewBox="0 0 64 64" className="h-full w-full -rotate-90">
+            <circle cx="32" cy="32" r={ringRadius} fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
+            <circle
+              cx="32" cy="32" r={ringRadius} fill="none"
+              stroke="var(--emerald, #34d399)"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray={ringCircumference}
+              strokeDashoffset={ringOffset}
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-sm font-extrabold text-foreground">{dayProgress.percent}%</span>
+          </div>
+        </div>
+
+        {/* Heatmap */}
+        <div className="flex-1 min-w-[220px]">
+          <div className="flex items-end gap-1.5">
+            {dayProgress.days.map(d => (
+              <div key={d.key} className="flex-1 flex flex-col items-center gap-1">
+                <span
+                  title={`${d.count} questions`}
+                  className={cn('h-7 w-full rounded-md border', intensity(d.count))}
+                />
+                <span className="text-[10px] text-muted-foreground">
+                  {d.date.toLocaleDateString(undefined, { weekday: 'narrow' })}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {goal > 0
+              ? `${dayProgress.todayCount} of ${goal} questions today${goal > 0 && dayProgress.percent >= 100 ? ' (goal met! 🎉)' : ''}`
+              : `${dayProgress.todayCount} questions answered today`}
+          </p>
+        </div>
+      </div>
     </Card>
   );
 }

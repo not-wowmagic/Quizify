@@ -10,7 +10,8 @@ import { processQuiz } from '@/lib/quiz-processors';
 import { QuizRunner } from '@/components/quiz/quiz-runner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Loader2, Home } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { Loader2, Home, QrCode, X } from 'lucide-react';
 import type { MatchingAnswer, QuizAnswer } from '@/components/quiz/types';
 
 const motivationalQuotes = [
@@ -49,6 +50,7 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
   const [userAnswers, setUserAnswers] = useState<Record<number, QuizAnswer>>({});
   const [currentQuote, setCurrentQuote] = useState('');
   const [showSummary, setShowSummary] = useState(false);
+  const [showQr, setShowQr] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Mount flag gates the client-only shuffle below
@@ -141,10 +143,29 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
             {sharedQuiz.language ? ` · ${sharedQuiz.language}` : ''}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => router.push('/')} className="h-9 px-3 border-border/80 text-xs font-medium">
-          <Home className="mr-1.5 h-3.5 w-3.5" /> Back to Quizify
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" size="sm" onClick={() => setShowQr(prev => !prev)} className="h-9 px-3 border-border/80 text-xs font-medium" aria-expanded={showQr}>
+            {showQr ? <X className="mr-1.5 h-3.5 w-3.5" /> : <QrCode className="mr-1.5 h-3.5 w-3.5" />}
+            {showQr ? 'Hide QR' : 'Share QR'}
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => router.push('/')} className="h-9 px-3 border-border/80 text-xs font-medium">
+            <Home className="mr-1.5 h-3.5 w-3.5" /> Back to Quizify
+          </Button>
+        </div>
       </div>
+
+      {showQr && (
+        <div className="flex justify-center animate-in fade-in duration-200">
+          <div className="rounded-2xl border border-border bg-card p-4 text-center">
+            <div className="mx-auto w-fit rounded-xl bg-white p-2.5">
+              {/* The QR panel only renders after a user click (showQr starts
+                  false), so this is always client-side and window is defined. */}
+              <QRCodeSVG value={window.location.href} size={160} level="M" marginSize={0} />
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">Scan to open this quiz on mobile</p>
+          </div>
+        </div>
+      )}
 
       <QuizRunner
         quiz={quiz}

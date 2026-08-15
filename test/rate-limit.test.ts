@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { checkRateLimit, TtlCache, hashPayload } from '@/lib/rate-limit';
 
-describe('checkRateLimit (fixed window)', () => {
+// NOTE: these tests exercise the in-memory fallback path, with no Upstash env
+// vars are set in the test environment.
+
+describe('checkRateLimit (fixed window fallback)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-14T12:00:00Z'));
@@ -11,29 +14,29 @@ describe('checkRateLimit (fixed window)', () => {
     vi.useRealTimers();
   });
 
-  it('allows requests up to the limit', () => {
+  it('allows requests up to the limit', async () => {
     for (let i = 0; i < 5; i++) {
-      expect(checkRateLimit('quiz:ip1', 5, 60_000).allowed).toBe(true);
+      expect((await checkRateLimit('quiz:ip1', 5, 60_000)).allowed).toBe(true);
     }
   });
 
-  it('blocks once the limit is exceeded', () => {
-    for (let i = 0; i < 5; i++) checkRateLimit('quiz:ip1', 5, 60_000);
-    const blocked = checkRateLimit('quiz:ip1', 5, 60_000);
+  it('blocks once the limit is exceeded', async () => {
+    for (let i = 0; i < 5; i++) await checkRateLimit('quiz:ip1', 5, 60_000);
+    const blocked = await checkRateLimit('quiz:ip1', 5, 60_000);
     expect(blocked.allowed).toBe(false);
     expect(blocked.retryAfterSec).toBeGreaterThan(0);
   });
 
-  it('resets after the window elapses', () => {
-    for (let i = 0; i < 5; i++) checkRateLimit('quiz:ip1', 5, 60_000);
+  it('resets after the window elapses', async () => {
+    for (let i = 0; i < 5; i++) await checkRateLimit('quiz:ip1', 5, 60_000);
     vi.setSystemTime(new Date('2026-08-14T12:01:00Z'));
-    expect(checkRateLimit('quiz:ip1', 5, 60_000).allowed).toBe(true);
+    expect((await checkRateLimit('quiz:ip1', 5, 60_000)).allowed).toBe(true);
   });
 
-  it('tracks keys independently', () => {
-    checkRateLimit('quiz:ip1', 1, 60_000);
-    expect(checkRateLimit('quiz:ip2', 1, 60_000).allowed).toBe(true);
-    expect(checkRateLimit('quiz:ip1', 1, 60_000).allowed).toBe(false);
+  it('tracks keys independently', async () => {
+    await checkRateLimit('quiz:ip1', 1, 60_000);
+    expect((await checkRateLimit('quiz:ip2', 1, 60_000)).allowed).toBe(true);
+    expect((await checkRateLimit('quiz:ip1', 1, 60_000)).allowed).toBe(false);
   });
 });
 
