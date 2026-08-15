@@ -212,16 +212,16 @@ export function QuizSetup({
         {/* Input Selection Tabs */}
         <Tabs defaultValue="upload" className="w-full">
           <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 rounded-lg bg-muted p-1 text-muted-foreground">
-            <TabsTrigger value="upload" className="rounded-md text-xs font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-              Upload Document
+            <TabsTrigger value="upload" className="rounded-md text-xs font-semibold whitespace-nowrap truncate data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              Upload
             </TabsTrigger>
-            <TabsTrigger value="paste" className="rounded-md text-xs font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-              Paste Text
+            <TabsTrigger value="paste" className="rounded-md text-xs font-semibold whitespace-nowrap truncate data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              Paste
             </TabsTrigger>
-            <TabsTrigger value="web" className="rounded-md text-xs font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-              Web URL
+            <TabsTrigger value="web" className="rounded-md text-xs font-semibold whitespace-nowrap truncate data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              Web
             </TabsTrigger>
-            <TabsTrigger value="camera" className="rounded-md text-xs font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+            <TabsTrigger value="camera" className="rounded-md text-xs font-semibold whitespace-nowrap truncate data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
               Camera
             </TabsTrigger>
           </TabsList>
@@ -245,9 +245,9 @@ export function QuizSetup({
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">Supports PDF or DOCX format</p>
                   {fileName && (
-                    <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                      <FileText className="h-3.5 w-3.5" />
-                      <span>{fileName}</span>
+                    <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary max-w-full min-w-0">
+                      <FileText className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{fileName}</span>
                     </div>
                   )}
                 </div>

@@ -17,6 +17,7 @@ interface ScoreCardProps {
   /** Adaptive mastery score, shown in place of the plain percentage when provided. */
   masteryPercentage?: number;
   onRegenerate: () => void;
+  regenerateLabel?: string;
   onStartOver: () => void;
   onExport?: () => void;
 }
@@ -31,6 +32,7 @@ export function ScoreCard({
   onPracticeMissed,
   masteryPercentage,
   onRegenerate,
+  regenerateLabel = 'Regenerate Quiz',
   onStartOver,
   onExport,
 }: ScoreCardProps) {
@@ -83,7 +85,7 @@ export function ScoreCard({
             </Button>
           )}
           <Button onClick={onRegenerate} variant="outline" className="h-10 px-5 border-border">
-            <RefreshCw className="mr-2 h-4 w-4" /> Regenerate Quiz
+            <RefreshCw className="mr-2 h-4 w-4" /> {regenerateLabel}
           </Button>
           <Button onClick={onStartOver} className="h-10 px-5 bg-primary text-primary-foreground font-medium">
             <RotateCcw className="mr-2 h-4 w-4" /> Start Over
