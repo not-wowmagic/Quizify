@@ -174,8 +174,10 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
         difficulty={sharedQuiz.difficulty ?? 'mixed'}
         isSummaryLoading={false}
         showSummary={showSummary}
-        onSummaryClick={handleSummaryClick}
+        onSummaryClick={sharedQuiz.summary ? handleSummaryClick : undefined}
         onOpenSettings={reshuffle}
+        settingsLabel="Restart"
+        regenerateLabel="Try Again"
         onStandardAnswer={(questionIndex, optionIndex) =>
           setUserAnswers(prev => ({ ...prev, [questionIndex]: { type: 'standard', selectedIndex: optionIndex } }))}
         onMatchingUpdate={(questionIndex, answer: MatchingAnswer) =>

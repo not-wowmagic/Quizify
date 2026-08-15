@@ -27,8 +27,10 @@ interface QuizRunnerProps {
   language?: string;
   isSummaryLoading: boolean;
   showSummary: boolean;
-  onSummaryClick: () => void;
+  onSummaryClick?: () => void;
   onOpenSettings: () => void;
+  settingsLabel?: string;
+  regenerateLabel?: string;
   onStandardAnswer: (questionIndex: number, optionIndex: number) => void;
   onMatchingUpdate: (questionIndex: number, answer: MatchingAnswer) => void;
   score: number;
@@ -59,6 +61,8 @@ export function QuizRunner({
   showSummary,
   onSummaryClick,
   onOpenSettings,
+  settingsLabel = 'Settings',
+  regenerateLabel,
   onStandardAnswer,
   onMatchingUpdate,
   score,
@@ -138,25 +142,27 @@ export function QuizRunner({
             </Button>
           )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onSummaryClick}
-            disabled={isSummaryLoading}
-            className="h-9 px-3 border-border/80 text-xs font-medium text-foreground hover:bg-muted"
-          >
-            {isSummaryLoading ? (
-              <>
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                Summarizing...
-              </>
-            ) : (
-              <>
-                <FileText className="mr-1.5 h-3.5 w-3.5 text-primary" />
-                {quiz.summary ? (showSummary ? 'Hide Summary' : 'Show Summary') : 'Generate Summary'}
-              </>
-            )}
-          </Button>
+          {onSummaryClick && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onSummaryClick}
+              disabled={isSummaryLoading}
+              className="h-9 px-3 border-border/80 text-xs font-medium text-foreground hover:bg-muted"
+            >
+              {isSummaryLoading ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Summarizing...
+                </>
+              ) : (
+                <>
+                  <FileText className="mr-1.5 h-3.5 w-3.5 text-primary" />
+                  {quiz.summary ? (showSummary ? 'Hide Summary' : 'Show Summary') : 'Generate Summary'}
+                </>
+              )}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -164,7 +170,7 @@ export function QuizRunner({
             className="h-9 px-3 border-border/80 text-xs font-medium text-foreground hover:bg-muted"
           >
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-            Settings
+            {settingsLabel}
           </Button>
         </div>
       </div>
@@ -224,6 +230,7 @@ export function QuizRunner({
           onPracticeMissed={onPracticeMissed}
           masteryPercentage={masteryPercentage}
           onRegenerate={onRegenerate}
+          regenerateLabel={regenerateLabel}
           onStartOver={onStartOver}
           onExport={onExport ? () => onExport('anki') : undefined}
         />

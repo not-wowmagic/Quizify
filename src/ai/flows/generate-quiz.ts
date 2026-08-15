@@ -521,31 +521,42 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
   // Adaptive chunking uses fewer, larger calls than the fixed 8k (faster wall time)
   const chunkSize = computeChunkSize(validatedInput.lectureText.length, validatedInput.numQuestions);
   const chunks = splitTextIntoChunks(validatedInput.lectureText, chunkSize);
-  const questionsPerChunk = Math.ceil(validatedInput.numQuestions / chunks.length);
 
   const isMatching = validatedInput.questionType === 'matching';
   const isMixed = validatedInput.questionType === 'mixed';
 
-  // Generate questions from each chunk with bounded concurrency
+  // Cap questions per LLM call. Small, parallel calls are faster and far less
+  // likely to hit the output timeout or return truncated JSON than one giant
+  // call (which is what made larger quizzes slow and error-prone).
+  const questionsPerCall = isMixed ? 8 : 6;
+  const batchCount = Math.ceil(validatedInput.numQuestions / questionsPerCall);
+
+  // Generate questions from each batch with bounded concurrency. Chunks are
+  // assigned round-robin so every batch draws from the full text.
   const deadlineMs = Date.now() + QUIZ_GENERATION_DEADLINE_MS;
-  const results = await mapWithConcurrency(chunks, 4, chunk => {
+  const tasks = Array.from({ length: batchCount }, (_, i) => ({
+    chunk: chunks[i % chunks.length],
+    count: Math.min(questionsPerCall, validatedInput.numQuestions - i * questionsPerCall),
+  }));
+
+  const results = await mapWithConcurrency(tasks, 4, task => {
     if (isMatching) {
-      return processMatchingChunk(chunk, {
-        questionsPerChunk,
+      return processMatchingChunk(task.chunk, {
+        questionsPerChunk: task.count,
         difficulty: validatedInput.difficulty,
         language: validatedInput.language,
         deadlineMs,
       });
     } else if (isMixed) {
-      return processMixedChunk(chunk, {
-        questionsPerChunk,
+      return processMixedChunk(task.chunk, {
+        questionsPerChunk: task.count,
         difficulty: validatedInput.difficulty,
         language: validatedInput.language,
         deadlineMs,
       });
     } else {
-      return processStandardChunk(chunk, {
-        questionsPerChunk,
+      return processStandardChunk(task.chunk, {
+        questionsPerChunk: task.count,
         questionType: validatedInput.questionType,
         difficulty: validatedInput.difficulty,
         language: validatedInput.language,
