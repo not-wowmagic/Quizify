@@ -90,6 +90,10 @@ function getUpstashLimiter(limit: number, windowSec: number): Ratelimit | null {
  * limiter (local development, tests, or deployments without Upstash).
  */
 export async function checkRateLimit(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {
+  // e2e suite: never rate-limit the mock server (many quizzes from one IP).
+  if (process.env.E2E_MOCK_AI === '1') {
+    return { allowed: true, retryAfterSec: 0 };
+  }
   const windowSec = Math.max(1, Math.ceil(windowMs / 1000));
   const limiter = getUpstashLimiter(limit, windowSec);
 
@@ -174,6 +178,8 @@ export function hashPayload<T>(payload: T): string {
  * deployments without bot protection keep working.
  */
 export async function verifyTurnstile(token: string | undefined): Promise<boolean> {
+  // e2e suite: skip the bot check entirely.
+  if (process.env.E2E_MOCK_AI === '1') return true;
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret) return true;
   if (!token) return false;

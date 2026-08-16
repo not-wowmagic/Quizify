@@ -2,6 +2,9 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // Isolated build dir for the Playwright e2e dev server so it never
+  // collides with the user's running `next dev` on the default .next cache.
+  distDir: process.env.NEXT_E2E_DIST_DIR || '.next',
   typescript: {
     ignoreBuildErrors: false,
   },

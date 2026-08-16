@@ -3,6 +3,11 @@ import { defineConfig } from "oxlint";
 export default defineConfig({
   ignorePatterns: [
     ".next/**",
+    ".next-e2e/**",
+    "test-results/**",
+    "playwright-report/**",
+    "blob-report/**",
+    "playwright/.cache/**",
     "node_modules/**",
     ".agent/**",
     ".agents/**",

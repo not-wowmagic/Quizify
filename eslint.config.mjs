@@ -14,6 +14,11 @@ const eslintConfig = [
   {
     ignores: [
       '.next/**',
+      '.next-e2e/**',
+      'test-results/**',
+      'playwright-report/**',
+      'blob-report/**',
+      'playwright/.cache/**',
       'node_modules/**',
       'test/**',
       // Auto-generated file - never edit or lint it
