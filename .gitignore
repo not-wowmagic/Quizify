@@ -17,6 +17,14 @@
 /.next/
 /out/
 
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/.next-e2e/
+/.playwright-mcp/
+
 # production
 /build
 
@@ -28,6 +36,13 @@
 # misc
 .DS_Store
 *.pem
+Thumbs.db
+Desktop.ini
+
+# editor
+.vscode/
+.idea/
+*.swp
 
 # debug
 npm-debug.log*
@@ -43,3 +58,6 @@ yarn-error.log*
 next-env.d.ts
 
 .genkit/*
+
+# agent state
+.omo/
