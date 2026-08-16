@@ -13,6 +13,7 @@
     "lint:ox": "oxlint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "evals": "vitest run --config vitest.evals.config.mts"
   },
   "dependencies": {
@@ -41,6 +42,7 @@
   },
   "devDependencies": {
     "@oxlint/plugins": "^1.78.0",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "eslint": "9.35.0",

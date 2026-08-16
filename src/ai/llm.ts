@@ -12,6 +12,10 @@ import 'server-only';
  *
  * Both providers share the same call signature and options, so the quiz
  * flows are provider-agnostic.
+ *
+ * When E2E_MOCK_AI=1 (Playwright e2e suite) every call returns a canned,
+ * deterministic response instead of hitting the network, so browser tests
+ * are fast, free, and never rate-limited.
  */
 
 export interface LLMOptions {
@@ -412,6 +416,9 @@ export function resolveProvider(): LLMProvider {
 }
 
 export async function callLLM(prompt: string, options: LLMOptions = {}): Promise<string> {
+  if (process.env.E2E_MOCK_AI === '1') {
+    return mockLLM(prompt);
+  }
   const provider = resolveProvider();
   if (provider === 'gemini') {
     return callGeminiDirect(prompt, options);
@@ -434,6 +441,9 @@ export async function callLLMVision(
   imageDataUrl: string,
   options: LLMOptions = {},
 ): Promise<string> {
+  if (process.env.E2E_MOCK_AI === '1') {
+    return mockLLM(prompt);
+  }
   const apiKey = process.env.OPENCODE_API_KEY;
   if (!apiKey) {
     throw new Error('OPENCODE_API_KEY environment variable is not set. Add it in the Netlify dashboard (or local .env.local for development).');
@@ -483,4 +493,114 @@ export async function callLLMVision(
     }
     throw err;
   }
+}
+
+// =========================================
+// Deterministic mock (E2E_MOCK_AI=1, Playwright suite)
+// =========================================
+
+interface MockStandardQuestion {
+  question: string;
+  options: string[];
+  correctAnswerIndex: number;
+  topic: string;
+  supportingText?: string;
+}
+
+const MOCK_STANDARD: MockStandardQuestion[] = [
+  {
+    question: 'Which organelle is responsible for photosynthesis?',
+    options: ['Chloroplast', 'Mitochondria', 'Nucleus', 'Ribosome'],
+    correctAnswerIndex: 0,
+    topic: 'PhotosynthesisOverview',
+    supportingText: 'Photosynthesis occurs in the chloroplast.',
+  },
+  {
+    question: 'What is the main pigment that captures light energy in plants?',
+    options: ['Chlorophyll', 'Melanin', 'Hemoglobin', 'Carotene'],
+    correctAnswerIndex: 0,
+    topic: 'Light-DependentReactions',
+  },
+  {
+    question: 'The Calvin cycle produces which molecule?',
+    options: ['Glucose', 'ATP only', 'Oxygen', 'Water'],
+    correctAnswerIndex: 0,
+    topic: 'CalvinCycle',
+  },
+  {
+    question: 'True or False: Photosynthesis converts light energy into chemical energy.',
+    options: ['True', 'False'],
+    correctAnswerIndex: 0,
+    topic: 'EnergyConversion',
+  },
+  {
+    question: 'Which gas do plants absorb from the atmosphere for photosynthesis?',
+    options: ['Carbon dioxide', 'Oxygen', 'Nitrogen', 'Helium'],
+    correctAnswerIndex: 0,
+    topic: 'GasExchange',
+  },
+  {
+    question: 'Where do the light-dependent reactions take place?',
+    options: ['Thylakoid membrane', 'Stroma', 'Cytoplasm', 'Cell wall'],
+    correctAnswerIndex: 0,
+    topic: 'Light-DependentReactions',
+  },
+  {
+    question: 'Which molecule carries energy from the light reactions to the Calvin cycle?',
+    options: ['ATP and NADPH', 'Glucose and O2', 'Water and CO2', 'Ribulose and starch'],
+    correctAnswerIndex: 0,
+    topic: 'CalvinCycle',
+  },
+  {
+    question: 'What happens to oxygen produced during photosynthesis?',
+    options: ['Released as a byproduct', 'Stored in the vacuole', 'Used to make glucose', 'Converted to carbon dioxide'],
+    correctAnswerIndex: 0,
+    topic: 'GasExchange',
+  },
+];
+
+const MOCK_MATCHING = {
+  question: 'Match each stage of photosynthesis with its location:',
+  pairs: [
+    { premise: 'Light-dependent reactions', response: 'Thylakoid membrane' },
+    { premise: 'Calvin cycle', response: 'Stroma' },
+    { premise: 'Water splitting', response: 'Photosystem II' },
+    { premise: 'Glucose synthesis', response: 'RuBisCO' },
+  ],
+  topic: 'PhotosynthesisOverview',
+};
+
+/** Builds a deterministic mock response matching what the real provider returns. */
+export function mockLLM(prompt: string): string {
+  if (prompt.includes('Summarize the following study material')) {
+    return 'Photosynthesis is the process by which plants convert light energy into chemical energy. It occurs in the chloroplast, where chlorophyll captures light, driving the light-dependent reactions on the thylakoid membrane. The energy from these reactions powers the Calvin cycle in the stroma, which fixes carbon dioxide into glucose, releasing oxygen as a byproduct.';
+  }
+
+  if (prompt.includes('"guidance"')) {
+    return JSON.stringify({
+      guidance: 'Great question. Think about where light energy is captured first: chlorophyll sits in the thylakoid membrane, so the light-dependent reactions happen there before the Calvin cycle uses that energy in the stroma.',
+    });
+  }
+
+  if (prompt.includes('Extract all readable text from the attached image')) {
+    return JSON.stringify({
+      text: 'Photosynthesis converts light energy into chemical energy in the chloroplast.',
+    });
+  }
+
+  const isMatching = prompt.includes('"premise"') || prompt.includes('"pairs"');
+  const requested = parseInt(prompt.match(/Generate (\d+)/)?.[1] ?? '3', 10);
+  const count = Number.isFinite(requested) ? Math.min(Math.max(1, requested), 8) : 3;
+
+  if (isMatching) {
+    return JSON.stringify({
+      questions: Array.from({ length: count }, () => ({ ...MOCK_MATCHING })),
+    });
+  }
+
+  const questions = Array.from({ length: count }, (_, i) => {
+    const base = MOCK_STANDARD[i % MOCK_STANDARD.length];
+    return { ...base, options: [...base.options] };
+  });
+  return JSON.stringify({ questions });
 }

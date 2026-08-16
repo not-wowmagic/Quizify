@@ -56,6 +56,21 @@ async function assertPublicHost(hostname: string): Promise<void> {
 
 /** Fetches HTML with manual redirect handling so every hop is SSRF-checked. */
 export async function fetchPublicPage(urlStr: string): Promise<{ html: string; finalUrl: string }> {
+  if (process.env.E2E_MOCK_AI === '1') {
+    // Deterministic canned page for the e2e suite (no network).
+    if (urlStr.includes('nonexistent.invalid')) {
+      throw new Error('Could not reach that page. It may be down or blocking automated requests.');
+    }
+    return {
+      html: `<!DOCTYPE html><html><head><title>Photosynthesis</title></head><body>
+<article><h1>Photosynthesis</h1>
+<p>Photosynthesis is the process by which green plants convert light energy into chemical energy. It happens inside chloroplasts, where chlorophyll absorbs sunlight.</p>
+<p>The light-dependent reactions occur on the thylakoid membrane and produce ATP and NADPH. The Calvin cycle then fixes carbon dioxide into glucose in the stroma.</p>
+<p>Oxygen is released as a byproduct. This process supports nearly all life on Earth by producing the food and oxygen that organisms depend on.</p>
+</article></body></html>`,
+      finalUrl: urlStr,
+    };
+  }
   let current = urlStr;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     let u: URL;
