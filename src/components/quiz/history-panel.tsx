@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import type { QuizAttempt } from '@/types/history';
 import type { Quiz } from '@/types/quiz';
-import { cn } from '@/lib/utils';
+import { cn, formatTopicLabel } from '@/lib/utils';
 
 const CHART_TOOLTIP_STYLE = {
   backgroundColor: 'hsl(var(--card))',
@@ -29,9 +29,11 @@ const CHART_TOOLTIP_STYLE = {
 
 interface HistoryPanelProps {
   onRetake: (quiz: Quiz) => void;
+  /** Whether the history view is currently visible; triggers a DB refresh. */
+  active?: boolean;
 }
 
-export function HistoryPanel({ onRetake }: HistoryPanelProps) {
+export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
   const [attempts, setAttempts] = useState<QuizAttempt[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export function HistoryPanel({ onRetake }: HistoryPanelProps) {
     let list = attempts.filter(a => {
       if (q) {
         const titleMatch = a.title.toLowerCase().includes(q);
-        const topicMatch = a.answers.some(ans => ans.topic?.toLowerCase().includes(q));
+        const topicMatch = a.answers.some(ans => formatTopicLabel(ans.topic).toLowerCase().includes(q));
         if (!titleMatch && !topicMatch) return false;
       }
       const pct = (a.score / a.total) * 100;
@@ -88,9 +90,11 @@ export function HistoryPanel({ onRetake }: HistoryPanelProps) {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Fetching attempts on mount is an external-data subscription
-    void load();
-  }, [load]);
+    // The panel stays mounted while hidden; refetch every time it becomes
+    // visible so newly completed quizzes show up without a full page reload.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Fetching on activation is an external-data subscription
+    if (active) void load();
+  }, [active, load]);
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
@@ -142,10 +146,11 @@ export function HistoryPanel({ onRetake }: HistoryPanelProps) {
     for (const a of attempts) {
       for (const ans of a.answers) {
         if (!ans.topic) continue;
-        const entry = topicMap.get(ans.topic) ?? { correct: 0, total: 0 };
+        const label = formatTopicLabel(ans.topic);
+        const entry = topicMap.get(label) ?? { correct: 0, total: 0 };
         entry.total++;
         if (ans.correct) entry.correct++;
-        topicMap.set(ans.topic, entry);
+        topicMap.set(label, entry);
       }
     }
     const topicData = [...topicMap.entries()]
@@ -433,11 +438,13 @@ function MeasuredChart({ className, children }: { className?: string; children: 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // ResizeObserver fires at least once after observe(); setHasSize(true) is
-    // idempotent so no re-subscription is needed.
+    // Only mount the chart while the container actually has size. The history
+    // panel stays mounted while hidden (display: none), which would otherwise
+    // make ResponsiveContainer measure 0x0 and spam warnings / render broken
+    // charts; track size in both directions so hiding unmounts the chart.
     const observer = new ResizeObserver(() => {
       const rect = el.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) setHasSize(true);
+      setHasSize(rect.width > 0 && rect.height > 0);
     });
     observer.observe(el);
     return () => observer.disconnect();

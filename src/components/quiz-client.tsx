@@ -539,13 +539,13 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
   const handlePracticeMissed = () => {
     if (!quiz || missedIndices.length === 0) return;
 
-    // Raw (unshuffled) questions at the same indices as the processed quiz;
-    // processQuiz shuffles the array without reordering indices (see
-    // src/lib/quiz-processors.ts), so missedIndices maps 1:1 onto the raw set.
-    const raw = rawQuizRef.current?.questions ?? quiz.questions;
+    // missedIndices are positions in the PROCESSED quiz the user just saw
+    // (processQuiz shuffles question order), so select from that array rather
+    // than the raw one — mapping shuffled indices onto the raw array picked
+    // the wrong questions whenever the shuffle reordered them.
     const missedQuestions = missedIndices
-      .map(i => raw[i])
-      .filter((q): q is NonNullable<(typeof raw)[number]> => q !== undefined);
+      .map(i => quiz.questions[i])
+      .filter((q): q is NonNullable<(typeof quiz.questions)[number]> => q !== undefined);
     if (missedQuestions.length === 0) return;
 
     // Store the BASE title (never a nested "Practice: ..." prefix); the

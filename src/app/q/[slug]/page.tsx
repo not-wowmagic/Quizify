@@ -13,6 +13,9 @@ export async function generateMetadata({ params }: SharedQuizPageProps): Promise
   return {
     title: quiz ? quiz.title : 'Quiz not found',
     description: 'A shared quiz generated with Quizify. Open the link to practice.',
+    alternates: {
+      canonical: `/q/${slug}`,
+    },
     robots: { index: false, follow: true },
   };
 }
