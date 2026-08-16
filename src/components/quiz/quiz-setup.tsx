@@ -156,6 +156,12 @@ export function QuizSetup({
   const handleCameraFile = async (file: File) => {
     if (!file || isOcrExtracting) return;
     setOcrStatus(null);
+    // Mirror the server-side check (actions.ts) so non-images fail fast with
+    // the same message instead of an image-decode error from downscaleImage.
+    if (!file.type.startsWith('image/')) {
+      setOcrStatus({ ok: false, message: 'Unsupported image format. Use PNG, JPEG, or WebP.' });
+      return;
+    }
     try {
       const downscaled = await downscaleImage(file);
       setOcrPreview(downscaled);
@@ -424,7 +430,7 @@ export function QuizSetup({
                         onNumQuestionsChange(parsed);
                       }
                     }}
-                    onBlur={() => setCustomCount(String(clampCount(parseInt(customCount, 10) || 10)))}
+                    onBlur={() => setCustomCount(String(clampCount(Number.isNaN(parseInt(customCount, 10)) ? 10 : parseInt(customCount, 10))))}
                     disabled={isLoading}
                     aria-label="Custom number of questions"
                     className="w-24 h-9 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2"
