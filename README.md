@@ -46,7 +46,7 @@ With built-in AI summaries, an on-demand tutor, and customizable difficulty sett
 ## Getting Started
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) v20 or higher
+- [Node.js](https://nodejs.org/) v22 or higher
 - An AI API key (see `.env.local.example` for configuration details). The default provider is **opencode** (`OPENCODE_API_KEY` from https://opencode.ai/auth); the direct **Gemini** provider is available as a fallback via `AI_PROVIDER=gemini`.
 
 ### Setup
