@@ -2,6 +2,7 @@
 // Client-side export helpers for generated quizzes: Anki (TXT), CSV, and a
 // print-friendly view. Pure functions where possible so they stay unit-testable.
 import type { Quiz } from '@/types/quiz';
+import { formatTopicLabel } from '@/lib/utils';
 
 const letter = (index: number) => String.fromCharCode(65 + index);
 
@@ -76,12 +77,17 @@ export function downloadTextFile(filename: string, content: string, mime = 'text
  * print view and the cram sheet). Opens a dedicated print popup first; when
  * popups are blocked it falls back to printing from a hidden same-origin
  * iframe so the "Save as PDF" dialog always appears.
+ *
+ * The print() call is triggered from the host page (not an inline <script> in
+ * the payload) because the site CSP forbids inline scripts: a payload that
+ * embeds `window.print()` is silently blocked and the dialog never opens.
  */
 function printHtml(title: string, html: string): void {
   const printWindow = window.open('', '_blank', 'width=800,height=600');
   if (printWindow) {
     printWindow.document.write(html);
     printWindow.document.close();
+    triggerPrint(printWindow);
     return;
   }
 
@@ -104,25 +110,46 @@ function printHtml(title: string, html: string): void {
   iframeDoc.open();
   iframeDoc.write(html);
   iframeDoc.close();
-  // The embedded script triggers window.print() on load; remove the iframe
+  // Wait for the payload to finish rendering, then print; remove the iframe
   // after printing so it never lingers in the DOM.
-  setTimeout(() => iframe.remove(), 60_000);
+  const printAndCleanup = () => {
+    iframe.contentWindow?.print();
+    setTimeout(() => iframe.remove(), 60_000);
+  };
+  if (iframe.contentDocument?.readyState === 'complete') {
+    printAndCleanup();
+  } else {
+    iframe.onload = printAndCleanup;
+  }
 }
 
-/** Opens a print-friendly study sheet for the quiz. */
-export function printQuiz(quiz: Quiz, title: string): void {
+/** Triggers window.print() once the target document has rendered its payload. */
+function triggerPrint(target: Window): void {
+  const doPrint = () => {
+    target.focus();
+    target.print();
+  };
+  if (target.document?.readyState === 'complete') {
+    doPrint();
+  } else {
+    target.addEventListener('load', doPrint, { once: true });
+  }
+}
+
+/** Builds the print-friendly HTML document for a quiz (pure, unit-testable). */
+export function buildPrintHtml(quiz: Quiz, title: string): string {
   const questions = quiz.questions
     .map((q, index) => {
       if (q.type === 'matching') {
         return `
           <div class="q">
-            <p><strong>${index + 1}. ${escapeHtml(q.question)}</strong> ${q.topic ? `<span class="topic">${escapeHtml(q.topic)}</span>` : ''}</p>
+            <p><strong>${index + 1}. ${escapeHtml(q.question)}</strong> ${q.topic ? `<span class="topic">${escapeHtml(formatTopicLabel(q.topic))}</span>` : ''}</p>
             <ul>${q.pairs.map(p => `<li>${escapeHtml(p.premise)} ↔ ${escapeHtml(p.response)}</li>`).join('')}</ul>
           </div>`;
       }
       return `
         <div class="q">
-          <p><strong>${index + 1}. ${escapeHtml(q.question)}</strong> ${q.topic ? `<span class="topic">${escapeHtml(q.topic)}</span>` : ''}</p>
+          <p><strong>${index + 1}. ${escapeHtml(q.question)}</strong> ${q.topic ? `<span class="topic">${escapeHtml(formatTopicLabel(q.topic))}</span>` : ''}</p>
           <ol type="A">${q.options.map(opt => `<li>${escapeHtml(opt)}</li>`).join('')}</ol>
         </div>`;
     })
@@ -138,7 +165,7 @@ export function printQuiz(quiz: Quiz, title: string): void {
     })
     .join('');
 
-  printHtml(title, `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html><head><title>${escapeHtml(title)}</title>
 <style>
   body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; max-width: 720px; margin: 24px auto; padding: 0 16px; color: #1e293b; }
@@ -157,16 +184,20 @@ ${questions}
   <h1>Answer Key</h1>
   <ol>${answerKey}</ol>
 </div>
-<script>window.onload = () => window.print();</script>
-</body></html>`);
+</body></html>`;
 }
 
-/** Opens a print-optimized, US Letter (8.5×11 in) "Cram Sheet" study guide (no answer key). */
-export function printCramSheet(quiz: Quiz, title: string): void {
+/** Opens a print-friendly study sheet for the quiz. */
+export function printQuiz(quiz: Quiz, title: string): void {
+  printHtml(title, buildPrintHtml(quiz, title));
+}
+
+/** Builds the US Letter "Cram Sheet" HTML document (pure, unit-testable). */
+export function buildCramSheetHtml(quiz: Quiz, title: string): string {
   // Group by topic so the cram sheet reads like a summary, not a quiz.
   const grouped = new Map<string, typeof quiz.questions>();
   for (const q of quiz.questions) {
-    const key = q.topic?.trim() || 'Key Points';
+    const key = formatTopicLabel(q.topic) || 'Key Points';
     const bucket = grouped.get(key);
     if (bucket) bucket.push(q);
     else grouped.set(key, [q]);
@@ -202,7 +233,7 @@ export function printCramSheet(quiz: Quiz, title: string): void {
 
   const statLine = `${quiz.questions.length} key ${quiz.questions.length === 1 ? 'point' : 'points'} · ${grouped.size} ${grouped.size === 1 ? 'topic' : 'topics'}`;
 
-  printHtml(`Cram Sheet for ${escapeHtml(title)}`, `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html><head><title>Cram Sheet for ${escapeHtml(title)}</title>
 <style>
   /* US Letter page (the print dialog's "Save as PDF" will use 8.5 x 11 in.) */
@@ -225,8 +256,12 @@ export function printCramSheet(quiz: Quiz, title: string): void {
 </header>
 ${sections}
 <footer>Quizify · quick-revision sheet · answers in green</footer>
-<script>window.onload = () => window.print();</script>
-</body></html>`);
+</body></html>`;
+}
+
+/** Opens a print-optimized, US Letter (8.5×11 in) "Cram Sheet" study guide (no answer key). */
+export function printCramSheet(quiz: Quiz, title: string): void {
+  printHtml(`Cram Sheet for ${escapeHtml(title)}`, buildCramSheetHtml(quiz, title));
 }
 
 function escapeHtml(value: string): string {

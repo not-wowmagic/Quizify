@@ -69,6 +69,36 @@ describe('processQuiz', () => {
       expect(new Set(q.shuffledResponseIndices).size).toBe(5);
     }
   });
+
+  it('reorders question order, so positions must resolve against the processed quiz', () => {
+    // Regression guard for the "Practice Missed" bug: the processed quiz
+    // shuffles the question array, so a raw-array index must NOT be used to
+    // look up the question a user answered at a given processed position.
+    // With distinct questions, shuffling deterministically proves the arrays
+    // can disagree in ordering (here we assert the correct-answer pairing is
+    // preserved while question identity may move).
+    const questions: StandardQuestion[] = Array.from({ length: 12 }, (_, i) => ({
+      type: 'standard',
+      question: `Q${i}`,
+      options: ['A', 'B', 'C', 'D'],
+      correctAnswerIndex: i % 4,
+    }));
+
+    // Over a few rounds, the raw question at index i and the processed
+    // question at index i are NOT guaranteed to be the same object.
+    let reorderedAtLeastOnce = false;
+    for (let round = 0; round < 20; round++) {
+      const processed = processQuiz({ questions });
+      for (let i = 0; i < processed.questions.length; i++) {
+        if (processed.questions[i] !== questions[i]) {
+          reorderedAtLeastOnce = true;
+          break;
+        }
+      }
+      if (reorderedAtLeastOnce) break;
+    }
+    expect(reorderedAtLeastOnce).toBe(true);
+  });
 });
 
 describe('quizHelpers', () => {

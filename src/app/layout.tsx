@@ -9,7 +9,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 
 const inter = Inter({ subsets: ['latin'] });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://quizify.netlify.app';
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://quizifyyyy.netlify.app';
 const siteDescription = 'Turn lecture notes, textbook excerpts, and study documents into interactive quizzes in seconds.';
 
 // Privacy-first analytics (Umami). The script is only injected when a website

@@ -85,9 +85,10 @@ export default function Home() {
           />
         </div>
 
-        {/* History & Analytics, kept mounted so its data loads once */}
+        {/* History & Analytics, kept mounted so its in-progress state survives
+            view switches; it refreshes from the DB each time it becomes active */}
         <div id="history" className={cn("w-full", view !== 'history' && "hidden")}>
-          <HistoryPanel onRetake={handleRetake} />
+          <HistoryPanel onRetake={handleRetake} active={view === 'history'} />
         </div>
 
       </div>

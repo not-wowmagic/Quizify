@@ -15,6 +15,10 @@ import { NextRequest, NextResponse } from 'next/server';
 const isDev = process.env.NODE_ENV === 'development';
 
 const UMAMI_ORIGIN = 'https://cloud.umami.is';
+// Umami Cloud sends analytics events from a gateway host that is distinct from
+// the script origin; both must be allowed in connect-src or every event is
+// blocked by the CSP (see the gateway.umami.is console errors).
+const UMAMI_GATEWAY_ORIGIN = 'https://gateway.umami.is';
 
 export function proxy(request: NextRequest) {
   // CSP nonces must be base64 (a UUID contains hyphens, which are invalid in
@@ -28,7 +32,7 @@ export function proxy(request: NextRequest) {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https://*",
     "font-src 'self'",
-    "connect-src 'self' https://challenges.cloudflare.com https://*.supabase.co https://cloud.umami.is",
+    "connect-src 'self' https://challenges.cloudflare.com https://*.supabase.co https://cloud.umami.is " + UMAMI_GATEWAY_ORIGIN,
     // worker-src 'self' blob: is required for the pdf.js worker and the
     // service worker (public/sw.js, loaded from 'self').
     "worker-src 'self' blob:",
