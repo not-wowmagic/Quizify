@@ -13,7 +13,7 @@ test.describe('generation', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     await expect(page.getByRole('heading', { name: /Questions/ })).toBeFocused();
   });
 
@@ -21,7 +21,7 @@ test.describe('generation', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     // Regenerate lives on the scorecard, so the round must be completed first.
     await completeQuiz(page, true);
     await page.getByRole('button', { name: /Regenerate/ }).click();
@@ -33,7 +33,7 @@ test.describe('generation', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     // Start Over lives on the scorecard, so the round must be completed first.
     await completeQuiz(page, true);
     await page.getByRole('button', { name: 'Start Over' }).click();
@@ -49,7 +49,7 @@ test.describe('generation', () => {
       const textarea = await goPasteTab(page);
       await textarea.fill(LECTURE);
       await page.getByRole('button', { name: format, exact: true }).click();
-      await generateQuiz(page);
+      await generateQuiz(page, 3);
       await completeQuiz(page);
       await expect(page.getByRole('heading', { name: 'Quiz Completed!' })).toBeVisible();
     });
@@ -61,7 +61,7 @@ test.describe('answer UX', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     const card = questionCards(page).first();
     const option = card.locator('button[aria-pressed]').first();
     await option.click();
@@ -73,7 +73,7 @@ test.describe('answer UX', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     // Question order AND option order are shuffled, so no nth position is
     // stable: locate a card whose correct answer is known, then pick a
     // deterministically-wrong option within it.
@@ -164,7 +164,7 @@ test.describe('AI summary', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     await page.getByRole('button', { name: 'Generate Summary' }).click();
     await expect(page.getByRole('heading', { name: 'AI Study Summary' })).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText(/Photosynthesis is the process/)).toBeVisible();
@@ -176,7 +176,7 @@ test.describe('AI summary', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     const card = questionCards(page).first();
     await card.getByRole('button', { name: 'Ask Tutor' }).click();
     await card.getByRole('button', { name: 'Why is the correct answer correct?' }).click();

@@ -12,8 +12,7 @@ test.describe('home page', () => {
     await expect(html).toHaveClass(/dark/);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
-    await page.waitForTimeout(500);
-    expect(errors.get()).toHaveLength(0);
+    await expect.poll(() => errors.get()).toHaveLength(0);
   });
 
   test('view tabs switch between New Quiz and History & Insights', async ({ page }) => {
@@ -201,7 +200,7 @@ test.describe('incognito mode', () => {
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
     await page.getByRole('switch', { name: '' }).click();
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     await expect(page.getByRole('button', { name: 'Share' })).toHaveCount(0);
     await page.getByRole('button', { name: /History & Insights/ }).click();
     await expect(page.getByRole('heading', { name: 'No quizzes yet' })).toBeVisible();

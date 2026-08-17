@@ -34,7 +34,7 @@ test.describe('focus management', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     await expect(page.getByRole('heading', { name: /Questions/ })).toBeFocused();
   });
 
@@ -42,7 +42,7 @@ test.describe('focus management', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     const url = await publishAndSlug(page);
     await page.goto(url);
     await expect(page.getByRole('heading', { name: /Questions/ })).toBeVisible({ timeout: 20_000 });
@@ -55,7 +55,7 @@ test.describe('dark-mode contrast', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     await expect(page.locator('html')).toHaveClass(/dark/);
 
     // Normal text color should be light on the dark background.
@@ -114,7 +114,7 @@ test.describe('layout / overflow', () => {
       const style = document.documentElement.style as CSSStyleDeclaration & { zoom?: string };
       style.zoom = '1.25';
     });
-    await page.waitForTimeout(200);
+    await page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
@@ -150,7 +150,7 @@ test.describe('metadata', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     const url = await publishAndSlug(page);
     await page.goto(url);
     const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
@@ -173,10 +173,9 @@ test.describe('console / network hygiene', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     await completeQuiz(page, true);
-    await page.waitForTimeout(500);
-    expect(errors.get()).toHaveLength(0);
+    await expect.poll(() => errors.get()).toHaveLength(0);
   });
 
   test('shared quiz page loads without console errors', async ({ page }) => {
@@ -184,11 +183,10 @@ test.describe('console / network hygiene', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     const url = await publishAndSlug(page);
     await page.goto(url);
     await expect(page.getByRole('heading', { name: /Questions/ })).toBeVisible({ timeout: 20_000 });
-    await page.waitForTimeout(500);
-    expect(errors.get()).toHaveLength(0);
+    await expect.poll(() => errors.get()).toHaveLength(0);
   });
 });

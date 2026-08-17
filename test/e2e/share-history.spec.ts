@@ -6,11 +6,11 @@
 import { test, expect } from '@playwright/test';
 import { LECTURE, gotoHome, goPasteTab, generateQuiz, completeQuiz, attachErrorTracking } from './helpers';
 
-async function generateAndComplete(page: import('@playwright/test').Page, correct = true) {
+async function generateAndComplete(page: import('@playwright/test').Page, correct = true, count = 3) {
   await gotoHome(page);
   const textarea = await goPasteTab(page);
   await textarea.fill(LECTURE);
-  await generateQuiz(page);
+  await generateQuiz(page, count);
   await completeQuiz(page, correct);
 }
 
@@ -62,7 +62,9 @@ test.describe('share', () => {
   });
 
   test('shared quiz Restart reshuffles a fresh quiz', async ({ page }) => {
-    await generateAndComplete(page);
+    // Keep the full 10-question default: with fewer questions the reshuffle
+    // poll would flake (3! = 6 orders, 1/6 same-order coincidence).
+    await generateAndComplete(page, true, 10);
     const url = await publishQuiz(page);
     const slug = url.split('/q/')[1];
     await page.goto(`/q/${slug}`);
@@ -112,7 +114,7 @@ test.describe('history', () => {
     await returnToFreshSetup(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     await completeQuiz(page, true);
     await page.getByRole('button', { name: /History & Insights/ }).click();
     // Both attempts (the original + the new completion) must be listed after
@@ -161,12 +163,15 @@ test.describe('history', () => {
     await returnToFreshSetup(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     await completeQuiz(page, false);
     const errors = attachErrorTracking(page);
     await page.getByRole('button', { name: /History & Insights/ }).click();
     await expect(page.getByRole('heading', { name: 'Score Trend' })).toBeVisible({ timeout: 10_000 });
-    await page.waitForTimeout(500);
+    await page.waitForFunction(() => {
+      const el = document.querySelector('.recharts-wrapper');
+      return !!el && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
+    });
     expect(errors.get().filter(e => /width\(0\)|height\(0\)|ResponsiveContainer/i.test(e))).toHaveLength(0);
   });
 

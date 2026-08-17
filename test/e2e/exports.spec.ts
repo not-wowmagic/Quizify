@@ -9,7 +9,7 @@ test.describe('downloads', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Export' }).click();
     await page.getByRole('menuitem', { name: 'Anki (.txt)' }).click();
@@ -26,7 +26,7 @@ test.describe('downloads', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Export' }).click();
     await page.getByRole('menuitem', { name: 'CSV' }).click();
@@ -54,7 +54,7 @@ test.describe('print', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
 
     const popupPromise = page.waitForEvent('popup');
     await page.getByRole('button', { name: 'Export' }).click();
@@ -93,7 +93,7 @@ test.describe('print', () => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
-    await generateQuiz(page);
+    await generateQuiz(page, 3);
     await completeQuiz(page, true);
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('status').getByRole('button', { name: 'Export', exact: true }).click();
