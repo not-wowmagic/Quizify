@@ -89,7 +89,7 @@ test.describe('print', () => {
     await expect(popup.locator('h2 + ul li').first()).toBeVisible();
   });
 
-  test('scorecard Export button downloads the Anki deck', async ({ page }) => {
+  test('scorecard Export dropdown downloads the Anki deck', async ({ page }) => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
@@ -97,6 +97,7 @@ test.describe('print', () => {
     await completeQuiz(page, true);
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('status').getByRole('button', { name: 'Export', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Anki (.txt)' }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toBe('quizify-anki.txt');
   });

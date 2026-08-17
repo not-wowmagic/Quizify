@@ -232,7 +232,9 @@ export function QuizRunner({
           onRegenerate={onRegenerate}
           regenerateLabel={regenerateLabel}
           onStartOver={onStartOver}
-          onExport={onExport ? () => onExport('anki') : undefined}
+          onExport={onExport}
+          onShare={onShare}
+          isSharing={isSharing}
         />
       )}
 

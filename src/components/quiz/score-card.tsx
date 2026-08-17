@@ -3,7 +3,16 @@
 // src/components/quiz/score-card.tsx
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { RefreshCw, RotateCcw, CheckCircle2, Download, Target } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  RefreshCw, RotateCcw, CheckCircle2, Download, Target, Share2, FileText, Link2, Loader2,
+} from 'lucide-react';
+import type { ExportFormat } from '@/components/quiz/quiz-runner';
 
 interface ScoreCardProps {
   score: number;
@@ -19,7 +28,9 @@ interface ScoreCardProps {
   onRegenerate: () => void;
   regenerateLabel?: string;
   onStartOver: () => void;
-  onExport?: () => void;
+  onExport?: (format: ExportFormat) => void;
+  onShare?: () => void;
+  isSharing?: boolean;
 }
 
 export function ScoreCard({
@@ -35,6 +46,8 @@ export function ScoreCard({
   regenerateLabel = 'Regenerate Quiz',
   onStartOver,
   onExport,
+  onShare,
+  isSharing,
 }: ScoreCardProps) {
   return (
     <Card
@@ -79,10 +92,43 @@ export function ScoreCard({
               <Target className="mr-2 h-4 w-4" /> Practice Missed Questions ({missedCount})
             </Button>
           )}
-          {onExport && (
-            <Button onClick={onExport} variant="outline" className="h-10 px-5 border-border">
-              <Download className="mr-2 h-4 w-4" /> Export
+          {onShare && (
+            <Button
+              onClick={onShare}
+              disabled={isSharing}
+              variant="outline"
+              className="h-10 px-5 border-border"
+            >
+              {isSharing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Share2 className="mr-2 h-4 w-4" />
+              )}
+              Share
             </Button>
+          )}
+          {onExport && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="h-10 px-5 border-border">
+                  <Download className="mr-2 h-4 w-4" /> Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="w-44">
+                <DropdownMenuItem onClick={() => onExport('anki')}>
+                  <Link2 className="mr-2 h-4 w-4" /> Anki (.txt)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onExport('csv')}>
+                  <FileText className="mr-2 h-4 w-4" /> CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onExport('print')}>
+                  <FileText className="mr-2 h-4 w-4" /> Print / PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onExport('cram')}>
+                  <FileText className="mr-2 h-4 w-4" /> Study Cram Sheet
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
           <Button onClick={onRegenerate} variant="outline" className="h-10 px-5 border-border">
             <RefreshCw className="mr-2 h-4 w-4" /> {regenerateLabel}

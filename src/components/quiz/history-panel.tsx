@@ -3,18 +3,26 @@
 // src/components/quiz/history-panel.tsx
 // Quiz history + study insights (analytics) for the anonymous device id.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getAttempts, deleteAttempt } from '@/app/actions';
+import { getAttempts, deleteAttempt, publishQuiz } from '@/app/actions';
 import { getDeviceId } from '@/lib/device-id';
-import { buildAnkiTxt, buildQuizCsv, downloadTextFile } from '@/lib/quiz-export';
+import { buildAnkiTxt, buildQuizCsv, downloadTextFile, printQuiz, printCramSheet } from '@/lib/quiz-export';
+import { trackQuizShared, trackQuizExported } from '@/lib/analytics';
+import { ShareQrCard } from '@/components/quiz/share-qr';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, BarChart, Bar, Cell, LabelList,
 } from 'recharts';
 import {
-  Loader2, Trash2, RotateCcw, Download, TrendingUp, Target, Flame, Trophy, BookOpen, Inbox, Search,
+  Loader2, Trash2, RotateCcw, Download, TrendingUp, Target, Flame, Trophy, BookOpen, Inbox, Search, Share2, FileText, Link2,
 } from 'lucide-react';
 import type { QuizAttempt } from '@/types/history';
 import type { Quiz } from '@/types/quiz';
@@ -37,6 +45,8 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
   const [attempts, setAttempts] = useState<QuizAttempt[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [sharingId, setSharingId] = useState<string | null>(null);
+  const [sharedUrl, setSharedUrl] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Search / filter / sort state for the attempt list
@@ -107,13 +117,56 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
     setAttempts(prev => prev?.filter(a => a.id !== id) ?? null);
   };
 
-  const handleExport = (attempt: QuizAttempt, format: 'anki' | 'csv') => {
+  const handleExport = (attempt: QuizAttempt, format: 'anki' | 'csv' | 'print' | 'cram') => {
     const quiz: Quiz = { questions: attempt.questions ?? [] };
     const base = attempt.title.replace(/[^\w\- ]/g, '').trim() || 'quiz';
+    trackQuizExported(format);
+
     if (format === 'csv') {
       downloadTextFile(`${base}.csv`, buildQuizCsv(quiz), 'text/csv');
-    } else {
-      downloadTextFile(`${base}-anki.txt`, buildAnkiTxt(quiz));
+      return;
+    }
+    if (format === 'print') {
+      printQuiz(quiz, attempt.title || 'Quizify Study Sheet');
+      return;
+    }
+    if (format === 'cram') {
+      printCramSheet(quiz, attempt.title || 'Quizify Study Sheet');
+      return;
+    }
+    downloadTextFile(`${base}-anki.txt`, buildAnkiTxt(quiz));
+    toast({ title: 'Exported', description: 'Anki deck downloaded. Import it in Anki (File ▸ Import).' });
+  };
+
+  const handleShare = async (attempt: QuizAttempt) => {
+    setSharingId(attempt.id);
+    try {
+      const result = await publishQuiz({
+        questions: attempt.questions ?? [],
+        title: attempt.title,
+        difficulty: attempt.difficulty ?? undefined,
+        questionType: attempt.question_type ?? undefined,
+        language: attempt.language ?? undefined,
+      });
+
+      if ('error' in result) {
+        toast({ title: 'Share Failed', description: result.error, variant: 'destructive' });
+        return;
+      }
+
+      const url = `${window.location.origin}${result.url}`;
+      trackQuizShared(result.slug);
+      setSharedUrl(url);
+      try {
+        await navigator.clipboard.writeText(url);
+        toast({ title: 'Link Copied', description: url });
+      } catch {
+        toast({ title: 'Share Link Ready', description: `Copy this link to share: ${url}` });
+      }
+    } catch {
+      toast({ title: 'Share Failed', description: 'Could not publish the quiz. Please try again.', variant: 'destructive' });
+    } finally {
+      setSharingId(null);
     }
   };
 
@@ -203,6 +256,7 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
 
   return (
     <div className="space-y-6">
+      {sharedUrl && <ShareQrCard url={sharedUrl} onClose={() => setSharedUrl(null)} />}
       {/* Insights */}
       {stats && (
         <div className="space-y-6">
@@ -387,11 +441,43 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
                   variant="outline"
                   size="sm"
                   className="h-8 px-2.5 border-border/80 text-xs font-medium"
-                  onClick={() => handleExport(attempt, 'anki')}
-                  title="Export as Anki deck"
+                  onClick={() => void handleShare(attempt)}
+                  disabled={sharingId === attempt.id}
+                  title="Share this quiz"
                 >
-                  <Download className="mr-1 h-3.5 w-3.5" /> Anki
+                  {sharingId === attempt.id ? (
+                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Share2 className="mr-1 h-3.5 w-3.5" />
+                  )}
+                  Share
                 </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2.5 border-border/80 text-xs font-medium"
+                      title="Export quiz"
+                    >
+                      <Download className="mr-1 h-3.5 w-3.5" /> Export
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem onClick={() => handleExport(attempt, 'anki')}>
+                      <Link2 className="mr-2 h-4 w-4" /> Anki (.txt)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport(attempt, 'csv')}>
+                      <FileText className="mr-2 h-4 w-4" /> CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport(attempt, 'print')}>
+                      <FileText className="mr-2 h-4 w-4" /> Print / PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport(attempt, 'cram')}>
+                      <FileText className="mr-2 h-4 w-4" /> Study Cram Sheet
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button
                   variant="ghost"
                   size="sm"
