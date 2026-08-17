@@ -25,7 +25,7 @@ async function returnToFreshSetup(page: import('@playwright/test').Page) {
 }
 
 async function publishQuiz(page: import('@playwright/test').Page): Promise<string> {
-  await page.getByRole('button', { name: 'Share' }).click();
+  await page.getByRole('button', { name: 'Share' }).first().click();
   const qr = page.getByText('Scan to share');
   await expect(qr).toBeVisible();
   const urlText = await page.locator('p[class*="break-all"]').first().innerText();
@@ -41,6 +41,15 @@ test.describe('share', () => {
     await page.goto(`/q/${slug}`);
     await expect(page.getByRole('heading', { name: /Questions/ })).toBeVisible();
     await expect(page.locator('h1').first()).toContainText('Untitled Quiz');
+  });
+
+  test('publishes a quiz from the after-quiz scorecard', async ({ page }) => {
+    await generateAndComplete(page);
+    await page.getByRole('status').getByRole('button', { name: 'Share' }).click();
+    const qr = page.getByText('Scan to share');
+    await expect(qr).toBeVisible();
+    const urlText = await page.locator('p[class*="break-all"]').first().innerText();
+    expect(urlText.trim()).toMatch(/\/q\//);
   });
 
   test('shared quiz page exposes a canonical URL and noindex', async ({ page }) => {
@@ -184,5 +193,27 @@ test.describe('history', () => {
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByRole('button', { name: /Goal: 20\/day/ })).toBeVisible();
     await expect(page.getByText(/questions today/)).toBeVisible();
+  });
+
+  test('history item Share button publishes the attempt and shows QR card', async ({ page }) => {
+    await generateAndComplete(page);
+    await page.getByRole('button', { name: /History & Insights/ }).click();
+    await expect(page.getByText(/correct/)).toBeVisible();
+    await page.getByTitle('Share this quiz').click();
+    const qr = page.getByText('Scan to share');
+    await expect(qr).toBeVisible();
+    const urlText = await page.locator('p[class*="break-all"]').first().innerText();
+    expect(urlText.trim()).toMatch(/\/q\//);
+  });
+
+  test('history item Export dropdown allows exporting Anki deck', async ({ page }) => {
+    await generateAndComplete(page);
+    await page.getByRole('button', { name: /History & Insights/ }).click();
+    await expect(page.getByText(/correct/)).toBeVisible();
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByTitle('Export quiz').click();
+    await page.getByRole('menuitem', { name: 'Anki (.txt)' }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/anki\.txt$/);
   });
 });

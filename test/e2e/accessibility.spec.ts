@@ -8,7 +8,7 @@ import { LECTURE, gotoHome, goPasteTab, generateQuiz, completeQuiz, attachErrorT
 // Publishes a quiz and returns its /q/<slug> path.
 async function publishAndSlug(page: import('@playwright/test').Page): Promise<string> {
   await completeQuiz(page, true);
-  await page.getByRole('button', { name: 'Share' }).click();
+  await page.getByRole('button', { name: 'Share' }).first().click();
   await expect(page.getByText('Scan to share')).toBeVisible();
   const urlText = await page.locator('p[class*="break-all"]').first().innerText();
   return urlText.trim();
@@ -179,12 +179,12 @@ test.describe('console / network hygiene', () => {
   });
 
   test('shared quiz page loads without console errors', async ({ page }) => {
-    const errors = attachErrorTracking(page);
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
     await generateQuiz(page, 3);
     const url = await publishAndSlug(page);
+    const errors = attachErrorTracking(page);
     await page.goto(url);
     await expect(page.getByRole('heading', { name: /Questions/ })).toBeVisible({ timeout: 20_000 });
     await expect.poll(() => errors.get()).toHaveLength(0);
