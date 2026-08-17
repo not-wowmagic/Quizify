@@ -46,7 +46,10 @@ export async function setCustomCount(page: Page, n: string): Promise<void> {
   await input.blur();
 }
 
-export async function generateQuiz(page: Page): Promise<void> {
+export async function generateQuiz(page: Page, count?: number): Promise<void> {
+  if (count !== undefined) {
+    await setCustomCount(page, String(count));
+  }
   await page.getByRole('button', { name: /Generate Quiz/ }).click();
   await expect(page.getByRole('heading', { name: /Questions/ })).toBeVisible({ timeout: 20_000 });
 }
@@ -78,12 +81,11 @@ export async function correctAnswerForCard(card: Locator): Promise<string | null
 export async function answerStandardCard(card: Locator, correct = true): Promise<void> {
   const rightText = await correctAnswerForCard(card);
   const options = card.locator('button[aria-pressed]');
-  const n = await options.count();
-  for (let j = 0; j < n; j++) {
-    const text = await options.nth(j).innerText();
-    const isRight = rightText !== null && text.includes(rightText);
+  const texts = await options.allInnerTexts();
+  for (let i = 0; i < texts.length; i++) {
+    const isRight = rightText !== null && texts[i].includes(rightText);
     if ((correct && isRight) || (!correct && !isRight)) {
-      await options.nth(j).click();
+      await options.nth(i).click();
       return;
     }
   }
@@ -103,12 +105,11 @@ export async function answerStandardQuestions(page: Page, correct = true): Promi
     if (await isMatchingCard(card)) continue;
     const rightText = await correctAnswerForCard(card);
     const options = card.locator('button[aria-pressed]');
-    const n = await options.count();
-    for (let j = 0; j < n; j++) {
-      const text = await options.nth(j).innerText();
-      const isRight = rightText !== null && text.includes(rightText);
+    const texts = await options.allInnerTexts();
+    for (let i = 0; i < texts.length; i++) {
+      const isRight = rightText !== null && texts[i].includes(rightText);
       if ((correct && isRight) || (!correct && !isRight)) {
-        await options.nth(j).click();
+        await options.nth(i).click();
         break;
       }
     }
@@ -154,12 +155,11 @@ export async function answerAllQuestions(page: Page, correct = true): Promise<vo
 async function answerStandardQuestionsForCard(page: Page, card: Locator, correct: boolean): Promise<void> {
   const rightText = await correctAnswerForCard(card);
   const options = card.locator('button[aria-pressed]');
-  const n = await options.count();
-  for (let j = 0; j < n; j++) {
-    const text = await options.nth(j).innerText();
-    const isRight = rightText !== null && text.includes(rightText);
+  const texts = await options.allInnerTexts();
+  for (let i = 0; i < texts.length; i++) {
+    const isRight = rightText !== null && texts[i].includes(rightText);
     if ((correct && isRight) || (!correct && !isRight)) {
-      await options.nth(j).click();
+      await options.nth(i).click();
       return;
     }
   }
