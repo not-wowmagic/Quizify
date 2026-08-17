@@ -5,10 +5,10 @@ browser suite that exercises the real UI end-to-end, plus the existing Vitest
 unit suite, all runnable on any machine with **no API keys, no network calls,
 and no database**.
 
-The browser tests run against a dedicated dev server (port `9003`) with
+The browser tests run against a production build server (port `9003`) with
 `E2E_MOCK_AI=1`, which swaps every AI / Supabase / web-fetch dependency for an
-in-memory deterministic stand-in. This makes the suite fast (~1.5 min), free,
-and flake-free — and it never touches production data.
+in-memory deterministic stand-in. This makes the suite fast (~30-60s warm),
+free, and flake-free, and it never touches production data.
 
 ---
 
@@ -20,7 +20,7 @@ npm install
 npx playwright install chromium
 
 # 2. Run everything
-npm run test:e2e        # browser suite (66 tests, ~1.5 min)
+npm run test:e2e        # browser suite (66 tests, ~30-60s warm at 4 workers; first run includes a next build)
 npm test                # unit suite (100 tests)
 npm run typecheck
 npm run lint
@@ -87,15 +87,23 @@ the real LLM / Supabase / internet.
 | Turnstile (`verifyTurnstile`) | `src/lib/rate-limit.ts` | always passes (no bot check) |
 | Turnstile widget | `playwright.config.ts` env | `NEXT_PUBLIC_TURNSTILE_SITE_KEY=''` → widget never renders |
 
-`E2E_MOCK_AI` is only ever read on the test dev server; production code paths
+`E2E_MOCK_AI` is only ever read on the test server; production code paths
 are untouched.
 
-### 3.2 Isolated dev server
+### 3.2 Isolated production server
 
-- Runs on **port 9003** (`reuseExistingServer: !CI`) so it never collides with
-  your normal `next dev` on 9002.
-- Uses a **separate build dir** (`.next-e2e`) so the two dev servers don't
-  fight over the `.next` cache (`NEXT_E2E_DIST_DIR` in `next.config.ts`).
+- Runs on **port 9003** against a **production build** (`npx next build && npx
+  next start -p 9003`), so every route serves instantly with no per-route dev
+  compilation. Set `E2E_DEV_SERVER=1` to fall back to `next dev` for warm-cache
+  iteration.
+- Uses a **separate build dir** (`.next-e2e`) so the e2e build never fights
+  your normal `.next` cache (`NEXT_E2E_DIST_DIR` in `next.config.ts`).
+- **Readiness probe**: the webServer waits on `/api/e2e-mock-status`, which
+  answers 200 only when the server was started with `E2E_MOCK_AI=1`. A stale
+  unmocked server on 9003 therefore fails fast at startup instead of hanging
+  per test.
+- **Parallelism**: `fullyParallel: true` with `workers: CI ? 1 : 4` (4 local
+  workers, 1 in CI).
 - Hermetic data: each test gets a fresh browser context → fresh device id →
   isolated history; published quizzes use random slugs.
 
@@ -113,12 +121,19 @@ flaky shuffles.
 
 ```ts
 testDir: './test/e2e'
-workers: 1            // sequential — server-actions mock state is per-process
-retries: CI ? 2 : 0   // deterministic locally; resilience on slow CI runners
+fullyParallel: true
+forbidOnly: !!process.env.CI
+retries: CI ? 2 : 0
+workers: CI ? 1 : 4
 reporter: ['list', ['html', { open: 'never' }]]
+timeout: 30_000
+expect: { timeout: 10_000 }
 viewport: 1280x800
 webServer:
-  command: `npx next dev -p 9003`
+  command: E2E_DEV_SERVER === '1' ? `npx next dev -p 9003` : `npx next build && npx next start -p 9003`
+  url: http://localhost:9003/api/e2e-mock-status   // readiness probe: 200 only when E2E_MOCK_AI=1
+  reuseExistingServer: !CI
+  timeout: 240_000   // covers a cold `next build` on Windows
   env: { E2E_MOCK_AI: '1', NEXT_PUBLIC_TURNSTILE_SITE_KEY: '', NEXT_E2E_DIST_DIR: '.next-e2e' }
 ```
 
@@ -160,9 +175,11 @@ fixed; the suite would catch them if they ever regressed:
 
 The config already honours `CI`:
 
-- `forbidOnly: !!process.env.CI` — fails if `test.only` is left in.
-- `retries: CI ? 2 : 0` — optional resilience on slow runners.
-- `reuseExistingServer: !process.env.CI` — CI always boots a fresh server.
+- `forbidOnly: !!process.env.CI` fails if `test.only` is left in.
+- `retries: CI ? 2 : 0` gives optional resilience on slow runners.
+- `workers: CI ? 1 : 4` runs CI serial (single worker) and 4 workers locally.
+- `reuseExistingServer: !process.env.CI` means CI always boots a fresh server,
+  so the readiness probe can never reuse a stale one.
 
 Suggested pipeline:
 
@@ -185,8 +202,8 @@ npm run test:e2e
 |---------|-----|
 | `npx playwright` not found | `npm install` (adds `@playwright/test`) |
 | Browser binary missing | `npx playwright install chromium` |
-| Port 9003 already in use | Stop the leftover test server, or set `reuseExistingServer: true` |
-| Tests hit real AI / rate limits | Make sure `E2E_MOCK_AI=1` is on the server (it is, via config); if you started the server manually, restart it via `npx playwright test` |
+| Run fails at startup with a webServer timeout | A stale unmocked server is on 9003: the readiness probe `/api/e2e-mock-status` 404s (it only answers 200 when the server was started with `E2E_MOCK_AI=1`). Kill the stale server, or restart it via `npx playwright test` |
+| Tests hit real AI / rate limits | The readiness probe would have failed the run at startup, so this means the server was started without `E2E_MOCK_AI=1`; restart it via `npx playwright test` |
 | Want to see the tests run | `npx playwright test --headed` |
 
 ---
@@ -194,7 +211,7 @@ npm run test:e2e
 ## 8. File Map
 
 ```
-playwright.config.ts            # e2e runner + isolated dev server
+playwright.config.ts            # e2e runner + isolated production server + readiness probe
 test/e2e/
   helpers.ts                    # fixtures + deterministic answering helpers
   setup.spec.ts                 # home, tabs, validation, upload/web/camera, incognito
@@ -229,7 +246,7 @@ src/
 | `npm run lint` (eslint) | clean |
 | `npm run lint:ox` (oxlint + anti-slop) | clean |
 | `npm run build` (Next.js) | compiles, static pages generated |
-| `npm run test:e2e` (Playwright) | 5 files / **66 tests** passing |
+| `npm run test:e2e` (Playwright) | 5 files / **66 tests** passing (warm ~26s at 4 workers; verified 2026-08-17) |
 
 > Note: when deploying, set the Netlify env var
 > `NEXT_PUBLIC_SITE_URL=https://quizifyyyy.netlify.app` (an existing env var
