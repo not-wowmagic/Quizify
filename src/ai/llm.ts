@@ -147,7 +147,7 @@ async function fetchWithRetry<TBody>(
   timeoutMs: number,
   label: string,
   deadlineMs?: number,
-  retries = 1,
+  retries = 2,
   delay = 1000
 ): Promise<JsonValue> {
   for (let i = 0; i <= retries; i++) {
@@ -192,7 +192,7 @@ async function fetchWithRetry<TBody>(
           `${label} returned status ${res.status} (body: ${txt.slice(0, 300)}). Retrying in ${delay}ms (attempt ${i + 1}/${retries})...`
         );
         await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2;
+        delay = Math.round(delay * (1.5 + Math.random() * 0.5));
         continue;
       }
 
@@ -217,7 +217,7 @@ async function fetchWithRetry<TBody>(
 
       console.warn(`Request to ${label} failed (${errorMessage}). Retrying in ${delay}ms (attempt ${i + 1}/${retries})...`);
       await new Promise(resolve => setTimeout(resolve, delay));
-      delay *= 2;
+      delay = Math.round(delay * (1.5 + Math.random() * 0.5));
     }
   }
   throw new LLMAPIError('Max retries exceeded');

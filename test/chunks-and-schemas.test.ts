@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { splitTextIntoChunks, computeChunkSize } from '@/ai/flows/generate-quiz';
-import { GenerateQuizInputSchema } from '@/ai/flows/generate-quiz';
+import { splitTextIntoChunks, computeChunkSize, generateQuiz, GenerateQuizInputSchema } from '@/ai/flows/generate-quiz';
 
 describe('splitTextIntoChunks', () => {
   it('returns a single chunk for short text', () => {
@@ -38,28 +37,25 @@ describe('splitTextIntoChunks', () => {
 });
 
 describe('computeChunkSize (adaptive chunking)', () => {
-  it('keeps the 8000-char floor for large question counts', () => {
-    expect(computeChunkSize(100_000, 50)).toBe(8000); // 13 chunks → below floor
+  it('splits large documents into proportional chunks for large question counts', () => {
+    expect(computeChunkSize(100_000, 50)).toBe(11_112);
+    expect(computeChunkSize(100_000, 24)).toBe(25_000);
   });
 
-  it('uses fewer, larger chunks for small question counts', () => {
-    // 25 questions → at most 7 chunks → ~14.3k per chunk
-    expect(computeChunkSize(100_000, 25)).toBe(14_286);
-    // 10 questions → at most 3 chunks → ~33.3k per chunk
-    expect(computeChunkSize(100_000, 10)).toBe(33_334);
-    // 2 questions → single chunk covering the whole document
+  it('uses a single full-document chunk for small question counts (<= 6)', () => {
+    expect(computeChunkSize(100_000, 6)).toBe(100_000);
     expect(computeChunkSize(100_000, 2)).toBe(100_000);
   });
 
-  it('never exceeds the document length and keeps the floor for short docs', () => {
+  it('never drops below the minimum chunk size floor for short docs', () => {
     expect(computeChunkSize(5_000, 10)).toBe(8000);
   });
 
-  it('produces at most ceil(numQuestions/4) chunks on typical text', () => {
+  it('produces reasonable chunk counts on typical text', () => {
     const text = Array.from({ length: 2200 }, (_, i) => `Sentence ${i} about study material with enough words.`).join(' ');
     const chunkSize = computeChunkSize(text.length, 10);
     const chunks = splitTextIntoChunks(text, chunkSize);
-    expect(chunks.length).toBeLessThanOrEqual(4); // ceil(10/4) = 3 (+1 tolerance)
+    expect(chunks.length).toBeLessThanOrEqual(3);
     expect(chunks.length).toBeGreaterThan(0);
     for (const chunk of chunks) {
       expect(chunk.length).toBeLessThanOrEqual(chunkSize);
@@ -123,3 +119,32 @@ describe('GenerateQuizInputSchema (strict input validation)', () => {
     expect(GenerateQuizInputSchema.strict().safeParse({ ...validInput, language: 'x'.repeat(51) }).success).toBe(false);
   });
 });
+
+describe('generateQuiz (large question count support)', () => {
+  it('successfully generates quizzes with 20 questions', async () => {
+    process.env.E2E_MOCK_AI = '1';
+    const result = await generateQuiz({
+      lectureText: 'Photosynthesis is the process by which plants convert sunlight into chemical energy. It takes place inside chloroplasts containing chlorophyll pigments.',
+      numQuestions: 20,
+      difficulty: 'medium',
+      questionType: 'multiple_choice',
+      language: 'English',
+    });
+    expect(result.questions.length).toBeGreaterThan(0);
+    expect(result.questions.length).toBeLessThanOrEqual(20);
+  });
+
+  it('successfully generates quizzes with 30 questions', async () => {
+    process.env.E2E_MOCK_AI = '1';
+    const result = await generateQuiz({
+      lectureText: 'Photosynthesis is the process by which plants convert sunlight into chemical energy. It takes place inside chloroplasts containing chlorophyll pigments.',
+      numQuestions: 30,
+      difficulty: 'medium',
+      questionType: 'mixed',
+      language: 'English',
+    });
+    expect(result.questions.length).toBeGreaterThan(0);
+    expect(result.questions.length).toBeLessThanOrEqual(30);
+  });
+});
+
