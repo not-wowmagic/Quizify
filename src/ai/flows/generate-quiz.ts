@@ -63,8 +63,8 @@ const QUESTION_TYPE_GUIDANCE = {
   situational: 'Craft scenario-based questions that describe a realistic situation. Ask the learner to apply concepts from the text to that scenario. Ensure the scenario details and the correct option are grounded explicitly in the provided text.',
   fill_in_the_blank: 'Select a key sentence from the text and replace one critical term with a blank ("___"). Provide four answer options that could fit. Only one option may be correct according to the text, and distractors must be plausible but incorrect.',
   true_false: 'Create declarative statements about the text and provide four answer options that contain variations (e.g., True, False, Mostly True, Not Given). Only one option may be fully correct, and each distractor must be clearly incorrect according to the text.',
-  matching: 'Create matching exercises where the learner must pair related items. Generate 4-6 pairs of related items from the text (e.g., term↔definition, concept↔example, cause↔effect, event↔date). Each pair must be clearly and unambiguously connected based on the text. Premises should be distinct from each other, and responses should also be distinct.',
-  mixed: 'Generate a balanced mix of multiple-choice, situational, fill-in-the-blank, true/false, and matching questions. Alternate formats so the learner experiences variety while keeping every question answerable strictly from the text.',
+  matching: 'Create matching exercises where the learner must pair related items. Generate 4-6 pairs of related items from the text (e.g., term↔definition, concept↔example, cause↔effect, event↔date, person↔achievement, etc.). Each pair must be clearly and unambiguously connected based on the text. Premises should be distinct from each other, and responses should also be distinct.',
+  mixed: 'Generate a balanced variety of multiple-choice, situational, fill-in-the-blank, and true/false questions. Alternate formats so the learner experiences variety while keeping every question answerable strictly from the text.',
 } satisfies Record<QuestionType, string>;
 
 /**
@@ -351,9 +351,13 @@ Return questions in this exact JSON format:
   ]
 }`;
 
-  const response = await callLLM(prompt, { systemInstruction: QUIZ_SYSTEM_INSTRUCTION, timeoutMs: 60000 });
-
   try {
+    const response = await callLLM(prompt, {
+      systemInstruction: QUIZ_SYSTEM_INSTRUCTION,
+      timeoutMs: 90000,
+      deadlineMs: params.deadlineMs,
+    });
+
     // SAFETY: raw AI JSON parsed at the trust boundary; every question is
     // re-validated by StandardQuestionSchema in validateQuestions below.
     const result = extractJSON(response) as { questions?: Array<Omit<StandardQuestionRaw, 'type'>> } | undefined;
@@ -362,7 +366,7 @@ Return questions in this exact JSON format:
       type: 'standard' as const,
     }));
   } catch (err) {
-    console.error('[generate-quiz] Failed to extract/parse JSON from chunk response:', err);
+    console.error('[generate-quiz] Failed to generate/parse standard questions from chunk:', err);
     return [];
   }
 }
@@ -414,13 +418,13 @@ Return questions in this exact JSON format:
   ]
 }`;
 
-  const response = await callLLM(prompt, {
-    systemInstruction: QUIZ_SYSTEM_INSTRUCTION,
-    timeoutMs: 60000,
-    deadlineMs: params.deadlineMs,
-  });
-
   try {
+    const response = await callLLM(prompt, {
+      systemInstruction: QUIZ_SYSTEM_INSTRUCTION,
+      timeoutMs: 90000,
+      deadlineMs: params.deadlineMs,
+    });
+
     // SAFETY: raw AI JSON parsed at the trust boundary; every question is
     // re-validated by MatchingQuestionSchema in validateQuestions below.
     const result = extractJSON(response) as { questions?: Array<Omit<MatchingQuestionRaw, 'type'>> } | undefined;
@@ -429,14 +433,14 @@ Return questions in this exact JSON format:
       type: 'matching' as const,
     }));
   } catch (err) {
-    console.error('[generate-quiz] Failed to extract/parse matching JSON from chunk response:', err);
+    console.error('[generate-quiz] Failed to generate/parse matching JSON from chunk response:', err);
     return [];
   }
 }
 
 /**
  * Processes a chunk for mixed mode and generates both standard and matching questions.
- * Distributes standard questions across multiple types to ensure variety.
+ * Uses 2 dedicated sub-calls in parallel (one for standard types, one for matching).
  */
 async function processMixedChunk(chunk: string, params: {
   questionsPerChunk: number;
@@ -448,40 +452,25 @@ async function processMixedChunk(chunk: string, params: {
   const matchingCount = Math.max(1, Math.floor(params.questionsPerChunk / 4));
   const standardCount = params.questionsPerChunk - matchingCount;
 
-  // Distribute standard questions across the four standard types
-  const standardTypes: QuestionType[] = ['multiple_choice', 'situational', 'fill_in_the_blank', 'true_false'];
-  const standardTasks: Array<() => Promise<StandardQuestionRaw[]>> = [];
-
-  if (standardCount > 0) {
-    // Evenly distribute, with remainder going to the first types
-    const perType = Math.floor(standardCount / standardTypes.length);
-    let remainder = standardCount % standardTypes.length;
-
-    for (const qType of standardTypes) {
-      const count = perType + (remainder > 0 ? 1 : 0);
-      if (remainder > 0) remainder--;
-      if (count > 0) {
-        standardTasks.push(() => processStandardChunk(chunk, {
-          questionsPerChunk: count,
-          questionType: qType,
+  const [standardResults, matchingQuestions] = await Promise.all([
+    standardCount > 0
+      ? processStandardChunk(chunk, {
+          questionsPerChunk: standardCount,
+          questionType: 'mixed',
           difficulty: params.difficulty,
           language: params.language,
           deadlineMs: params.deadlineMs,
-        }));
-      }
-    }
-  }
-
-  // Bounded concurrency inside mixed mode as well
-  const standardResults = (await mapWithConcurrency(standardTasks, 4, task => task())).flat();
-  const matchingQuestions = matchingCount > 0
-    ? await processMatchingChunk(chunk, {
-        questionsPerChunk: matchingCount,
-        difficulty: params.difficulty,
-        language: params.language,
-        deadlineMs: params.deadlineMs,
-      })
-    : [];
+        })
+      : Promise.resolve([]),
+    matchingCount > 0
+      ? processMatchingChunk(chunk, {
+          questionsPerChunk: matchingCount,
+          difficulty: params.difficulty,
+          language: params.language,
+          deadlineMs: params.deadlineMs,
+        })
+      : Promise.resolve([]),
+  ]);
 
   // Shuffle to interleave different question types
   const allQuestions: QuestionRaw[] = [...standardResults, ...matchingQuestions];
@@ -500,14 +489,12 @@ async function processMixedChunk(chunk: string, params: {
 export const QUIZ_GENERATION_DEADLINE_MS = 110_000;
 
 /**
- * Adaptive chunk size: the more questions requested, the finer the chunking.
- * Smaller quizzes get fewer, larger calls (down to a single call covering the
- * whole document), which is both faster and better quality.
+ * Adaptive chunk size: distributes text across batches.
+ * Smaller question counts get larger/full-document chunks;
+ * larger counts get proportional chunks for variety.
  */
 export function computeChunkSize(textLength: number, numQuestions: number, minChunkSize = 8000): number {
-  // One question per ~4k chars of budget yields fewer, larger calls than the
-  // former /2 divisor, roughly half the LLM round-trips for large quizzes.
-  const maxChunks = Math.max(1, Math.ceil(numQuestions / 4));
+  const maxChunks = Math.max(1, Math.ceil(numQuestions / 6));
   return Math.max(minChunkSize, Math.ceil(textLength / maxChunks));
 }
 
@@ -518,50 +505,52 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
   // Validate input (defense in depth; the server action also parses)
   const validatedInput = GenerateQuizInputSchema.parse(input);
 
-  // Adaptive chunking uses fewer, larger calls than the fixed 8k (faster wall time)
-  const chunkSize = computeChunkSize(validatedInput.lectureText.length, validatedInput.numQuestions);
-  const chunks = splitTextIntoChunks(validatedInput.lectureText, chunkSize);
-
+  const numQuestions = validatedInput.numQuestions;
   const isMatching = validatedInput.questionType === 'matching';
   const isMixed = validatedInput.questionType === 'mixed';
 
-  // Cap questions per LLM call. Small, parallel calls are faster and far less
-  // likely to hit the output timeout or return truncated JSON than one giant
-  // call (which is what made larger quizzes slow and error-prone).
+  // Cap questions per parallel call to keep token generation fast (~1-2s per prompt)
   const questionsPerCall = isMixed ? 8 : 6;
-  const batchCount = Math.ceil(validatedInput.numQuestions / questionsPerCall);
+  const batchCount = Math.ceil(numQuestions / questionsPerCall);
 
-  // Generate questions from each batch with bounded concurrency. Chunks are
-  // assigned round-robin so every batch draws from the full text.
+  const chunkSize = computeChunkSize(validatedInput.lectureText.length, numQuestions);
+  const chunks = splitTextIntoChunks(validatedInput.lectureText, chunkSize);
+
   const deadlineMs = Date.now() + QUIZ_GENERATION_DEADLINE_MS;
   const tasks = Array.from({ length: batchCount }, (_, i) => ({
     chunk: chunks[i % chunks.length],
-    count: Math.min(questionsPerCall, validatedInput.numQuestions - i * questionsPerCall),
+    count: Math.min(questionsPerCall, numQuestions - i * questionsPerCall),
   }));
 
-  const results = await mapWithConcurrency(tasks, 4, task => {
-    if (isMatching) {
-      return processMatchingChunk(task.chunk, {
-        questionsPerChunk: task.count,
-        difficulty: validatedInput.difficulty,
-        language: validatedInput.language,
-        deadlineMs,
-      });
-    } else if (isMixed) {
-      return processMixedChunk(task.chunk, {
-        questionsPerChunk: task.count,
-        difficulty: validatedInput.difficulty,
-        language: validatedInput.language,
-        deadlineMs,
-      });
-    } else {
-      return processStandardChunk(task.chunk, {
-        questionsPerChunk: task.count,
-        questionType: validatedInput.questionType,
-        difficulty: validatedInput.difficulty,
-        language: validatedInput.language,
-        deadlineMs,
-      });
+  // Run batches with high concurrency (up to 6 parallel workers) for ultra-fast generation
+  const results = await mapWithConcurrency(tasks, 6, async task => {
+    try {
+      if (isMatching) {
+        return await processMatchingChunk(task.chunk, {
+          questionsPerChunk: task.count,
+          difficulty: validatedInput.difficulty,
+          language: validatedInput.language,
+          deadlineMs,
+        });
+      } else if (isMixed) {
+        return await processMixedChunk(task.chunk, {
+          questionsPerChunk: task.count,
+          difficulty: validatedInput.difficulty,
+          language: validatedInput.language,
+          deadlineMs,
+        });
+      } else {
+        return await processStandardChunk(task.chunk, {
+          questionsPerChunk: task.count,
+          questionType: validatedInput.questionType,
+          difficulty: validatedInput.difficulty,
+          language: validatedInput.language,
+          deadlineMs,
+        });
+      }
+    } catch (err) {
+      console.error('[generate-quiz] Chunk task execution failed:', err);
+      return [];
     }
   });
 
@@ -627,3 +616,4 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
 
   return result;
 }
+
