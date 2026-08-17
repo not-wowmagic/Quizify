@@ -180,8 +180,9 @@ export function attachErrorTracking(page: Page) {
   page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
   page.on('requestfailed', (req) => {
     const url = req.url();
-    // Ignore expected favicon / analytics noise from the e2e env.
+    // Ignore expected favicon / analytics noise or aborted requests from the e2e env.
     if (url.includes('favicon')) return;
+    if (req.failure()?.errorText === 'net::ERR_ABORTED') return;
     errors.push(`requestfailed: ${req.method()} ${url} -> ${req.failure()?.errorText}`);
   });
   return { errors, get: () => errors };
