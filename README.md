@@ -1,5 +1,7 @@
 # Quizify - Turn Any Notes into a Quiz in Seconds
 
+[![CI](https://github.com/not-wowmagic/Quizify/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/not-wowmagic/Quizify/actions/workflows/ci.yml)
+
 Stop re-reading. Start remembering. Quizify instantly transforms your study material into interactive quizzes powered by AI.
 
 ---
