@@ -42,8 +42,8 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
         </div>
       </CardHeader>
 
-      {question.supportingText && (
-        <p className="p-0 pb-3 -mt-2 text-xs text-muted-foreground border-l-2 border-primary/30 pl-2.5 italic">
+      {isAnswered && question.supportingText && (
+        <p className="p-0 pb-3 -mt-2 text-xs text-muted-foreground border-l-2 border-primary/30 pl-2.5 italic animate-in fade-in duration-300">
           {question.supportingText}
         </p>
       )}
