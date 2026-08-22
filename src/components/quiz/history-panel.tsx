@@ -27,6 +27,7 @@ import {
 import type { QuizAttempt } from '@/types/history';
 import type { Quiz } from '@/types/quiz';
 import { cn, formatTopicLabel } from '@/lib/utils';
+import { normalizeQuizTitle } from '@/lib/quiz-title';
 
 const CHART_TOOLTIP_STYLE = {
   backgroundColor: 'hsl(var(--card))',
@@ -47,6 +48,7 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [sharedUrl, setSharedUrl] = useState<string | null>(null);
+  const [publicVisibility, setPublicVisibility] = useState(false);
   const { toast } = useToast();
 
   // Search / filter / sort state for the attempt list
@@ -119,7 +121,8 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
 
   const handleExport = (attempt: QuizAttempt, format: 'anki' | 'csv' | 'print' | 'cram') => {
     const quiz: Quiz = { questions: attempt.questions ?? [] };
-    const base = attempt.title.replace(/[^\w\- ]/g, '').trim() || 'quiz';
+      const displayTitle = normalizeQuizTitle(attempt.title);
+      const base = displayTitle.replace(/[^\w\- ]/g, '').trim() || 'quiz';
     trackQuizExported(format);
 
     if (format === 'csv') {
@@ -127,11 +130,11 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
       return;
     }
     if (format === 'print') {
-      printQuiz(quiz, attempt.title || 'Quizify Study Sheet');
+      printQuiz(quiz, displayTitle);
       return;
     }
     if (format === 'cram') {
-      printCramSheet(quiz, attempt.title || 'Quizify Study Sheet');
+      printCramSheet(quiz, displayTitle);
       return;
     }
     downloadTextFile(`${base}-anki.txt`, buildAnkiTxt(quiz));
@@ -143,10 +146,11 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
     try {
       const result = await publishQuiz({
         questions: attempt.questions ?? [],
-        title: attempt.title,
+        title: normalizeQuizTitle(attempt.title),
         difficulty: attempt.difficulty ?? undefined,
         questionType: attempt.question_type ?? undefined,
         language: attempt.language ?? undefined,
+        visibility: publicVisibility ? 'public' : 'unlisted',
       });
 
       if ('error' in result) {
@@ -327,6 +331,18 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
             {filteredAttempts ? `${filteredAttempts.length} of ${attempts.length}` : ''}
           </span>
         </div>
+        <label className="inline-flex items-start gap-2 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={publicVisibility}
+            onChange={event => setPublicVisibility(event.target.checked)}
+            className="mt-0.5 h-3.5 w-3.5 rounded border-border accent-primary"
+          />
+          <span>
+            <span className="font-medium text-foreground">List shared quizzes in Public Quizzes</span>
+            <span className="block">Unchecked shares remain available only to people with the link.</span>
+          </span>
+        </label>
 
         {/* Search + filters */}
         <div className="flex flex-col sm:flex-row gap-2">
@@ -409,7 +425,8 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
             <Card key={attempt.id} className="surface-card border-border/80 bg-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h5 className="text-sm font-semibold text-foreground truncate">{attempt.title}</h5>
+                  <h5 className="text-sm font-semibold text-foreground truncate">{normalizeQuizTitle(attempt.title)}</h5>
+                  {attempt.quiz_id && <span className="badge border-primary/30 bg-primary/10 text-primary text-[10px]">Shared Quiz</span>}
                   <span className={cn(
                     "badge text-xs font-semibold",
                     pct >= 80 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
@@ -432,7 +449,7 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
                   variant="outline"
                   size="sm"
                   className="h-8 px-2.5 border-border/80 text-xs font-medium"
-                  onClick={() => onRetake({ questions: attempt.questions ?? [] })}
+                  onClick={() => onRetake({ questions: attempt.questions ?? [], title: attempt.title })}
                   title="Retake this quiz with a fresh shuffle"
                 >
                   <RotateCcw className="mr-1 h-3.5 w-3.5" /> Retake

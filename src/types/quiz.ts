@@ -34,5 +34,6 @@ export type QuizQuestion = StandardQuestion | MatchingQuestion;
 
 export interface Quiz {
   questions: QuizQuestion[];
+  title?: string;
   summary?: string;
 }
