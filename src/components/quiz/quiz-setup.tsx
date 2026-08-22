@@ -31,6 +31,7 @@ interface QuizSetupProps {
   onLanguageChange: (value: string) => void;
   isLoading: boolean;
   fileName: string;
+  onSourceTitleChange: (value: string) => void;
   currentQuote: string;
   /** Seconds since loading started, used to show "still working" hints. */
   elapsedSec: number;
@@ -67,6 +68,7 @@ export function QuizSetup({
   onLanguageChange,
   isLoading,
   fileName,
+  onSourceTitleChange,
   currentQuote,
   elapsedSec,
   onFileSelected,
@@ -116,6 +118,7 @@ export function QuizSetup({
         return;
       }
       onLectureTextChange(text);
+      onSourceTitleChange(article.title?.trim() ?? '');
       setWebStatus({ ok: true, message: `Extracted ${text.length.toLocaleString()} characters${article.title?.trim() ? ` (from "${article.title.trim()}")` : ''}. Ready to generate!` });
     } catch {
       setWebStatus({ ok: false, message: 'Something went wrong. Please try again.' });

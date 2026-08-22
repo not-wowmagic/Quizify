@@ -39,6 +39,7 @@ export type GenerateQuizInput = z.infer<typeof GenerateQuizInputSchema>;
 type QuestionType = GenerateQuizInput['questionType'];
 
 export type GenerateQuizOutput = {
+  title: string;
   questions: Array<{
     type: 'standard';
     question: string;
@@ -109,6 +110,7 @@ const MatchingQuestionSchema = z.object({
 type StandardQuestionRaw = z.infer<typeof StandardQuestionSchema>;
 type MatchingQuestionRaw = z.infer<typeof MatchingQuestionSchema>;
 type QuestionRaw = StandardQuestionRaw | MatchingQuestionRaw;
+type ChunkResult = { questions: QuestionRaw[]; title?: string };
 
 /** A single validated quiz question (standard or matching). */
 export const QuizQuestionSchema = z.union([StandardQuestionSchema, MatchingQuestionSchema]);
@@ -125,7 +127,11 @@ export const QuizPayloadSchema = z.object({
   difficulty: z.enum(['easy', 'medium', 'hard', 'adaptive']).optional(),
   questionType: z.string().trim().min(1).max(50).optional(),
   language: z.string().trim().min(1).max(50).optional(),
+  visibility: z.enum(['unlisted', 'public']).optional(),
 });
+
+/** Bounds a model-provided title before the server applies final normalization. */
+export const QuizTitleSchema = z.string().trim().min(1).max(200);
 
 // =========================================
 // Helper Functions
@@ -312,7 +318,7 @@ async function processStandardChunk(chunk: string, params: {
   difficulty: string;
   language: string;
   deadlineMs: number;
-}): Promise<StandardQuestionRaw[]> {
+}): Promise<ChunkResult> {
   const typeGuidance = QUESTION_TYPE_GUIDANCE[params.questionType];
 
   const difficultyGuidance = params.difficulty === 'adaptive'
@@ -338,8 +344,9 @@ For each question:
 ${chunk}
 </document>
 
-Return questions in this exact JSON format:
+Return one concise plain-text title (3-10 words) plus questions in this exact JSON format:
 {
+  "title": "Specific topic title",
   "questions": [
     {
       "question": "Question text here?",
@@ -360,14 +367,15 @@ Return questions in this exact JSON format:
 
     // SAFETY: raw AI JSON parsed at the trust boundary; every question is
     // re-validated by StandardQuestionSchema in validateQuestions below.
-    const result = extractJSON(response) as { questions?: Array<Omit<StandardQuestionRaw, 'type'>> } | undefined;
-    return (result?.questions || []).map(q => ({
-      ...q,
-      type: 'standard' as const,
-    }));
+    const result = extractJSON(response) as { title?: string; questions?: Array<Omit<StandardQuestionRaw, 'type'>> } | undefined;
+    const parsedTitle = QuizTitleSchema.safeParse(result?.title);
+    return {
+      title: parsedTitle.success ? parsedTitle.data : undefined,
+      questions: (result?.questions || []).map(q => ({ ...q, type: 'standard' as const })),
+    };
   } catch (err) {
     console.error('[generate-quiz] Failed to generate/parse standard questions from chunk:', err);
-    return [];
+    return { questions: [] };
   }
 }
 
@@ -379,7 +387,7 @@ async function processMatchingChunk(chunk: string, params: {
   difficulty: string;
   language: string;
   deadlineMs: number;
-}): Promise<MatchingQuestionRaw[]> {
+}): Promise<ChunkResult> {
   const difficultyGuidance = params.difficulty === 'adaptive'
     ? 'Generate a balanced mix of difficulty tiers: roughly one-third easy, one-third medium, one-third hard. Assign each question a "difficultyTier" field of "easy", "medium", or "hard".'
     : `Match the difficulty level: ${
@@ -402,8 +410,9 @@ Rules:
 ${chunk}
 </document>
 
-Return questions in this exact JSON format:
+Return one concise plain-text title (3-10 words) plus questions in this exact JSON format:
 {
+  "title": "Specific topic title",
   "questions": [
     {
       "question": "Match each term with its correct definition:",
@@ -427,14 +436,15 @@ Return questions in this exact JSON format:
 
     // SAFETY: raw AI JSON parsed at the trust boundary; every question is
     // re-validated by MatchingQuestionSchema in validateQuestions below.
-    const result = extractJSON(response) as { questions?: Array<Omit<MatchingQuestionRaw, 'type'>> } | undefined;
-    return (result?.questions || []).map(q => ({
-      ...q,
-      type: 'matching' as const,
-    }));
+    const result = extractJSON(response) as { title?: string; questions?: Array<Omit<MatchingQuestionRaw, 'type'>> } | undefined;
+    const parsedTitle = QuizTitleSchema.safeParse(result?.title);
+    return {
+      title: parsedTitle.success ? parsedTitle.data : undefined,
+      questions: (result?.questions || []).map(q => ({ ...q, type: 'matching' as const })),
+    };
   } catch (err) {
     console.error('[generate-quiz] Failed to generate/parse matching JSON from chunk response:', err);
-    return [];
+    return { questions: [] };
   }
 }
 
@@ -447,12 +457,13 @@ async function processMixedChunk(chunk: string, params: {
   difficulty: string;
   language: string;
   deadlineMs: number;
-}): Promise<QuestionRaw[]> {
+}): Promise<ChunkResult> {
   // Allocate roughly 1 matching question per 4 total, minimum 1
   const matchingCount = Math.max(1, Math.floor(params.questionsPerChunk / 4));
   const standardCount = params.questionsPerChunk - matchingCount;
 
-  const [standardResults, matchingQuestions] = await Promise.all([
+  const emptyChunkResult: ChunkResult = { questions: [] };
+  const [standardResults, matchingResult] = await Promise.all([
     standardCount > 0
       ? processStandardChunk(chunk, {
           questionsPerChunk: standardCount,
@@ -461,7 +472,7 @@ async function processMixedChunk(chunk: string, params: {
           language: params.language,
           deadlineMs: params.deadlineMs,
         })
-      : Promise.resolve([]),
+      : Promise.resolve(emptyChunkResult),
     matchingCount > 0
       ? processMatchingChunk(chunk, {
           questionsPerChunk: matchingCount,
@@ -469,16 +480,16 @@ async function processMixedChunk(chunk: string, params: {
           language: params.language,
           deadlineMs: params.deadlineMs,
         })
-      : Promise.resolve([]),
+      : Promise.resolve(emptyChunkResult),
   ]);
 
   // Shuffle to interleave different question types
-  const allQuestions: QuestionRaw[] = [...standardResults, ...matchingQuestions];
+  const allQuestions: QuestionRaw[] = [...standardResults.questions, ...matchingResult.questions];
   for (let i = allQuestions.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
   }
-  return allQuestions;
+  return { title: standardResults.title ?? matchingResult.title, questions: allQuestions };
 }
 
 // =========================================
@@ -550,13 +561,14 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
       }
     } catch (err) {
       console.error('[generate-quiz] Chunk task execution failed:', err);
-      return [];
+      // SAFETY: failed chunk tasks are represented by an empty ChunkResult.
+      return { questions: [] } as ChunkResult;
     }
   });
 
   const rawQuestions: QuestionRaw[] = [];
-  for (const chunkQuestions of results) {
-    rawQuestions.push(...chunkQuestions);
+  for (const chunkResult of results) {
+    rawQuestions.push(...chunkResult.questions);
   }
 
   // Validate and bounds-check every AI-generated question
@@ -591,6 +603,7 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
 
   // Format output and tag each question with its type
   const result: GenerateQuizOutput = {
+    title: results.map(chunk => chunk.title).find(title => Boolean(title?.trim())) ?? 'Study Quiz',
     questions: selected
       .map(q => {
         if (q.type === 'matching') {

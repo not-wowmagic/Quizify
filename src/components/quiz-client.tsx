@@ -7,6 +7,7 @@ import type { Quiz } from '@/types/quiz';
 import { createQuiz, createSummary, publishQuiz, saveAttempt } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { processQuiz, quizHelpers } from '@/lib/quiz-processors';
+import { normalizeQuizTitle } from '@/lib/quiz-title';
 import { getDeviceId } from '@/lib/device-id';
 import { buildAnkiTxt, buildQuizCsv, downloadTextFile, printQuiz, printCramSheet } from '@/lib/quiz-export';
 import {
@@ -64,6 +65,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [currentQuote, setCurrentQuote] = useState('');
   const [fileName, setFileName] = useState('');
+  const [sourceTitle, setSourceTitle] = useState('');
   const [showSummary, setShowSummary] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   // Incognito: no history saved, server cache bypassed, sharing hidden
@@ -72,7 +74,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
   // Refs
   const quizHeaderRef = useRef<HTMLHeadingElement>(null);
   // Raw (unshuffled) questions from the server, used for sharing and history
-  const rawQuizRef = useRef<Pick<Quiz, 'questions'> | null>(null);
+  const rawQuizRef = useRef<Pick<Quiz, 'questions' | 'title'> | null>(null);
   // Guards: record an attempt exactly once per quiz completion
   const attemptSavedRef = useRef(false);
   const quizStartedAtRef = useRef<number | null>(null);
@@ -81,6 +83,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
   const [isSharing, setIsSharing] = useState(false);
   // Share URL once a quiz is published, driving the QR share card
   const [sharedUrl, setSharedUrl] = useState<string | null>(null);
+  const [publicVisibility, setPublicVisibility] = useState(false);
 
   const { toast } = useToast();
 
@@ -123,6 +126,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
   const handleFileSelected = async (file: File) => {
     setIsLoading(true);
     setFileName(file.name);
+    setSourceTitle(file.name);
     setLectureText('');
 
     try {
@@ -157,6 +161,8 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
         language,
         turnstileToken: turnstileToken ?? undefined,
         bypassCache: incognito,
+        fallbackTitle: fileName || undefined,
+        fallbackWebTitle: sourceTitle || undefined,
       });
 
       if ('error' in result) {
@@ -171,6 +177,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
       rawQuizRef.current = result;
       attemptSavedRef.current = false;
       practiceTitleRef.current = null;
+      setPublicVisibility(false);
       quizStartedAtRef.current = Date.now();
       const processedQuiz = processQuiz(result);
       if (difficulty === 'adaptive') {
@@ -297,11 +304,13 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     setQuestionType('multiple_choice');
     setLectureText('');
     setFileName('');
+    setSourceTitle('');
     setShowSummary(false);
     rawQuizRef.current = null;
     attemptSavedRef.current = false;
     practiceTitleRef.current = null;
     setSharedUrl(null);
+    setPublicVisibility(false);
     quizStartedAtRef.current = null;
   };
 
@@ -323,12 +332,12 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
 
   useEffect(() => {
     if (!retakeQuiz) return;
-    rawQuizRef.current = { questions: retakeQuiz.questions };
+    rawQuizRef.current = { questions: retakeQuiz.questions, title: retakeQuiz.title };
     attemptSavedRef.current = false;
     practiceTitleRef.current = null;
     quizStartedAtRef.current = Date.now();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Rehydrating the runner from the History panel's retake request
-    setQuiz(processQuiz({ questions: retakeQuiz.questions }));
+    setQuiz(processQuiz({ questions: retakeQuiz.questions, title: retakeQuiz.title }));
     setUserAnswers({});
     setShowSummary(false);
     setCurrentQuote(getRandomQuote());
@@ -344,12 +353,12 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     trackQuizExported(format);
 
     if (format === 'print') {
-      printQuiz(quiz, fileName || 'Quizify Study Sheet');
+      printQuiz(quiz, normalizeQuizTitle(quiz.title, 'Quizify Study Sheet'));
       return;
     }
 
     if (format === 'cram') {
-      printCramSheet(quiz, fileName || 'Quizify Study Sheet');
+      printCramSheet(quiz, normalizeQuizTitle(quiz.title, 'Quizify Study Sheet'));
       return;
     }
 
@@ -374,10 +383,11 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
       const result = await publishQuiz({
         questions: raw?.questions ?? quiz.questions,
         summary: quiz.summary,
-        title: fileName || undefined,
+        title: quiz.title,
         difficulty,
         questionType,
         language,
+        visibility: publicVisibility ? 'public' : 'unlisted',
         turnstileToken: turnstileToken ?? undefined,
       });
 
@@ -512,7 +522,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
 
     const title = practiceTitleRef.current
       ? `Practice: ${practiceTitleRef.current} (${quiz.questions.length} missed)`
-      : fileName || `Quiz • ${new Date().toLocaleDateString()}`;
+      : normalizeQuizTitle(quiz.title, 'Study Quiz');
 
     void saveAttempt({
       deviceId: getDeviceId(),
@@ -524,6 +534,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
       difficulty,
       questionType,
       language,
+      quizId: null,
       durationSec,
     }).then(result => {
       if ('error' in result) {
@@ -550,11 +561,11 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
 
     // Store the BASE title (never a nested "Practice: ..." prefix); the
     // prefix is applied when the attempt is saved (see saveAttempt effect).
-    practiceTitleRef.current = practiceTitleRef.current || fileName || `Quiz • ${new Date().toLocaleDateString()}`;
-    rawQuizRef.current = { questions: missedQuestions };
+    practiceTitleRef.current = practiceTitleRef.current || normalizeQuizTitle(quiz.title);
+    rawQuizRef.current = { questions: missedQuestions, title: quiz.title };
     attemptSavedRef.current = false;
     quizStartedAtRef.current = Date.now();
-    setQuiz(processQuiz({ questions: missedQuestions }));
+    setQuiz(processQuiz({ questions: missedQuestions, title: quiz.title }));
     setUserAnswers({});
     setShowSummary(false);
     setCurrentQuote(getRandomQuote());
@@ -579,6 +590,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
           onLanguageChange={setLanguage}
           isLoading={isLoading}
           fileName={fileName}
+          onSourceTitleChange={setSourceTitle}
           currentQuote={currentQuote}
           elapsedSec={elapsedSec}
           onFileSelected={handleFileSelected}
@@ -591,6 +603,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
       ) : (
         <QuizRunner
           quiz={quiz}
+          title={normalizeQuizTitle(quiz.title)}
           userAnswers={userAnswers}
           questionTypeLabel={questionType.replaceAll('_', ' ')}
           difficulty={difficulty}
@@ -614,6 +627,8 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
           masteryPercentage={difficulty === 'adaptive' ? masteryPercentage : undefined}
           onExport={handleExport}
           onShare={incognito ? undefined : handleShare}
+          publicVisibility={publicVisibility}
+          onPublicVisibilityChange={setPublicVisibility}
           isSharing={isSharing}
         />
       )}

@@ -132,6 +132,7 @@ describe('generateQuiz (large question count support)', () => {
     });
     expect(result.questions.length).toBeGreaterThan(0);
     expect(result.questions.length).toBeLessThanOrEqual(20);
+    expect(result.title).toBe('Photosynthesis and Light Energy');
   });
 
   it('successfully generates quizzes with 30 questions', async () => {

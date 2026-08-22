@@ -7,12 +7,17 @@ import { useRouter } from 'next/navigation';
 import type { Quiz } from '@/types/quiz';
 import type { SharedQuizData } from '@/app/actions';
 import { processQuiz } from '@/lib/quiz-processors';
+import { normalizeQuizTitle } from '@/lib/quiz-title';
+import { saveAttempt } from '@/app/actions';
+import { getDeviceId } from '@/lib/device-id';
+import { useToast } from '@/hooks/use-toast';
 import { QuizRunner } from '@/components/quiz/quiz-runner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { QRCodeSVG } from 'qrcode.react';
 import { Loader2, Home, QrCode, X } from 'lucide-react';
 import type { MatchingAnswer, QuizAnswer } from '@/components/quiz/types';
+import type { AttemptAnswer } from '@/types/history';
 
 const motivationalQuotes = [
   'Believe you can and you\'re halfway there.',
@@ -31,7 +36,7 @@ const getRandomQuote = () => motivationalQuotes[Math.floor(Math.random() * motiv
 
 /** Applies the per-visitor shuffle and attaches any published summary. */
 function buildQuiz(sharedQuiz: SharedQuizData): Quiz {
-  const processed = processQuiz({ questions: sharedQuiz.questions });
+  const processed = processQuiz({ questions: sharedQuiz.questions, title: normalizeQuizTitle(sharedQuiz.title) });
   if (sharedQuiz.summary) {
     return { ...processed, summary: sharedQuiz.summary };
   }
@@ -51,6 +56,10 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
   const [currentQuote, setCurrentQuote] = useState('');
   const [showSummary, setShowSummary] = useState(false);
   const [showQr, setShowQr] = useState(false);
+  const attemptSavedRef = useRef(false);
+  const quizStartedAtRef = useRef<number | null>(null);
+  const historySaveWarnedRef = useRef(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Mount flag gates the client-only shuffle below
@@ -61,6 +70,8 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
     if (!isMounted || quiz) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Building the shuffled quiz after hydration (see comment above)
     setQuiz(buildQuiz(sharedQuiz));
+    quizStartedAtRef.current = Date.now();
+    attemptSavedRef.current = false;
   }, [isMounted, quiz, sharedQuiz]);
 
   useEffect(() => {
@@ -81,6 +92,8 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
   const reshuffle = () => {
     setQuiz(buildQuiz(sharedQuiz));
     setUserAnswers({});
+    attemptSavedRef.current = false;
+    quizStartedAtRef.current = Date.now();
     setShowSummary(false);
     setCurrentQuote(getRandomQuote());
   };
@@ -109,6 +122,46 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
 
   const allAnswered = !!(quiz && answeredQuestions === quiz.questions.length);
 
+  useEffect(() => {
+    if (!allAnswered || !quiz || attemptSavedRef.current) return;
+    attemptSavedRef.current = true;
+
+    const answers: AttemptAnswer[] = quiz.questions.map((q, qIndex) => {
+      const answer = userAnswers[qIndex];
+      if (q.type === 'standard' && answer?.type === 'standard') {
+        const entry: AttemptAnswer = { index: qIndex, type: 'standard', correct: q.correctAnswerIndex === answer.selectedIndex };
+        if (q.topic) entry.topic = q.topic;
+        return entry;
+      }
+      if (q.type === 'matching' && answer?.type === 'matching' && answer.checked) {
+        const entry: AttemptAnswer = { index: qIndex, type: 'matching', correct: q.pairs.every((_, pairIdx) => answer.matches[pairIdx] === pairIdx) };
+        if (q.topic) entry.topic = q.topic;
+        return entry;
+      }
+      return null;
+    }).filter((answer): answer is AttemptAnswer => answer !== null);
+
+    const durationSec = quizStartedAtRef.current ? Math.round((Date.now() - quizStartedAtRef.current) / 1000) : 0;
+    void saveAttempt({
+      deviceId: getDeviceId(),
+      quizId: sharedQuiz.id ?? null,
+      title: normalizeQuizTitle(sharedQuiz.title),
+      score,
+      total: quiz.questions.length,
+      questions: sharedQuiz.questions,
+      answers,
+      difficulty: sharedQuiz.difficulty,
+      questionType: sharedQuiz.questionType,
+      language: sharedQuiz.language ?? 'English',
+      durationSec,
+    }).then(result => {
+      if ('error' in result && !historySaveWarnedRef.current) {
+        historySaveWarnedRef.current = true;
+        toast({ title: 'History Save Skipped', description: 'Your score is complete, but this attempt could not be saved.', variant: 'destructive' });
+      }
+    });
+  }, [allAnswered, quiz, userAnswers, score, sharedQuiz, toast]);
+
   const getFeedbackMessage = () => {
     if (scorePercentage >= 80) return "Excellent work! You've mastered this material!";
     if (scorePercentage >= 60) return 'Good effort! Practice key areas to sharpen your score.';
@@ -119,7 +172,7 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
     return (
       <div className="w-full space-y-6">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-foreground">{sharedQuiz.title}</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-foreground">{normalizeQuizTitle(sharedQuiz.title)}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Shared quiz · {sharedQuiz.difficulty ?? 'mixed'} difficulty
             {sharedQuiz.language ? ` · ${sharedQuiz.language}` : ''}
@@ -137,7 +190,7 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
     <div className="w-full space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-foreground">{sharedQuiz.title}</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-foreground">{normalizeQuizTitle(sharedQuiz.title)}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Shared quiz · {sharedQuiz.difficulty ?? 'mixed'} difficulty
             {sharedQuiz.language ? ` · ${sharedQuiz.language}` : ''}
@@ -169,6 +222,7 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
 
       <QuizRunner
         quiz={quiz}
+        title={normalizeQuizTitle(sharedQuiz.title)}
         userAnswers={userAnswers}
         questionTypeLabel={sharedQuiz.questionType?.replaceAll('_', ' ') ?? 'questions'}
         difficulty={sharedQuiz.difficulty ?? 'mixed'}
