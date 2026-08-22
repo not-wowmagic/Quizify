@@ -40,7 +40,17 @@ test.describe('share', () => {
     const slug = url.split('/q/')[1];
     await page.goto(`/q/${slug}`);
     await expect(page.getByRole('heading', { name: /Questions/ })).toBeVisible();
-    await expect(page.locator('h1').first()).toContainText('Untitled Quiz');
+    await expect(page.locator('h1').first()).toContainText('Photosynthesis and Light Energy');
+  });
+
+  test('explicit public opt-in lists the quiz in Public Quizzes', async ({ page }) => {
+    await generateAndComplete(page);
+    await page.getByLabel('List this quiz in Public Quizzes').check();
+    const url = await publishQuiz(page);
+    expect(url).toMatch(/\/q\//);
+    await page.getByRole('button', { name: 'Public Quizzes' }).click();
+    await expect(page.getByRole('heading', { name: 'Photosynthesis and Light Energy' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Take Quiz: Photosynthesis and Light Energy/ })).toBeVisible();
   });
 
   test('publishes a quiz from the after-quiz scorecard', async ({ page }) => {
@@ -61,6 +71,25 @@ test.describe('share', () => {
     expect(canonical).toContain(`/q/${slug}`);
     const robots = await page.locator('meta[name="robots"]').getAttribute('content');
     expect(robots).toContain('noindex');
+  });
+
+  test('completing a shared quiz saves one shared attempt to History', async ({ page }) => {
+    await generateAndComplete(page, true, 3);
+    const url = await publishQuiz(page);
+    await page.goto(url);
+    await expect(page.getByRole('heading', { name: /Questions/ })).toBeVisible();
+
+    const questionCards = page.locator('.surface-card').filter({ has: page.locator('button[aria-pressed]') });
+    const count = await questionCards.count();
+    for (let i = 0; i < count; i++) {
+      await questionCards.nth(i).locator('button[aria-pressed]').first().click();
+    }
+    await expect(page.getByRole('heading', { name: 'Quiz Completed!' })).toBeVisible();
+
+    await page.goto('/');
+    await page.getByRole('button', { name: /History & Insights/ }).click();
+    await expect(page.getByText('Shared Quiz', { exact: true })).toBeVisible();
+    await expect(page.locator('#history h5', { hasText: 'Photosynthesis and Light Energy' }).first()).toBeVisible();
   });
 
   test('invalid shared slug shows the 404 page', async ({ page }) => {
@@ -112,7 +141,7 @@ test.describe('history', () => {
   test('completed quiz appears in history without a reload', async ({ page }) => {
     await generateAndComplete(page);
     await page.getByRole('button', { name: /History & Insights/ }).click();
-    await expect(page.getByText(/Quiz •/)).toBeVisible();
+    await expect(page.locator('#history h5', { hasText: 'Photosynthesis and Light Energy' }).first()).toBeVisible();
     await expect(page.getByText(/correct/)).toBeVisible();
   });
 
@@ -134,11 +163,11 @@ test.describe('history', () => {
   test('search filters attempts by title', async ({ page }) => {
     await generateAndComplete(page);
     await page.getByRole('button', { name: /History & Insights/ }).click();
-    await expect(page.getByText(/Quiz •/)).toBeVisible();
+    await expect(page.locator('#history h5', { hasText: 'Photosynthesis and Light Energy' }).first()).toBeVisible();
     await page.getByLabel('Search history').fill('zzz-no-match');
     await expect(page.getByText('No attempts match your filters.')).toBeVisible();
-    await page.getByLabel('Search history').fill('Quiz');
-    await expect(page.getByText(/Quiz •/)).toBeVisible();
+    await page.getByLabel('Search history').fill('Photosynthesis');
+    await expect(page.locator('#history h5', { hasText: 'Photosynthesis and Light Energy' }).first()).toBeVisible();
   });
 
   test('score band and format filters narrow the list', async ({ page }) => {

@@ -43,6 +43,9 @@ interface QuizRunnerProps {
   headerRef: React.RefObject<HTMLHeadingElement | null>;
   onExport?: (format: ExportFormat) => void;
   onShare?: () => void;
+  title?: string;
+  publicVisibility?: boolean;
+  onPublicVisibilityChange?: (value: boolean) => void;
   isSharing?: boolean;
   /** Incorrect answers count; enables the "Practice Missed" action on the score card. */
   missedCount?: number;
@@ -75,6 +78,9 @@ export function QuizRunner({
   headerRef,
   onExport,
   onShare,
+  title,
+  publicVisibility = false,
+  onPublicVisibilityChange,
   isSharing,
   missedCount = 0,
   onPracticeMissed,
@@ -89,6 +95,7 @@ export function QuizRunner({
           <div className="inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5" /> Quiz Active
           </div>
+          {title && <h1 className="text-xl font-extrabold tracking-tight text-foreground mt-0.5">{title}</h1>}
           <h2 ref={headerRef} tabIndex={-1} className="text-lg font-bold text-foreground mt-0.5 outline-none">
             {quiz.questions.length} {questionTypeLabel} Questions ({difficulty})
             {language ? ` · ${language}` : ''}
@@ -126,20 +133,32 @@ export function QuizRunner({
           )}
 
           {onShare && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onShare}
-              disabled={isSharing}
-              className="h-9 px-3 border-border/80 text-xs font-medium text-foreground hover:bg-muted"
-            >
-              {isSharing ? (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Share2 className="mr-1.5 h-3.5 w-3.5" />
+            <div className="flex items-center gap-2">
+              {onPublicVisibilityChange && (
+                <label className="inline-flex flex-col items-start gap-0.5 text-[11px] font-medium text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    <input
+                      type="checkbox"
+                      checked={publicVisibility}
+                      onChange={event => onPublicVisibilityChange(event.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-border accent-primary"
+                    />
+                    <span>List this quiz in Public Quizzes</span>
+                  </span>
+                  <span className="pl-5 text-[10px] font-normal">Unchecked = link-only; checked = discoverable in-app.</span>
+                </label>
               )}
-              Share
-            </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onShare}
+                disabled={isSharing}
+                className="h-9 px-3 border-border/80 text-xs font-medium text-foreground hover:bg-muted"
+              >
+                {isSharing ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Share2 className="mr-1.5 h-3.5 w-3.5" />}
+                Share
+              </Button>
+            </div>
           )}
 
           {onSummaryClick && (
