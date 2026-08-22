@@ -64,7 +64,7 @@ test.describe('print', () => {
     // The payload must be CSP-safe: no inline <script> elements.
     const inlineScripts = await popup.evaluate(() => document.querySelectorAll('script').length);
     expect(inlineScripts).toBe(0);
-    await expect(popup.locator('h1').first()).toContainText('Quizify Study Sheet');
+    await expect(popup.locator('h1').first()).toContainText('Photosynthesis and Light Energy');
     // The host must have actually invoked window.print() on the popup.
     await expect
       .poll(async () => popup.evaluate(() => document.documentElement.dataset.printed))

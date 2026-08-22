@@ -10,6 +10,7 @@ import { extractTextFromImage, ImageOcrInputSchema, type ImageOcrInput, type Ima
 import { checkRateLimit, getClientIp, hashPayload, TtlCache, verifyTurnstile } from '@/lib/rate-limit';
 import { getSupabase, DEVICE_ID_PATTERN } from '@/lib/supabase-server';
 import { sanitizeText } from '@/lib/sanitize';
+import { normalizeQuizTitle, titleFromFilename } from '@/lib/quiz-title';
 import { fetchPublicPage } from '@/lib/web-reader';
 import type { Quiz } from '@/types/quiz';
 import type { AttemptAnswer, QuizAttempt } from '@/types/history';
@@ -26,14 +27,14 @@ const OCR_LIMIT = 20;
 const TUTOR_LIMIT = 60;
 
 // Identical quiz requests within the TTL are served from cache (per instance)
-const quizCache = new TtlCache<Pick<Quiz, 'questions'>>(50, HOUR_MS);
+const quizCache = new TtlCache<Pick<Quiz, 'questions' | 'title'>>(50, HOUR_MS);
 
 // Fetched pages are cached by URL hash for 24h (per instance)
 const webCache = new TtlCache<{ html: string; finalUrl: string }>(100, 24 * HOUR_MS);
 
-export type CreateQuizInput = GenerateQuizInput & { turnstileToken?: string; bypassCache?: boolean };
+export type CreateQuizInput = GenerateQuizInput & { turnstileToken?: string; bypassCache?: boolean; fallbackTitle?: string; fallbackWebTitle?: string };
 
-export async function createQuiz(input: CreateQuizInput): Promise<Pick<Quiz, 'questions'> | { error: string }> {
+export async function createQuiz(input: CreateQuizInput): Promise<Pick<Quiz, 'questions' | 'title'> | { error: string }> {
   // Bot protection (no-op unless TURNSTILE_SECRET_KEY is configured)
   if (!(await verifyTurnstile(input.turnstileToken))) {
     return { error: 'Bot verification failed. Please refresh the page and try again.' };
@@ -53,6 +54,8 @@ export async function createQuiz(input: CreateQuizInput): Promise<Pick<Quiz, 'qu
   const quizInput = { ...input };
   delete quizInput.turnstileToken;
   delete quizInput.bypassCache;
+  delete quizInput.fallbackTitle;
+  delete quizInput.fallbackWebTitle;
   let validated: GenerateQuizInput;
   try {
     validated = GenerateQuizInputSchema.strict().parse({
@@ -64,7 +67,7 @@ export async function createQuiz(input: CreateQuizInput): Promise<Pick<Quiz, 'qu
   }
 
   // Serve identical requests from cache (skipped in incognito mode)
-  const cacheKey = hashPayload(validated);
+  const cacheKey = hashPayload({ ...validated, fallbackTitle: input.fallbackTitle, fallbackWebTitle: input.fallbackWebTitle });
   if (!input.bypassCache) {
     const cached = quizCache.get(cacheKey);
     if (cached) {
@@ -79,7 +82,13 @@ export async function createQuiz(input: CreateQuizInput): Promise<Pick<Quiz, 'qu
       return { error: 'The AI could not generate a quiz from the provided text. Please try refining your text.' };
     }
 
-    const output = { questions: quizResult.questions };
+    const output = {
+      questions: quizResult.questions,
+      title: normalizeQuizTitle(
+        quizResult.title,
+        titleFromFilename(input.fallbackTitle) ?? normalizeQuizTitle(input.fallbackWebTitle, 'Study Quiz'),
+      ),
+    };
     if (!input.bypassCache) {
       quizCache.set(cacheKey, output);
     }
@@ -202,6 +211,7 @@ export type PublishQuizInput = {
   difficulty?: string;
   questionType?: string;
   language?: string;
+  visibility?: 'unlisted' | 'public';
   turnstileToken?: string;
 };
 
@@ -238,7 +248,7 @@ export async function publishQuiz(input: PublishQuizInput): Promise<PublishedQui
     return { error: 'Sharing is not configured yet (missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).' };
   }
 
-  const title = validated.title?.trim() || 'Untitled Quiz';
+  const title = normalizeQuizTitle(validated.title, 'Study Quiz');
 
   // Retry a few times on the (unlikely) slug collision
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -254,6 +264,7 @@ export async function publishQuiz(input: PublishQuizInput): Promise<PublishedQui
         difficulty: validated.difficulty ?? null,
         question_type: validated.questionType ?? null,
         language: validated.language ?? 'English',
+        visibility: validated.visibility ?? 'unlisted',
       })
       .select('slug')
       .single();
@@ -273,6 +284,7 @@ export async function publishQuiz(input: PublishQuizInput): Promise<PublishedQui
 }
 
 export type SharedQuizData = {
+  id?: string;
   title: string;
   questions: Quiz['questions'];
   summary?: string;
@@ -288,7 +300,7 @@ export async function getSharedQuiz(slug: string): Promise<SharedQuizData | null
 
   const { data, error } = await supabase
     .from('quizzes')
-    .select('title, questions, summary, difficulty, question_type, language')
+    .select('id, title, questions, summary, difficulty, question_type, language')
     .eq('slug', slug)
     .maybeSingle();
 
@@ -296,6 +308,7 @@ export async function getSharedQuiz(slug: string): Promise<SharedQuizData | null
   // SAFETY: the selected columns are plain text/jsonb in the schema; a non-null
   // row returned by the DB is guaranteed to carry exactly these string types
   const row = data as {
+    id?: string;
     title: string;
     questions: Quiz['questions'];
     summary: string | null;
@@ -305,7 +318,8 @@ export async function getSharedQuiz(slug: string): Promise<SharedQuizData | null
   };
 
   const result: SharedQuizData = {
-    title: row.title ?? 'Untitled Quiz',
+    id: row.id,
+    title: normalizeQuizTitle(row.title),
     questions: row.questions ?? [],
   };
   if (row.summary) result.summary = row.summary;
@@ -323,7 +337,8 @@ const ATTEMPTS_PER_DEVICE = 200;
 
 const SaveAttemptInputSchema = z.object({
   deviceId: z.string().regex(DEVICE_ID_PATTERN, 'Invalid device id'),
-  title: z.string().trim().min(1).max(200).default('Untitled Quiz'),
+  quizId: z.string().trim().min(1).max(128).nullable().optional(),
+  title: z.string().trim().min(1).max(200).default('Study Quiz'),
   score: z.number().int().min(0).max(1000),
   total: z.number().int().min(1).max(100),
   questions: z.array(QuizQuestionSchema).min(1).max(50),
@@ -347,7 +362,7 @@ export async function saveAttempt(input: SaveAttemptInput): Promise<{ id: string
   if (!parsed.success) {
     return { error: 'Invalid attempt data.' };
   }
-  const { deviceId, title, score, total, questions, answers, difficulty, questionType, language, durationSec } = parsed.data;
+  const { deviceId, quizId, title, score, total, questions, answers, difficulty, questionType, language, durationSec } = parsed.data;
 
   const supabase = getSupabase();
   if (!supabase) {
@@ -358,6 +373,7 @@ export async function saveAttempt(input: SaveAttemptInput): Promise<{ id: string
     .from('quiz_attempts')
     .insert({
       device_id: deviceId,
+      quiz_id: quizId ?? null,
       title,
       score,
       total,
@@ -378,6 +394,56 @@ export async function saveAttempt(input: SaveAttemptInput): Promise<{ id: string
   }
   // SAFETY: `.select('id').single()` guarantees a row with a string id
   return { id: data.id as string };
+}
+
+export type PublicQuizSummary = {
+  slug: string;
+  title: string;
+  numQuestions: number;
+  difficulty: string | null;
+  questionType: string | null;
+  language: string | null;
+  createdAt: string;
+};
+
+/** Lists metadata for explicitly public quizzes; question content never leaves the server here. */
+export async function getPublicQuizzes(): Promise<PublicQuizSummary[] | { error: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { error: 'Public Quizzes are unavailable until sharing is configured.' };
+
+  const { data, error } = await supabase
+    .from('quizzes')
+    .select('slug, title, num_questions, difficulty, question_type, language, created_at')
+    .eq('visibility', 'public')
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) {
+    console.error('GetPublicQuizzes Error:', error);
+    return { error: 'Could not load Public Quizzes. Please try again.' };
+  }
+
+  return (data ?? []).map(row => {
+    // SAFETY: the selected columns are primitive metadata fields from public.quizzes.
+    const item = row as {
+      slug: string;
+      title?: string;
+      num_questions: number;
+      difficulty: string | null;
+      question_type: string | null;
+      language: string | null;
+      created_at: string;
+    };
+    return {
+      slug: item.slug,
+      title: normalizeQuizTitle(item.title),
+      numQuestions: item.num_questions,
+      difficulty: item.difficulty,
+      questionType: item.question_type,
+      language: item.language,
+      createdAt: item.created_at,
+    };
+  });
 }
 
 /** Lists the most recent attempts for an anonymous device id. */

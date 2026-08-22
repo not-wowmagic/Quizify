@@ -4,11 +4,12 @@ import { useState } from 'react';
 import type { Quiz } from '@/types/quiz';
 import { QuizClient } from '@/components/quiz-client';
 import { HistoryPanel } from '@/components/quiz/history-panel';
+import { PublicQuizzesPanel } from '@/components/quiz/public-quizzes-panel';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { cn } from '@/lib/utils';
-import { History, Sparkles } from 'lucide-react';
+import { Globe2, History, Sparkles } from 'lucide-react';
 
-type View = 'setup' | 'history';
+type View = 'setup' | 'history' | 'public';
 
 export default function Home() {
   const [hasQuiz, setHasQuiz] = useState(false);
@@ -73,6 +74,18 @@ export default function Home() {
             >
               <History className="h-3.5 w-3.5" /> History &amp; Insights
             </button>
+            <button
+              onClick={() => setView('public')}
+              aria-pressed={view === 'public'}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold transition-all",
+                view === 'public'
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <Globe2 className="h-3.5 w-3.5" /> Public Quizzes
+            </button>
           </nav>
         </header>
 
@@ -89,6 +102,10 @@ export default function Home() {
             view switches; it refreshes from the DB each time it becomes active */}
         <div id="history" className={cn("w-full", view !== 'history' && "hidden")}>
           <HistoryPanel onRetake={handleRetake} active={view === 'history'} />
+        </div>
+
+        <div id="public-quizzes" className={cn("w-full", view !== 'public' && "hidden")}>
+          <PublicQuizzesPanel active={view === 'public'} />
         </div>
 
       </div>

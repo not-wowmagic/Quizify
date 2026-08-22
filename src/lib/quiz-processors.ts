@@ -59,7 +59,7 @@ function processMatchingQuestion(q: MatchingQuestion): MatchingQuestion {
   };
 }
 
-export const processQuiz = (quizResult: { questions: QuizQuestion[] }): Quiz => {
+export const processQuiz = (quizResult: { questions: QuizQuestion[]; title?: string; summary?: string }): Quiz => {
   // Shuffle question order
   const shuffledQuestions = shuffleArray(quizResult.questions);
 
@@ -71,7 +71,10 @@ export const processQuiz = (quizResult: { questions: QuizQuestion[] }): Quiz => 
     return processStandardQuestion(q);
   });
 
-  return { questions: processedQuestions };
+  const result: Quiz = { questions: processedQuestions };
+  if (quizResult.title) result.title = quizResult.title;
+  if (quizResult.summary) result.summary = quizResult.summary;
+  return result;
 };
 
 const isValidInput = (text: string, numQuestions: number | ''): boolean => {

@@ -594,6 +594,7 @@ export function mockLLM(prompt: string): string {
 
   if (isMatching) {
     return JSON.stringify({
+      title: 'Photosynthesis and Light Energy',
       questions: Array.from({ length: count }, () => ({ ...MOCK_MATCHING })),
     });
   }
@@ -602,5 +603,5 @@ export function mockLLM(prompt: string): string {
     const base = MOCK_STANDARD[i % MOCK_STANDARD.length];
     return { ...base, options: [...base.options] };
   });
-  return JSON.stringify({ questions });
+  return JSON.stringify({ title: 'Photosynthesis and Light Energy', questions });
 }
