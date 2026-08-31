@@ -107,7 +107,7 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
   }, [responseToMatchedPremise, getMatchLabel]);
 
   return (
-    <Card className="surface-card p-6 border-border/80 bg-card space-y-4">
+    <Card className="quizify-question-card quizify-matching-question surface-card p-6 border-border/80 bg-card space-y-4">
       <CardHeader className="p-0 pb-2">
         <div className="flex items-center gap-2">
           <div className="p-1 rounded bg-primary/10 text-primary">
@@ -152,8 +152,9 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
                   onClick={() => handlePremiseClick(pIdx)}
                   disabled={checked}
                   aria-pressed={isSelected}
+                  data-match-state={checked ? matchResult ?? 'checked' : isSelected ? 'selected' : isMatched ? 'matched' : 'idle'}
                   className={cn(
-                    'w-full text-left p-3 rounded-xl border text-sm transition-all duration-200 flex items-center justify-between gap-2',
+                    'quizify-match-option w-full text-left p-3 rounded-xl border text-sm transition-all duration-200 flex items-center justify-between gap-2',
                     {
                       'border-primary bg-primary/15 text-primary ring-2 ring-primary/30 font-medium': isSelected && !checked,
                       [matchColors[colorIdx]]: isMatched && !checked,
@@ -191,8 +192,9 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
                   key={`response-${rDisplayIdx}`}
                   onClick={() => handleResponseClick(responseOriginalIdx)}
                   disabled={checked}
+                  data-match-state={checked ? matchResult ?? 'checked' : isMatched ? 'matched' : 'idle'}
                   className={cn(
-                    'w-full text-left p-3 rounded-xl border text-sm transition-all duration-200 flex items-center justify-between gap-2',
+                    'quizify-match-option w-full text-left p-3 rounded-xl border text-sm transition-all duration-200 flex items-center justify-between gap-2',
                     {
                       [matchColors[colorIdx]]: isMatched && !checked,
                       'border-border/60 bg-muted/20 hover:border-border hover:bg-muted/50': !isMatched && !checked,

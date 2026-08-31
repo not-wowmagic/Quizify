@@ -40,7 +40,7 @@ export async function goPasteTab(page: Page): Promise<Locator> {
 }
 
 export async function setCustomCount(page: Page, n: string): Promise<void> {
-  await page.getByRole('button', { name: 'Custom', exact: true }).click();
+  await page.getByLabel('Number of questions').selectOption('custom');
   const input = page.getByLabel('Custom number of questions');
   await input.fill(n);
   await input.blur();

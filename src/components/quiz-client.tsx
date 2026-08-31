@@ -401,9 +401,8 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
       setSharedUrl(url);
       try {
         await navigator.clipboard.writeText(url);
-        toast({ title: 'Link Copied', description: `${url}` });
       } catch {
-        toast({ title: 'Share Link Ready', description: `Copy this link to share: ${url}` });
+        // The QR share card remains available with its own copy action.
       }
     } catch {
       toast({ title: 'Share Failed', description: 'Could not publish the quiz. Please try again.', variant: 'destructive' });

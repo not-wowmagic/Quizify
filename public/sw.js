@@ -9,11 +9,12 @@
 //
 // Bump CACHE_NAME to invalidate all previous caches on deploy.
 
-const CACHE_NAME = 'quizify-v1';
+const CACHE_NAME = 'quizify-v3';
+const IS_LOCAL_DEV = ['localhost', '127.0.0.1', '[::1]'].includes(self.location.hostname);
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(['/'])),
+    IS_LOCAL_DEV ? Promise.resolve() : caches.open(CACHE_NAME).then((cache) => cache.addAll(['/'])),
   );
   self.skipWaiting();
 });
@@ -34,7 +35,7 @@ const SHELL_ASSET = /\/_next\/static\/|\.(?:css|js|mjs|woff2?|ttf|otf|svg|png|jp
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
-  if (request.method !== 'GET') return; // Server actions and POSTs stay online-only
+  if (request.method !== 'GET' || IS_LOCAL_DEV) return; // Server actions and local dev stay online-only
   if (request.mode === 'navigate') {
     // Network-first for HTML so fresh pages win; fall back to the cached shell.
     event.respondWith(

@@ -163,9 +163,8 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
       setSharedUrl(url);
       try {
         await navigator.clipboard.writeText(url);
-        toast({ title: 'Link Copied', description: url });
       } catch {
-        toast({ title: 'Share Link Ready', description: `Copy this link to share: ${url}` });
+        // The QR share card remains available with its own copy action.
       }
     } catch {
       toast({ title: 'Share Failed', description: 'Could not publish the quiz. Please try again.', variant: 'destructive' });
@@ -259,7 +258,7 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="quizify-history-panel space-y-6">
       {sharedUrl && <ShareQrCard url={sharedUrl} onClose={() => setSharedUrl(null)} />}
       {/* Insights */}
       {stats && (
@@ -279,11 +278,11 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
               </h4>
               <MeasuredChart className="h-48">
                 <LineChart data={stats.trend} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid stroke="rgba(148,163,184,0.2)" strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <CartesianGrid stroke="hsl(var(--foreground) / 0.14)" strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fill: '#194873', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis domain={[0, 100]} tick={{ fill: '#194873', fontSize: 11 }} tickLine={false} axisLine={false} />
                   <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: 'hsl(var(--foreground))' }} formatter={(value) => [`${value}%`, 'Score']} />
-                  <Line type="monotone" dataKey="pct" stroke="#6699CC" strokeWidth={2} dot={{ r: 3, fill: '#6699CC' }} />
+                  <Line type="monotone" dataKey="pct" stroke="#194873" strokeWidth={2} dot={{ r: 3, fill: '#194873' }} />
                 </LineChart>
               </MeasuredChart>
             </Card>
@@ -296,9 +295,9 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
               </h4>
               <MeasuredChart className="h-48">
                 <BarChart data={stats.topicData} layout="vertical" margin={{ top: 0, right: 104, left: 8, bottom: 0 }}>
-                  <CartesianGrid stroke="rgba(148,163,184,0.2)" strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis type="category" dataKey="topic" width={130} tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <CartesianGrid stroke="hsl(var(--foreground) / 0.14)" strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" domain={[0, 100]} tick={{ fill: '#194873', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="topic" width={130} tick={{ fill: '#194873', fontSize: 11 }} tickLine={false} axisLine={false} />
                   <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: 'hsl(var(--foreground))' }} formatter={(value) => [`${value}%`, 'Accuracy']} />
                   <Bar dataKey="accuracy" radius={[0, 6, 6, 0]} barSize={16}>
                     {stats.topicData.map((entry) => (
