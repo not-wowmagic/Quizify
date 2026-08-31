@@ -17,6 +17,18 @@ test.describe('generation', () => {
     await expect(page.getByRole('heading', { name: /Questions/ })).toBeFocused();
   });
 
+  test('edits the generated quiz title inline', async ({ page }) => {
+    await gotoHome(page);
+    const textarea = await goPasteTab(page);
+    await textarea.fill(LECTURE);
+    await generateQuiz(page, 3);
+    await page.getByRole('button', { name: 'Edit quiz title' }).click();
+    const titleInput = page.getByRole('textbox', { name: 'Quiz title' });
+    await titleInput.fill('Photosynthesis Review');
+    await page.getByRole('button', { name: 'Save quiz title' }).click();
+    await expect(page.getByRole('heading', { name: 'Photosynthesis Review' })).toBeVisible();
+  });
+
   test('focus returns to the quiz header after Regenerate', async ({ page }) => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
