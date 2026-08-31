@@ -101,7 +101,7 @@ test.describe('validation', () => {
 
   test('question count dropdown selects the matching preset', async ({ page }) => {
     await gotoHome(page);
-    const count = page.getByLabel('Number of questions');
+    const count = page.getByLabel('Number of Questions', { exact: true });
     for (const n of [5, 10, 15, 20]) {
       await count.selectOption(String(n));
       await expect(count).toHaveValue(String(n));

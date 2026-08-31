@@ -45,10 +45,12 @@ test.describe('share', () => {
 
   test('explicit public opt-in lists the quiz in Public Quizzes', async ({ page }) => {
     await generateAndComplete(page);
-    await page.getByLabel('List this quiz in Public Quizzes').check();
+    const visibilityButton = page.getByRole('button', { name: /show it in Public Quizzes/i });
+    await visibilityButton.click();
+    await expect(page.getByRole('button', { name: /visible in Public Quizzes/i })).toHaveAttribute('data-listed', 'true');
     const url = await publishQuiz(page);
     expect(url).toMatch(/\/q\//);
-    await page.getByRole('button', { name: 'Public Quizzes' }).click();
+    await page.getByRole('button', { name: 'Public Quizzes', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Photosynthesis and Light Energy' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Take Quiz: Photosynthesis and Light Energy/ })).toBeVisible();
   });

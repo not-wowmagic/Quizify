@@ -108,7 +108,8 @@ test.describe('answer UX', () => {
     }
     expect(wrongIndex).toBeGreaterThanOrEqual(0);
     await options.nth(wrongIndex).click();
-    await expect(options.nth(wrongIndex)).toHaveCSS('color', 'rgb(239, 68, 68)');
+    await expect(options.nth(wrongIndex)).toHaveClass(/text-destructive/);
+    await expect(options.nth(wrongIndex)).toHaveCSS('color', 'rgb(233, 103, 93)');
     await expect(card.locator('button', { hasText: rightText }).first()).toHaveCSS('color', /rgb\(16, 185, 129\)|rgb\(52, 211, 153\)/);
   });
 });

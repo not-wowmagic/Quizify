@@ -63,8 +63,7 @@ test.describe('dark-mode contrast', () => {
     expect(foreground).toBe('rgb(248, 250, 252)');
 
     // Option order is shuffled, so pick a deterministically-wrong option;
-    // wrong answers render the destructive red (the CSS var --destructive
-    // resolves to rgb(239, 68, 68) in dark mode).
+    // Wrong answers render the active Meadow destructive color token.
     const cards = questionCards(page);
     const total = await cards.count();
     let cardIndex = -1;
@@ -83,7 +82,8 @@ test.describe('dark-mode contrast', () => {
     }
     expect(wrongIndex).toBeGreaterThanOrEqual(0);
     await options.nth(wrongIndex).click();
-    await expect(options.nth(wrongIndex)).toHaveCSS('color', 'rgb(239, 68, 68)');
+    await expect(options.nth(wrongIndex)).toHaveClass(/text-destructive/);
+    await expect(options.nth(wrongIndex)).toHaveCSS('color', 'rgb(233, 103, 93)');
   });
 });
 

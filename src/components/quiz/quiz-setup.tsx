@@ -388,7 +388,6 @@ export function QuizSetup({
               <label htmlFor="quiz-question-count" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Number of Questions</label>
               <select
                 id="quiz-question-count"
-                aria-label="Number of questions"
                 value={isCustomCount ? 'custom' : String(numQuestions)}
                 onChange={(e) => {
                   const value = e.target.value;
@@ -440,7 +439,6 @@ export function QuizSetup({
               </label>
               <select
                 id="quiz-difficulty"
-                aria-label="Difficulty level"
                 value={difficulty}
                 onChange={(e) => {
                   // SAFETY: this controlled select only renders the Difficulty union values above.
