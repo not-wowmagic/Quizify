@@ -10,7 +10,7 @@ import { extractTextFromImage, ImageOcrInputSchema, type ImageOcrInput, type Ima
 import { checkRateLimit, getClientIp, hashPayload, TtlCache, verifyTurnstile } from '@/lib/rate-limit';
 import { getSupabase, DEVICE_ID_PATTERN } from '@/lib/supabase-server';
 import { sanitizeText } from '@/lib/sanitize';
-import { normalizeQuizTitle, titleFromFilename } from '@/lib/quiz-title';
+import { normalizeQuizTitle, titleFromFilename, titleFromQuestions } from '@/lib/quiz-title';
 import { fetchPublicPage } from '@/lib/web-reader';
 import type { Quiz } from '@/types/quiz';
 import type { AttemptAnswer, QuizAttempt } from '@/types/history';
@@ -82,12 +82,11 @@ export async function createQuiz(input: CreateQuizInput): Promise<Pick<Quiz, 'qu
       return { error: 'The AI could not generate a quiz from the provided text. Please try refining your text.' };
     }
 
+    const fallbackTitle = titleFromFilename(input.fallbackTitle) ??
+      (normalizeQuizTitle(input.fallbackWebTitle, '') || titleFromQuestions(quizResult.questions) || 'Study Quiz');
     const output = {
       questions: quizResult.questions,
-      title: normalizeQuizTitle(
-        quizResult.title,
-        titleFromFilename(input.fallbackTitle) ?? normalizeQuizTitle(input.fallbackWebTitle, 'Study Quiz'),
-      ),
+      title: normalizeQuizTitle(quizResult.title, fallbackTitle),
     };
     if (!input.bypassCache) {
       quizCache.set(cacheKey, output);

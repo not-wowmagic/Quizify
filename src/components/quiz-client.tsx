@@ -412,6 +412,15 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     }
   };
 
+  const handleTitleChange = (nextTitle: string) => {
+    const currentTitle = normalizeQuizTitle(quiz?.title);
+    const title = normalizeQuizTitle(nextTitle, currentTitle);
+    setQuiz(prev => prev ? { ...prev, title } : prev);
+    if (rawQuizRef.current) {
+      rawQuizRef.current = { ...rawQuizRef.current, title };
+    }
+  };
+
   const { score, answeredQuestions, scorePercentage, missedIndices, masteryPercentage } = useMemo(() => {
     if (!quiz) {
       // SAFETY: the empty array literal is already number[], so no runtime
@@ -604,6 +613,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
         <QuizRunner
           quiz={quiz}
           title={normalizeQuizTitle(quiz.title)}
+          onTitleChange={handleTitleChange}
           userAnswers={userAnswers}
           questionTypeLabel={questionType.replaceAll('_', ' ')}
           difficulty={difficulty}
