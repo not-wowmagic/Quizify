@@ -442,7 +442,10 @@ export function QuizSetup({
                 id="quiz-difficulty"
                 aria-label="Difficulty level"
                 value={difficulty}
-                onChange={(e) => onDifficultyChange(e.target.value as Difficulty)}
+                onChange={(e) => {
+                  // SAFETY: this controlled select only renders the Difficulty union values above.
+                  onDifficultyChange(e.target.value as Difficulty);
+                }}
                 disabled={isLoading}
                 className="w-full h-9 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2"
               >
