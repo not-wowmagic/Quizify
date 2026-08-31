@@ -59,7 +59,7 @@ export function PublicQuizzesPanel({ active = false }: { active?: boolean }) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="quizify-public-panel grid gap-4 sm:grid-cols-2">
       {quizzes.map(quiz => (
         <Card key={quiz.slug} className="surface-card border-border/80 bg-card p-5">
           <div className="flex items-start justify-between gap-3">

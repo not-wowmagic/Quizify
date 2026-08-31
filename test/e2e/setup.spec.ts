@@ -99,11 +99,12 @@ test.describe('validation', () => {
     await expect(page.getByRole('heading', { name: /50 .* Questions/ })).toBeVisible();
   });
 
-  test('preset count buttons select the matching count', async ({ page }) => {
+  test('question count dropdown selects the matching preset', async ({ page }) => {
     await gotoHome(page);
+    const count = page.getByLabel('Number of Questions', { exact: true });
     for (const n of [5, 10, 15, 20]) {
-      await page.getByRole('button', { name: String(n), exact: true }).click();
-      await expect(page.getByRole('button', { name: String(n), exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await count.selectOption(String(n));
+      await expect(count).toHaveValue(String(n));
     }
   });
 });

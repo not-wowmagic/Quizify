@@ -47,12 +47,12 @@ export function AskTutor({ question, context, chips = [], open, onToggle }: AskT
   };
 
   return (
-    <div>
+    <div className="quizify-tutor">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+        className="quizify-tutor-trigger inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
       >
         {open ? <X className="h-3.5 w-3.5" /> : <GraduationCap className="h-3.5 w-3.5" />}
         {open ? 'Close Tutor' : 'Ask Tutor'}
@@ -68,7 +68,7 @@ export function AskTutor({ question, context, chips = [], open, onToggle }: AskT
                   type="button"
                   onClick={() => { setInput(chip); void ask(chip); }}
                   disabled={isLoading}
-                  className="rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                  className="quizify-tutor-chip rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
                 >
                   {chip}
                 </button>
@@ -89,7 +89,7 @@ export function AskTutor({ question, context, chips = [], open, onToggle }: AskT
               placeholder="Ask anything about this question…"
               maxLength={500}
               aria-label="Ask the tutor a question"
-              className="flex-1 rounded-lg border border-border/80 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="quizify-tutor-input flex-1 rounded-lg border border-border/80 bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
             <Button
               size="sm"
@@ -104,7 +104,7 @@ export function AskTutor({ question, context, chips = [], open, onToggle }: AskT
 
           <div aria-live="polite">
             {guidance && (
-              <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm leading-relaxed animate-in fade-in duration-200">
+              <div className="quizify-tutor-guidance rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm leading-relaxed animate-in fade-in duration-200">
                 <div className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-primary">
                   <Lightbulb className="h-4 w-4" /> Tutor
                 </div>

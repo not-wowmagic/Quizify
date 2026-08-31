@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
   },
   // Do not advertise the framework in response headers
   poweredByHeader: false,
+  // Keep the local preview focused on the product canvas.
+  devIndicators: false,
   async headers() {
     return [
       {

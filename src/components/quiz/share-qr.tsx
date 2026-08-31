@@ -25,7 +25,7 @@ export function ShareQrCard({ url, onClose }: { url: string; onClose: () => void
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-64 rounded-2xl border border-border bg-card p-4 shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
+    <div className="quizify-share-card fixed bottom-4 right-4 z-50 w-64 rounded-2xl border border-border bg-card p-4 shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
       <div className="flex items-center justify-between mb-3">
         <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-primary">
           <Link2 className="h-3.5 w-3.5" /> Scan to share

@@ -22,7 +22,7 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
   const isAnswered = userAnswer !== undefined;
 
   return (
-    <Card className="surface-card p-6 border-border/80 bg-card">
+    <Card className="quizify-question-card quizify-standard-question surface-card p-6 border-border/80 bg-card">
       <CardHeader className="p-0 pb-4">
         <div className="flex items-start justify-between gap-4">
           <CardTitle className="text-base sm:text-lg font-semibold leading-snug text-foreground">
@@ -72,14 +72,15 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
               onClick={() => onAnswer(questionIndex, oIndex)}
               disabled={isAnswered}
               aria-pressed={isSelected}
+              data-answered={isAnswered ? 'true' : 'false'}
               className={cn(
-                "w-full text-left p-3.5 rounded-xl border flex items-center justify-between gap-3 text-sm transition-all duration-200",
+                "quizify-answer-option w-full text-left p-3.5 rounded-xl border flex items-center justify-between gap-3 text-sm transition-all duration-200",
                 optionStyle
               )}
             >
               <div className="flex items-center gap-3">
                 <span className={cn(
-                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold",
+                  "quizify-answer-key flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold",
                   isAnswered && isCorrectAnswer ? "border-emerald-500 bg-emerald-500 text-white" :
                   isAnswered && isSelected ? "border-destructive bg-destructive text-white" :
                   "border-border bg-background text-muted-foreground"

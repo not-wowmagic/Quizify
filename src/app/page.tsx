@@ -7,7 +7,7 @@ import { HistoryPanel } from '@/components/quiz/history-panel';
 import { PublicQuizzesPanel } from '@/components/quiz/public-quizzes-panel';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { cn } from '@/lib/utils';
-import { Globe2, History, Sparkles } from 'lucide-react';
+import { Globe2, History, Sparkles, WifiOff } from 'lucide-react';
 
 type View = 'setup' | 'history' | 'public';
 
@@ -23,91 +23,87 @@ export default function Home() {
   };
 
   return (
-    <main className="flex-1 flex flex-col items-center justify-center min-h-screen py-8 px-4 sm:px-6">
+    <main className={cn(
+      'quizify-shell',
+      'quizify-shell--meadow',
+      'quizify-shell--frosted',
+      'quizify-layout--meadow',
+      hasQuiz && 'quizify-shell--active',
+    )} data-style="meadow" data-layout="meadow">
       {!isOnline && (
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-4 left-4 z-50 inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-500"
+          className="quizify-offline fixed bottom-4 left-4 z-50 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium"
         >
-          📡 Offline Mode
+          <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
+          Offline Mode
         </div>
       )}
-      <div className={cn(
-        "w-full max-w-4xl flex flex-col items-center justify-center my-auto transition-all duration-300",
-        hasQuiz ? "py-4" : "py-2"
-      )}>
-
-        {/* Hero Section */}
-        <header className="text-center flex flex-col items-center shrink-0 mb-6">
-          <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl text-foreground">
-            Quizify
+      <div className="quizify-frame">
+        <header className="quizify-topbar">
+          <h1 className="quizify-brand-heading">
+            <a className="quizify-brand" href="#top" aria-label="Quizify home">
+              <span className="quizify-brand-mark" aria-hidden="true"><Sparkles className="h-4 w-4" /></span>
+              <span>Quizify</span>
+            </a>
           </h1>
-
-          <p className="mt-2 max-w-2xl text-sm sm:text-base text-muted-foreground leading-relaxed">
-            Turn your lecture notes into an interactive quiz instantly. AI-powered, delightful, and ready to help you learn.
-          </p>
-
-          {/* View Toggle */}
-          <nav className="mt-5 inline-flex items-center gap-1 rounded-xl border border-border/80 bg-card p-1" aria-label="Sections">
-            <button
-              onClick={() => setView('setup')}
-              aria-pressed={view === 'setup'}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold transition-all",
-                view === 'setup'
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}
-            >
-              <Sparkles className="h-3.5 w-3.5" /> New Quiz
-            </button>
-            <button
-              onClick={() => setView('history')}
-              aria-pressed={view === 'history'}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold transition-all",
-                view === 'history'
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}
-            >
-              <History className="h-3.5 w-3.5" /> History &amp; Insights
-            </button>
-            <button
-              onClick={() => setView('public')}
-              aria-pressed={view === 'public'}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold transition-all",
-                view === 'public'
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}
-            >
-              <Globe2 className="h-3.5 w-3.5" /> Public Quizzes
-            </button>
-          </nav>
         </header>
 
-        {/* Main Quiz Generator, kept mounted so in-progress quizzes survive view switches */}
-        <div id="setup" className={cn("w-full", view !== 'setup' && "hidden")}>
-          <QuizClient
-            onQuizStateChange={setHasQuiz}
-            retakeQuiz={retakeQuiz}
-            onRetakeHandled={() => setRetakeQuiz(null)}
-          />
-        </div>
+        <div id="top" className="quizify-content">
+          <section className="quizify-hero" aria-labelledby="quizify-heading">
+            <h2 id="quizify-heading">
+              <span className="quizify-hero-line quizify-hero-line--lead">Turn study material into</span>
+              <span className="quizify-hero-line quizify-hero-accent">momentum.</span>
+            </h2>
+          </section>
 
-        {/* History & Analytics, kept mounted so its in-progress state survives
-            view switches; it refreshes from the DB each time it becomes active */}
-        <div id="history" className={cn("w-full", view !== 'history' && "hidden")}>
-          <HistoryPanel onRetake={handleRetake} active={view === 'history'} />
-        </div>
+          <nav className="quizify-view-nav" aria-label="Sections">
+            <div className="quizify-view-tabs">
+              <button
+                onClick={() => setView('setup')}
+                aria-pressed={view === 'setup'}
+                className={cn('quizify-view-tab', view === 'setup' && 'is-active')}
+              >
+                <Sparkles className="h-3.5 w-3.5" /> New Quiz
+              </button>
+              <button
+                onClick={() => setView('history')}
+                aria-pressed={view === 'history'}
+                className={cn('quizify-view-tab', view === 'history' && 'is-active')}
+              >
+                <History className="h-3.5 w-3.5" /> History &amp; Insights
+              </button>
+              <button
+                onClick={() => setView('public')}
+                aria-pressed={view === 'public'}
+                className={cn('quizify-view-tab', view === 'public' && 'is-active')}
+              >
+                <Globe2 className="h-3.5 w-3.5" /> Public Quizzes
+              </button>
+            </div>
+          </nav>
 
-        <div id="public-quizzes" className={cn("w-full", view !== 'public' && "hidden")}>
-          <PublicQuizzesPanel active={view === 'public'} />
-        </div>
+          {/* Main Quiz Generator, kept mounted so in-progress quizzes survive view switches */}
+          <div id="setup" className={cn('quizify-workspace', view !== 'setup' && 'hidden')}>
+            <QuizClient
+              onQuizStateChange={setHasQuiz}
+              retakeQuiz={retakeQuiz}
+              onRetakeHandled={() => setRetakeQuiz(null)}
+            />
+          </div>
 
+          {/* History & Analytics, kept mounted so its in-progress state survives
+              view switches; it refreshes from the DB each time it becomes active */}
+          <div id="history" className={cn('quizify-workspace', view !== 'history' && 'hidden')}>
+            <HistoryPanel onRetake={handleRetake} active={view === 'history'} />
+          </div>
+
+          <div id="public-quizzes" className={cn('quizify-workspace', view !== 'public' && 'hidden')}>
+            <PublicQuizzesPanel active={view === 'public'} />
+          </div>
+
+        </div>
       </div>
     </main>
   );

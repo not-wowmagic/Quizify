@@ -202,36 +202,35 @@ export function QuizSetup({
   };
 
   return (
-    <Card className="surface-card border-border/80 bg-card p-4 md:p-6 shadow-sm">
-      <CardHeader className="p-0 pb-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-xl font-bold tracking-tight text-foreground">Configure Quiz</CardTitle>
-            <CardDescription className="text-sm text-muted-foreground mt-1">
-              Import study material and select your desired question parameters.
-            </CardDescription>
-          </div>
-          <span className="badge border-border/80 bg-muted/50 text-muted-foreground">
-            Step 1 of 2
-          </span>
+    <Card className="surface-card quizify-setup-card border-border/80 bg-card p-4 md:p-6 shadow-sm">
+      <CardHeader className="quizify-setup-header p-0 pb-4">
+        <div>
+          <CardTitle className="text-xl font-bold tracking-tight text-foreground">Configure Quiz</CardTitle>
+          <CardDescription className="text-sm text-muted-foreground mt-1">
+            Import study material and select your desired question parameters.
+          </CardDescription>
         </div>
       </CardHeader>
 
-      <CardContent className="p-0 space-y-4">
+      <CardContent className="quizify-setup-content p-0 space-y-4">
         {/* Input Selection Tabs */}
-        <Tabs defaultValue="upload" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 rounded-lg bg-muted p-1 text-muted-foreground">
-            <TabsTrigger value="upload" className="rounded-md text-xs font-semibold whitespace-nowrap truncate data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-              Upload
+        <Tabs defaultValue="upload" className="quizify-source-workbench w-full">
+          <TabsList className="quizify-source-tabs grid w-full grid-cols-2 sm:grid-cols-4" aria-label="Choose study material source">
+            <TabsTrigger value="upload" className="quizify-source-tab">
+              <Upload className="quizify-source-tab-icon" aria-hidden="true" />
+              <span>Upload</span>
             </TabsTrigger>
-            <TabsTrigger value="paste" className="rounded-md text-xs font-semibold whitespace-nowrap truncate data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-              Paste
+            <TabsTrigger value="paste" className="quizify-source-tab">
+              <FileText className="quizify-source-tab-icon" aria-hidden="true" />
+              <span>Paste</span>
             </TabsTrigger>
-            <TabsTrigger value="web" className="rounded-md text-xs font-semibold whitespace-nowrap truncate data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-              Web
+            <TabsTrigger value="web" className="quizify-source-tab">
+              <Globe className="quizify-source-tab-icon" aria-hidden="true" />
+              <span>Web</span>
             </TabsTrigger>
-            <TabsTrigger value="camera" className="rounded-md text-xs font-semibold whitespace-nowrap truncate data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-              Camera
+            <TabsTrigger value="camera" className="quizify-source-tab">
+              <Camera className="quizify-source-tab-icon" aria-hidden="true" />
+              <span>Camera</span>
             </TabsTrigger>
           </TabsList>
 
@@ -381,43 +380,33 @@ export function QuizSetup({
         </Tabs>
 
         {/* Parameters Grid */}
-        <div className="space-y-4 pt-3 border-t border-border/60">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="quizify-parameter-panel space-y-4 pt-3 border-t border-border/60">
+          <div className="quizify-control-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
             {/* Number of Questions */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Number of Questions</label>
-              <div className="grid grid-cols-5 gap-2 bg-muted/40 rounded-lg p-1 border border-border/60">
+            <div className="quizify-count-field space-y-2">
+              <label htmlFor="quiz-question-count" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Number of Questions</label>
+              <select
+                id="quiz-question-count"
+                value={isCustomCount ? 'custom' : String(numQuestions)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === 'custom') {
+                    setIsCustomCount(true);
+                    onNumQuestionsChange(clampCount(parseInt(customCount, 10) || 10));
+                    return;
+                  }
+                  setIsCustomCount(false);
+                  onNumQuestionsChange(Number(value));
+                }}
+                disabled={isLoading}
+                className="w-full h-9 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2"
+              >
                 {[5, 10, 15, 20].map((num) => (
-                  <button
-                    key={num}
-                    onClick={() => { setIsCustomCount(false); onNumQuestionsChange(num); }}
-                    disabled={isLoading}
-                    aria-pressed={!isCustomCount && numQuestions === num}
-                    className={cn(
-                      "py-1.5 rounded-md text-xs font-semibold transition-all",
-                      !isCustomCount && numQuestions === num
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                    )}
-                  >
-                    {num}
-                  </button>
+                  <option key={num} value={num}>{num} questions</option>
                 ))}
-                <button
-                  onClick={() => { setIsCustomCount(true); onNumQuestionsChange(clampCount(parseInt(customCount, 10) || 10)); }}
-                  disabled={isLoading}
-                  aria-pressed={isCustomCount}
-                  className={cn(
-                    "py-1.5 rounded-md text-xs font-semibold transition-all",
-                    isCustomCount
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  )}
-                >
-                  Custom
-                </button>
-              </div>
+                <option value="custom">Custom amount</option>
+              </select>
               {isCustomCount && (
                 <div className="flex items-center gap-2">
                   <input
@@ -444,49 +433,50 @@ export function QuizSetup({
             </div>
 
             {/* Difficulty Level */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Difficulty Level</label>
-              <div className="grid grid-cols-4 gap-2 bg-muted/40 rounded-lg p-1 border border-border/60">
+            <div className="quizify-difficulty-field space-y-2">
+              <label htmlFor="quiz-difficulty" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Difficulty Level
+              </label>
+              <select
+                id="quiz-difficulty"
+                value={difficulty}
+                onChange={(e) => {
+                  // SAFETY: this controlled select only renders the Difficulty union values above.
+                  onDifficultyChange(e.target.value as Difficulty);
+                }}
+                disabled={isLoading}
+                className="w-full h-9 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2"
+              >
                 {(['easy', 'medium', 'hard', 'adaptive'] as const).map((diff) => (
-                  <button
-                    key={diff}
-                    onClick={() => onDifficultyChange(diff)}
-                    disabled={isLoading}
-                    aria-pressed={difficulty === diff}
-                    className={cn(
-                      "py-1.5 rounded-md text-xs font-semibold capitalize transition-all",
-                      difficulty === diff
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                    )}
-                  >
-                    {diff}
-                  </button>
+                  <option key={diff} value={diff}>
+                    {diff[0].toUpperCase() + diff.slice(1)}
+                  </option>
                 ))}
-              </div>
+              </select>
+            </div>
+
+            {/* Language */}
+            <div className="quizify-language-field space-y-2">
+              <label htmlFor="quiz-language" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Language</label>
+              <select
+                id="quiz-language"
+                value={language}
+                onChange={(e) => onLanguageChange(e.target.value)}
+                disabled={isLoading}
+                className="w-full h-9 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2"
+              >
+                {LANGUAGES.map(lang => (
+                  <option key={lang} value={lang}>{lang}</option>
+                ))}
+              </select>
             </div>
 
           </div>
 
-          {/* Language */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Language</label>
-            <select
-              value={language}
-              onChange={(e) => onLanguageChange(e.target.value)}
-              disabled={isLoading}
-              className="w-full h-9 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2"
-            >
-              {LANGUAGES.map(lang => (
-                <option key={lang} value={lang}>{lang}</option>
-              ))}
-            </select>
-          </div>
-
           {/* Question Types Grid Tile */}
-          <div className="space-y-2">
+          <div className="quizify-format-field space-y-2">
             <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Question Format</label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+            <div className="quizify-question-formats grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
               {QUESTION_TYPES.map((type) => {
                 const Icon = type.icon;
                 const isActive = questionType === type.id;
@@ -497,7 +487,7 @@ export function QuizSetup({
                     disabled={isLoading}
                     aria-pressed={isActive}
                     className={cn(
-                      "rounded-lg p-2 border flex flex-col items-center justify-center gap-1.5 transition-all duration-200 text-center text-xs font-medium",
+                      "quizify-question-format rounded-lg p-2 border flex flex-col items-center justify-center gap-1.5 transition-all duration-200 text-center text-xs font-medium",
                       isActive
                         ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/40 font-semibold shadow-sm"
                         : "border-border/60 bg-background text-muted-foreground hover:border-border hover:text-foreground hover:bg-muted/40"
@@ -513,7 +503,7 @@ export function QuizSetup({
         </div>
       </CardContent>
 
-      <CardFooter className="p-0 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border/60 mt-4">
+      <CardFooter className="quizify-setup-footer p-0 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border/60 mt-4">
         <p className="text-xs italic text-muted-foreground text-center sm:text-left max-w-sm" aria-live="polite">
           {currentQuote ? `“${currentQuote}”` : ''}
         </p>
@@ -531,11 +521,11 @@ export function QuizSetup({
                 disabled={isLoading}
                 className={cn(
                   "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                  incognito ? "bg-amber-500" : "bg-border"
+                  incognito ? "bg-[#66c9ed]" : "bg-[#507190]"
                 )}
               >
                 <span className={cn(
-                  "inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform",
+                  "inline-block h-3.5 w-3.5 transform rounded-full bg-[#193f66] transition-transform",
                   incognito ? "translate-x-[18px]" : "translate-x-[3px]"
                 )} />
               </button>

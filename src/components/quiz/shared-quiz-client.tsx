@@ -170,7 +170,7 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
 
   if (!quiz) {
     return (
-      <div className="w-full space-y-6">
+      <div className="quizify-workspace quizify-shared-workspace w-full space-y-6">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-foreground">{normalizeQuizTitle(sharedQuiz.title)}</h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -187,7 +187,7 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
   }
 
   return (
-    <div className="w-full space-y-6">
+    <div className="quizify-workspace quizify-shared-workspace w-full space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-foreground">{normalizeQuizTitle(sharedQuiz.title)}</h1>
@@ -209,7 +209,7 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
 
       {showQr && (
         <div className="flex justify-center animate-in fade-in duration-200">
-          <div className="rounded-2xl border border-border bg-card p-4 text-center">
+          <div className="quizify-share-panel rounded-2xl border border-border bg-card p-4 text-center">
             <div className="mx-auto w-fit rounded-xl bg-white p-2.5">
               {/* The QR panel only renders after a user click (showQr starts
                   false), so this is always client-side and window is defined. */}

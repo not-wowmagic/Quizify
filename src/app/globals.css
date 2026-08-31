@@ -84,11 +84,2001 @@
 @layer components {
   /* Surface card effect */
   .surface-card {
-    @apply rounded-xl border border-border/80 bg-card text-card-foreground shadow-sm transition-all duration-200 hover:border-border;
+    border: 1px solid hsl(var(--border) / 0.8);
+    border-radius: calc(var(--radius) + 4px);
+    background: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    box-shadow: 0 1px 2px hsl(var(--foreground) / 0.05);
+    transition: border-color 200ms ease, box-shadow 200ms ease, background-color 200ms ease;
+  }
+
+  .surface-card:hover {
+    border-color: hsl(var(--border));
   }
   
   /* Badge variant */
   .badge {
     @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+  }
+}
+
+/* Quizify lookbook: Meadow-derived directions sharing the same learning flow. */
+.quizify-shell {
+  --background: 36 36% 95%;
+  --foreground: 222 35% 15%;
+  --card: 40 38% 99%;
+  --card-foreground: 222 35% 15%;
+  --popover: 40 38% 99%;
+  --popover-foreground: 222 35% 15%;
+  --primary: 161 43% 24%;
+  --primary-foreground: 40 38% 98%;
+  --secondary: 35 29% 90%;
+  --secondary-foreground: 222 35% 15%;
+  --muted: 35 23% 90%;
+  --muted-foreground: 218 15% 39%;
+  --accent: 37 78% 58%;
+  --accent-foreground: 222 35% 15%;
+  --success: 151 57% 32%;
+  --success-foreground: 0 0% 100%;
+  --destructive: 4 69% 46%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 35 20% 81%;
+  --input: 35 20% 81%;
+  --ring: 161 43% 24%;
+  --radius: 0.9rem;
+  --card-alpha: 0.9;
+  --style-shadow: 0 18px 50px hsl(161 43% 16% / 0.08);
+  --style-line: hsl(var(--foreground) / 0.08);
+  --style-background: radial-gradient(circle at 8% 8%, hsl(37 78% 58% / 0.16), transparent 27rem), radial-gradient(circle at 92% 16%, hsl(161 43% 24% / 0.12), transparent 32rem), linear-gradient(135deg, hsl(36 36% 95%), hsl(43 42% 91%));
+  isolation: isolate;
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: inherit;
+  transition: background-color 240ms ease, color 240ms ease;
+}
+
+.quizify-shell::before,
+.quizify-shell::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+}
+
+.quizify-shell::before {
+  z-index: -2;
+  background: var(--style-background);
+}
+
+.quizify-shell::after {
+  z-index: -1;
+  opacity: 0.42;
+  background-image: linear-gradient(var(--style-line) 1px, transparent 1px), linear-gradient(90deg, var(--style-line) 1px, transparent 1px);
+  background-size: 5.5rem 5.5rem;
+  mask-image: linear-gradient(to bottom, black, transparent 74%);
+}
+
+.quizify-frame {
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  padding: 1.25rem clamp(1rem, 4vw, 3.5rem) 2.5rem;
+}
+
+.quizify-topbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  min-height: 3rem;
+}
+
+.quizify-brand-heading {
+  margin: 0;
+}
+
+.quizify-brand {
+  align-items: center;
+  color: hsl(var(--foreground));
+  display: inline-flex;
+  font-size: 1rem;
+  font-weight: 800;
+  gap: 0.65rem;
+  letter-spacing: -0.04em;
+  text-decoration: none;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-hero h2 {
+  letter-spacing: -0.045em;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-setup-header h3 {
+  font-size: 1.45rem;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+}
+
+.quizify-brand-mark {
+  align-items: center;
+  background: hsl(var(--primary));
+  border-radius: calc(var(--radius) - 0.15rem);
+  color: hsl(var(--primary-foreground));
+  display: inline-flex;
+  height: 2rem;
+  justify-content: center;
+  transform: rotate(-7deg);
+  width: 2rem;
+}
+
+.quizify-topbar-meta {
+  align-items: center;
+  color: hsl(var(--muted-foreground));
+  display: inline-flex;
+  font-size: 0.7rem;
+  font-weight: 700;
+  gap: 0.5rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.quizify-live-dot {
+  background: hsl(var(--success));
+  border-radius: 999px;
+  box-shadow: 0 0 0 4px hsl(var(--success) / 0.12);
+  height: 0.45rem;
+  width: 0.45rem;
+}
+
+.quizify-content {
+  padding-top: clamp(2.25rem, 6vw, 4.75rem);
+}
+
+.quizify-hero {
+  max-width: 720px;
+  transition: padding 260ms ease, transform 260ms ease;
+}
+
+.quizify-eyebrow,
+.quizify-section-kicker {
+  align-items: center;
+  color: hsl(var(--primary));
+  display: inline-flex;
+  font-size: 0.7rem;
+  font-weight: 800;
+  gap: 0.45rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.quizify-hero h2 {
+  color: hsl(var(--foreground));
+  font-size: clamp(2.6rem, 6vw, 5.5rem);
+  font-weight: 850;
+  letter-spacing: -0.075em;
+  line-height: 0.94;
+  margin: 1.2rem 0 1.4rem;
+  max-width: 900px;
+}
+
+.quizify-hero-accent {
+  color: hsl(var(--primary));
+}
+
+.quizify-hero-line {
+  display: block;
+  text-align: left;
+}
+
+.quizify-hero p {
+  color: hsl(var(--muted-foreground));
+  font-size: clamp(1rem, 1.8vw, 1.15rem);
+  line-height: 1.65;
+  margin: 0;
+  max-width: 540px;
+}
+
+.quizify-style-studio {
+  border-bottom: 1px solid hsl(var(--border) / 0.7);
+  margin-top: clamp(2.25rem, 5vw, 3.5rem);
+  padding-bottom: 1.5rem;
+}
+
+.quizify-style-heading {
+  align-items: end;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.quizify-style-heading h2 {
+  color: hsl(var(--foreground));
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-top: 0.35rem;
+}
+
+.quizify-style-count {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.quizify-style-grid {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.quizify-style-option {
+  appearance: none;
+  background: hsl(var(--card) / 0.62);
+  border: 1px solid hsl(var(--border) / 0.8);
+  border-radius: calc(var(--radius) - 0.05rem);
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  min-height: 6.7rem;
+  padding: 0.8rem;
+  position: relative;
+  text-align: left;
+  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.quizify-style-option:hover {
+  border-color: hsl(var(--primary) / 0.6);
+  transform: translateY(-2px);
+}
+
+.quizify-style-option:focus-visible,
+.quizify-view-tab:focus-visible,
+.quizify-brand:focus-visible {
+  outline: 3px solid hsl(var(--ring) / 0.45);
+  outline-offset: 3px;
+}
+
+.quizify-style-option.is-selected {
+  background: hsl(var(--card));
+  border-color: hsl(var(--primary));
+  box-shadow: 0 10px 28px hsl(var(--primary) / 0.12);
+}
+
+.quizify-style-option.is-selected .quizify-style-number,
+.quizify-style-option.is-selected .quizify-style-mood,
+.quizify-style-option.is-selected .quizify-style-arrow {
+  color: hsl(var(--primary-foreground) / 0.78);
+}
+
+.quizify-style-option-top {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.quizify-style-number {
+  color: hsl(var(--muted-foreground));
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.quizify-style-swatches {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.quizify-style-swatches span {
+  border: 2px solid hsl(var(--card));
+  border-radius: 999px;
+  height: 0.75rem;
+  width: 0.75rem;
+}
+
+.quizify-style-name {
+  font-size: 0.85rem;
+  font-weight: 800;
+  margin-top: auto;
+}
+
+.quizify-style-mood {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.65rem;
+  line-height: 1.35;
+  margin-top: 0.2rem;
+}
+
+.quizify-style-arrow {
+  color: hsl(var(--primary));
+  position: absolute;
+  right: 0.65rem;
+  top: 2.25rem;
+}
+
+.quizify-view-nav {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin: 1.5rem 0 2rem;
+}
+
+.quizify-view-tabs {
+  align-items: center;
+  background: hsl(var(--card) / 0.62);
+  border: 1px solid hsl(var(--border) / 0.76);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 0.25rem;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0.25rem;
+}
+
+.quizify-view-tab {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 800;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.8rem;
+  transition: color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.quizify-view-tab:hover {
+  background: hsl(var(--muted) / 0.7);
+  color: hsl(var(--foreground));
+}
+
+.quizify-view-tab.is-active {
+  background: hsl(var(--primary));
+  box-shadow: 0 4px 12px hsl(var(--primary) / 0.2);
+  color: hsl(var(--primary-foreground));
+}
+
+.quizify-source-tabs {
+  align-items: stretch;
+  background: hsl(var(--muted) / 0.5);
+  border: 1px solid hsl(var(--border) / 0.76);
+  border-radius: 0.8rem;
+  gap: 0.35rem;
+  height: auto;
+  min-height: 4.35rem;
+  padding: 0.35rem;
+  position: relative;
+  z-index: 1;
+}
+
+.quizify-source-tab {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.58rem;
+  color: hsl(var(--muted-foreground));
+  display: inline-flex;
+  flex-direction: column;
+  font-size: 0.72rem;
+  font-weight: 800;
+  gap: 0.28rem;
+  justify-content: center;
+  min-height: 3.65rem;
+  padding: 0.55rem 0.7rem;
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.quizify-source-tab:hover {
+  background: hsl(var(--background) / 0.52);
+  color: hsl(var(--foreground));
+  transform: translateY(-1px);
+}
+
+.quizify-source-tab[data-state='active'] {
+  background: hsl(var(--card) / 0.94);
+  border-color: hsl(var(--primary) / 0.34);
+  box-shadow:
+    inset 0 2px 0 hsl(0 0% 100% / 0.5),
+    inset 0 -1px 2px hsl(var(--foreground) / 0.14),
+    0 4px 10px hsl(var(--foreground) / 0.1);
+  color: hsl(var(--primary));
+}
+
+.quizify-source-tab-icon {
+  height: 1.15rem;
+  stroke-width: 1.8;
+  width: 1.15rem;
+}
+
+.quizify-shell--frosted .quizify-source-tabs {
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  backdrop-filter: blur(16px) saturate(120%);
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.14), transparent 34%),
+    hsl(var(--card) / 0.34);
+  border-color: hsl(var(--glass-edge) / 0.36);
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.52),
+    inset 0 -1px 2px hsl(var(--foreground) / 0.12),
+    0 8px 18px hsl(var(--foreground) / 0.1);
+}
+
+.quizify-shell--frosted .quizify-source-tab[data-state='active'] {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.2), transparent 36%),
+    hsl(var(--primary) / 0.9);
+  border-color: hsl(var(--glass-edge) / 0.28);
+  box-shadow:
+    inset 0 2px 0 hsl(0 0% 100% / 0.58),
+    inset 0 -1px 2px hsl(var(--foreground) / 0.18),
+    0 4px 8px hsl(var(--foreground) / 0.16);
+  color: hsl(var(--primary-foreground));
+}
+
+.quizify-shell--frosted .quizify-source-tab:not([data-state='active']) {
+  background: hsl(var(--card) / 0.24);
+  border-color: hsl(var(--glass-edge) / 0.2);
+}
+
+.quizify-workspace {
+  animation: quizify-reveal 320ms ease both;
+  min-width: 0;
+}
+
+.quizify-shell .surface-card.bg-card {
+  background: hsl(var(--card) / var(--card-alpha));
+  border-color: hsl(var(--border) / 0.76);
+  box-shadow: var(--style-shadow);
+}
+
+.quizify-shell .surface-card {
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.quizify-shell .surface-card:hover {
+  border-color: hsl(var(--primary) / 0.35);
+}
+
+.quizify-shell input,
+.quizify-shell select,
+.quizify-shell textarea {
+  border-color: hsl(var(--input) / 0.9);
+}
+
+.quizify-shell button {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.quizify-shell button:disabled {
+  cursor: not-allowed;
+}
+
+.quizify-shell .quizify-offline {
+  background: hsl(var(--accent) / 0.16);
+  border: 1px solid hsl(var(--accent) / 0.35);
+  color: hsl(var(--accent-foreground));
+}
+
+.quizify-footer {
+  align-items: center;
+  border-top: 1px solid hsl(var(--border) / 0.65);
+  color: hsl(var(--muted-foreground));
+  display: flex;
+  font-size: 0.7rem;
+  gap: 0.7rem;
+  justify-content: space-between;
+  letter-spacing: 0.02em;
+  margin-top: 4rem;
+  padding-top: 1.25rem;
+}
+
+.quizify-footer-mark {
+  color: hsl(var(--primary));
+}
+
+.quizify-shell--active .quizify-content {
+  padding-top: 2.5rem;
+}
+
+.quizify-shell--active .quizify-hero h2 {
+  font-size: clamp(2rem, 4vw, 3.6rem);
+  margin-bottom: 0.8rem;
+}
+
+.quizify-shell--active .quizify-hero p {
+  font-size: 0.95rem;
+}
+
+@keyframes quizify-reveal {
+  from { opacity: 0; transform: translateY(0.5rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 01 — Springboard: a fresh start screen with sky, turf, and soft hardware edges. */
+.quizify-shell[data-style='springboard'] {
+  --background: 190 66% 82%;
+  --foreground: 207 42% 17%;
+  --card: 190 68% 97%;
+  --card-foreground: 207 42% 17%;
+  --popover: 190 68% 97%;
+  --popover-foreground: 207 42% 17%;
+  --primary: 196 73% 36%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 177 42% 77%;
+  --secondary-foreground: 207 42% 17%;
+  --muted: 183 40% 83%;
+  --muted-foreground: 207 25% 35%;
+  --accent: 48 93% 60%;
+  --accent-foreground: 207 42% 17%;
+  --success: 149 50% 34%;
+  --success-foreground: 0 0% 100%;
+  --destructive: 4 70% 47%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --ring: 48 93% 60%;
+  --radius: 0.55rem;
+  --card-alpha: 0.42;
+  --style-shadow: 0 16px 38px hsl(207 42% 17% / 0.14);
+  --style-line: hsl(0 0% 100% / 0.17);
+  --style-background: linear-gradient(to bottom, hsl(194 84% 65%) 0 54%, hsl(154 46% 44%) 100%);
+}
+
+/* 02 — Aqua Lab: a water-bright interface with mint controls and pool-blue depth. */
+.quizify-shell[data-style='aqualab'] {
+  --background: 188 68% 76%;
+  --foreground: 205 45% 16%;
+  --card: 187 61% 96%;
+  --card-foreground: 205 45% 16%;
+  --popover: 187 61% 96%;
+  --popover-foreground: 205 45% 16%;
+  --primary: 174 64% 31%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 177 47% 76%;
+  --secondary-foreground: 205 45% 16%;
+  --muted: 183 48% 82%;
+  --muted-foreground: 205 27% 33%;
+  --accent: 43 96% 62%;
+  --accent-foreground: 205 45% 16%;
+  --success: 148 54% 34%;
+  --success-foreground: 0 0% 100%;
+  --destructive: 4 70% 47%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --ring: 174 64% 31%;
+  --radius: 0.55rem;
+  --card-alpha: 0.4;
+  --style-shadow: 0 16px 38px hsl(205 45% 16% / 0.13);
+  --style-line: hsl(0 0% 100% / 0.17);
+  --style-background: radial-gradient(circle at 12% 10%, hsl(0 0% 100% / 0.24), transparent 18rem), linear-gradient(145deg, hsl(193 84% 66%), hsl(185 68% 57%) 54%, hsl(158 43% 42%));
+}
+
+/* 03 — Sunroom: pale walls, green upholstery, and a warm tactile signal. */
+.quizify-shell[data-style='sunroom'] {
+  --background: 44 42% 93%;
+  --foreground: 145 32% 17%;
+  --card: 45 56% 99%;
+  --card-foreground: 145 32% 17%;
+  --popover: 45 56% 99%;
+  --popover-foreground: 145 32% 17%;
+  --primary: 150 47% 29%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 153 28% 82%;
+  --secondary-foreground: 145 32% 17%;
+  --muted: 45 30% 87%;
+  --muted-foreground: 145 20% 38%;
+  --accent: 42 92% 59%;
+  --accent-foreground: 145 32% 17%;
+  --success: 150 56% 30%;
+  --success-foreground: 0 0% 100%;
+  --destructive: 4 70% 47%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --ring: 150 47% 29%;
+  --radius: 0.55rem;
+  --card-alpha: 0.5;
+  --style-shadow: 0 14px 34px hsl(145 32% 17% / 0.1);
+  --style-line: hsl(150 47% 29% / 0.09);
+  --style-background: linear-gradient(145deg, hsl(46 54% 97%), hsl(159 29% 87%));
+}
+
+/* 04 — Seaside: a blue-water desk with sunny highlights and calm depth. */
+.quizify-shell[data-style='seaside'] {
+  --background: 201 63% 76%;
+  --foreground: 209 43% 16%;
+  --card: 198 62% 97%;
+  --card-foreground: 209 43% 16%;
+  --popover: 198 62% 97%;
+  --popover-foreground: 209 43% 16%;
+  --primary: 204 70% 37%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 197 43% 77%;
+  --secondary-foreground: 209 43% 16%;
+  --muted: 199 42% 83%;
+  --muted-foreground: 209 25% 36%;
+  --accent: 35 93% 63%;
+  --accent-foreground: 209 43% 16%;
+  --success: 149 51% 34%;
+  --success-foreground: 0 0% 100%;
+  --destructive: 4 70% 47%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --ring: 204 70% 37%;
+  --radius: 0.55rem;
+  --card-alpha: 0.42;
+  --style-shadow: 0 16px 38px hsl(209 43% 16% / 0.14);
+  --style-line: hsl(0 0% 100% / 0.18);
+  --style-background: linear-gradient(to bottom, hsl(199 81% 65%) 0 52%, hsl(188 57% 58%) 53% 68%, hsl(152 40% 43%) 100%);
+}
+
+/* 05 — Terrarium: a darker tactile workstation with lime growth and blue glass. */
+.quizify-shell[data-style='terrarium'] {
+  --background: 153 31% 22%;
+  --foreground: 48 47% 95%;
+  --card: 151 29% 29%;
+  --card-foreground: 48 47% 95%;
+  --popover: 151 29% 29%;
+  --popover-foreground: 48 47% 95%;
+  --primary: 78 77% 60%;
+  --primary-foreground: 151 42% 12%;
+  --secondary: 151 25% 36%;
+  --secondary-foreground: 48 47% 95%;
+  --muted: 151 23% 31%;
+  --muted-foreground: 142 18% 77%;
+  --accent: 194 75% 69%;
+  --accent-foreground: 151 42% 12%;
+  --success: 150 63% 51%;
+  --success-foreground: 150 54% 8%;
+  --destructive: 4 77% 66%;
+  --destructive-foreground: 151 42% 12%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --ring: 78 77% 60%;
+  --radius: 0.55rem;
+  --card-alpha: 0.36;
+  --style-shadow: 0 18px 42px hsl(0 0% 0% / 0.25);
+  --style-line: hsl(194 75% 69% / 0.11);
+  --style-background: radial-gradient(circle at 78% 11%, hsl(194 75% 69% / 0.16), transparent 22rem), linear-gradient(145deg, hsl(153 31% 24%), hsl(168 30% 19%) 58%, hsl(202 33% 24%));
+}
+
+.quizify-shell[data-style='springboard'] .quizify-hero-accent,
+.quizify-shell[data-style='aqualab'] .quizify-hero-accent,
+.quizify-shell[data-style='sunroom'] .quizify-hero-accent,
+.quizify-shell[data-style='seaside'] .quizify-hero-accent,
+.quizify-shell[data-style='terrarium'] .quizify-hero-accent {
+  color: hsl(var(--accent));
+}
+
+/* 06 — Trailhead: pixel-coded adventure with sky, grass, and tactile edges. */
+.quizify-shell[data-style='trailhead'] {
+  --background: 198 75% 88%;
+  --foreground: 222 47% 17%;
+  --card: 190 65% 97%;
+  --card-foreground: 222 47% 17%;
+  --popover: 190 65% 97%;
+  --popover-foreground: 222 47% 17%;
+  --primary: 209 72% 34%;
+  --primary-foreground: 48 100% 97%;
+  --secondary: 190 44% 78%;
+  --secondary-foreground: 222 47% 17%;
+  --muted: 190 42% 82%;
+  --muted-foreground: 216 28% 34%;
+  --accent: 43 95% 56%;
+  --accent-foreground: 222 47% 17%;
+  --success: 146 54% 32%;
+  --success-foreground: 0 0% 100%;
+  --destructive: 2 70% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 204 44% 64%;
+  --input: 204 44% 64%;
+  --ring: 209 72% 34%;
+  --radius: 0.35rem;
+  --card-alpha: 0.92;
+  --style-shadow: 4px 4px 0 hsl(222 47% 17% / 0.16);
+  --style-line: hsl(209 72% 34% / 0.12);
+  --style-background: radial-gradient(ellipse at 10% 14%, hsl(0 0% 100% / 0.68) 0 4rem, transparent 4.2rem), radial-gradient(ellipse at 80% 20%, hsl(0 0% 100% / 0.5) 0 6rem, transparent 6.2rem), linear-gradient(to bottom, hsl(201 86% 63%) 0 58%, hsl(154 47% 44%) 59% 100%);
+}
+
+.quizify-shell[data-style='trailhead']::after {
+  mask-image: linear-gradient(to bottom, black 0 82%, transparent 100%);
+  opacity: 0.28;
+}
+
+.quizify-shell[data-style='trailhead'] .quizify-hero h2 {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 900;
+  letter-spacing: -0.09em;
+  text-shadow: 3px 3px 0 hsl(0 0% 100% / 0.4);
+}
+
+.quizify-shell[data-style='trailhead'] .quizify-hero-accent {
+  color: hsl(var(--primary));
+}
+
+.quizify-shell[data-style='trailhead'] .quizify-brand-mark {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+  border-radius: 0.3rem;
+  box-shadow: 3px 3px 0 hsl(var(--foreground) / 0.18);
+  transform: rotate(-4deg);
+}
+
+.quizify-shell[data-style='trailhead'] .quizify-style-option {
+  border-width: 2px;
+  box-shadow: 3px 3px 0 hsl(var(--foreground) / 0.12);
+}
+
+.quizify-shell[data-style='trailhead'] .quizify-style-option.is-selected {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  box-shadow: 4px 4px 0 hsl(var(--foreground) / 0.2);
+}
+
+/* 07 — Code Club: dark pixel arcade with yellow rewards and cyan signals. */
+.quizify-shell[data-style='club'] {
+  --background: 222 51% 8%;
+  --foreground: 210 40% 98%;
+  --card: 223 45% 14%;
+  --card-foreground: 210 40% 98%;
+  --popover: 223 45% 14%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 45 100% 62%;
+  --primary-foreground: 222 51% 8%;
+  --secondary: 222 38% 21%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 222 33% 18%;
+  --muted-foreground: 216 20% 72%;
+  --accent: 191 100% 63%;
+  --accent-foreground: 222 51% 8%;
+  --success: 147 76% 53%;
+  --success-foreground: 146 65% 8%;
+  --destructive: 339 84% 67%;
+  --destructive-foreground: 222 51% 8%;
+  --border: 216 32% 31%;
+  --input: 216 32% 31%;
+  --ring: 45 100% 62%;
+  --radius: 0.25rem;
+  --card-alpha: 0.92;
+  --style-shadow: 4px 4px 0 hsl(45 100% 62% / 0.14);
+  --style-line: hsl(191 100% 63% / 0.13);
+  --style-background: radial-gradient(circle at 16% 12%, hsl(191 100% 63% / 0.14), transparent 24rem), radial-gradient(circle at 86% 9%, hsl(45 100% 62% / 0.12), transparent 24rem), hsl(222 51% 8%);
+}
+
+.quizify-shell[data-style='club'] .quizify-hero h2,
+.quizify-shell[data-style='club'] .quizify-style-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 900;
+  letter-spacing: -0.08em;
+}
+
+.quizify-shell[data-style='club'] .quizify-hero-accent {
+  color: hsl(var(--primary));
+  text-shadow: 3px 3px 0 hsl(var(--accent) / 0.18);
+}
+
+.quizify-shell[data-style='club'] .quizify-brand-mark {
+  background: hsl(var(--primary));
+  border-radius: 50%;
+  color: hsl(var(--primary-foreground));
+  transform: none;
+}
+
+.quizify-shell[data-style='club'] .quizify-style-option {
+  box-shadow: 4px 4px 0 hsl(var(--accent) / 0.1);
+}
+
+.quizify-shell[data-style='club'] .quizify-style-option.is-selected {
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  box-shadow: 4px 4px 0 hsl(var(--accent) / 0.24);
+}
+
+.quizify-shell[data-style='club'] .quizify-view-tabs {
+  border-radius: 0.4rem;
+}
+
+/* 08 — Roster: a bright operations board for orchestrated study work. */
+.quizify-shell[data-style='roster'] {
+  --background: 158 35% 94%;
+  --foreground: 166 39% 14%;
+  --card: 160 46% 98%;
+  --card-foreground: 166 39% 14%;
+  --popover: 160 46% 98%;
+  --popover-foreground: 166 39% 14%;
+  --primary: 161 58% 27%;
+  --primary-foreground: 160 52% 97%;
+  --secondary: 155 28% 86%;
+  --secondary-foreground: 166 39% 14%;
+  --muted: 157 26% 88%;
+  --muted-foreground: 164 16% 38%;
+  --accent: 30 95% 59%;
+  --accent-foreground: 166 39% 14%;
+  --success: 151 60% 32%;
+  --success-foreground: 0 0% 100%;
+  --destructive: 5 70% 47%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 159 23% 75%;
+  --input: 159 23% 75%;
+  --ring: 161 58% 27%;
+  --radius: 0.5rem;
+  --card-alpha: 0.9;
+  --style-shadow: 0 18px 42px hsl(161 58% 20% / 0.1);
+  --style-line: hsl(161 58% 27% / 0.1);
+  --style-background: radial-gradient(circle at 8% 10%, hsl(30 95% 59% / 0.2), transparent 19rem), radial-gradient(circle at 92% 14%, hsl(161 58% 27% / 0.12), transparent 24rem), linear-gradient(135deg, hsl(158 35% 94%), hsl(45 62% 92%));
+}
+
+.quizify-shell[data-style='roster'] .quizify-hero {
+  border-left: 3px solid hsl(var(--accent));
+  padding-left: clamp(1rem, 3vw, 2rem);
+}
+
+.quizify-shell[data-style='roster'] .quizify-hero h2 {
+  font-weight: 650;
+  letter-spacing: -0.08em;
+}
+
+.quizify-shell[data-style='roster'] .quizify-hero-accent {
+  color: hsl(var(--primary));
+}
+
+.quizify-shell[data-style='roster'] .quizify-brand-mark {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+  transform: rotate(4deg);
+}
+
+.quizify-shell[data-style='roster'] .quizify-style-option.is-selected {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+/* 09 — Skyline: Cofounder-inspired blue-sky launch energy. */
+.quizify-shell[data-style='skyline'] {
+  --background: 204 74% 52%;
+  --foreground: 0 0% 100%;
+  --card: 205 68% 42%;
+  --card-foreground: 0 0% 100%;
+  --popover: 205 68% 42%;
+  --popover-foreground: 0 0% 100%;
+  --primary: 0 0% 100%;
+  --primary-foreground: 211 54% 17%;
+  --secondary: 202 64% 61%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 202 56% 58%;
+  --muted-foreground: 0 0% 100%;
+  --accent: 44 97% 62%;
+  --accent-foreground: 211 54% 17%;
+  --success: 145 60% 42%;
+  --success-foreground: 0 0% 100%;
+  --destructive: 4 76% 58%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --ring: 44 97% 62%;
+  --radius: 0.5rem;
+  --card-alpha: 0.72;
+  --style-shadow: 0 22px 54px hsl(211 54% 18% / 0.2);
+  --style-line: hsl(0 0% 100% / 0.16);
+  --style-background: radial-gradient(ellipse at 16% 18%, hsl(0 0% 100% / 0.42) 0 5rem, transparent 5.2rem), radial-gradient(ellipse at 86% 28%, hsl(0 0% 100% / 0.24) 0 7rem, transparent 7.2rem), linear-gradient(to bottom, hsl(204 84% 61%) 0 58%, hsl(158 43% 42%) 100%);
+}
+
+.quizify-shell[data-style='skyline']::after {
+  mask-image: linear-gradient(to bottom, black 0 86%, transparent 100%);
+  opacity: 0.2;
+}
+
+.quizify-shell[data-style='skyline'] .quizify-hero h2 {
+  font-weight: 600;
+  letter-spacing: -0.08em;
+  text-shadow: 0 3px 0 hsl(211 54% 17% / 0.12);
+}
+
+.quizify-shell[data-style='skyline'] .quizify-hero-accent {
+  color: hsl(var(--accent));
+}
+
+.quizify-shell[data-style='skyline'] .quizify-brand-mark {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+  transform: rotate(-4deg);
+}
+
+.quizify-shell[data-style='skyline'] .quizify-style-option {
+  background: hsl(var(--card) / 0.34);
+  border-color: hsl(var(--primary) / 0.55);
+}
+
+.quizify-shell[data-style='skyline'] .quizify-style-option.is-selected {
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  box-shadow: 0 12px 28px hsl(211 54% 17% / 0.18);
+}
+
+.quizify-shell[data-style='skyline'] .quizify-view-tabs {
+  background: hsl(var(--card) / 0.3);
+  border-color: hsl(var(--primary) / 0.52);
+}
+
+/* 10 — Quest Log: neon progression, badges, and midnight focus. */
+.quizify-shell[data-style='quest'] {
+  --background: 268 46% 10%;
+  --foreground: 270 70% 97%;
+  --card: 268 42% 16%;
+  --card-foreground: 270 70% 97%;
+  --popover: 268 42% 16%;
+  --popover-foreground: 270 70% 97%;
+  --primary: 40 100% 60%;
+  --primary-foreground: 268 46% 10%;
+  --secondary: 269 34% 24%;
+  --secondary-foreground: 270 70% 97%;
+  --muted: 269 31% 21%;
+  --muted-foreground: 266 21% 74%;
+  --accent: 334 87% 67%;
+  --accent-foreground: 268 46% 10%;
+  --success: 153 68% 50%;
+  --success-foreground: 153 58% 8%;
+  --destructive: 5 78% 66%;
+  --destructive-foreground: 268 46% 10%;
+  --border: 267 28% 34%;
+  --input: 267 28% 34%;
+  --ring: 40 100% 60%;
+  --radius: 1rem;
+  --card-alpha: 0.9;
+  --style-shadow: 0 18px 44px hsl(0 0% 0% / 0.28), 0 0 30px hsl(334 87% 67% / 0.06);
+  --style-line: hsl(334 87% 67% / 0.12);
+  --style-background: radial-gradient(circle at 15% 9%, hsl(334 87% 67% / 0.2), transparent 24rem), radial-gradient(circle at 84% 16%, hsl(40 100% 60% / 0.13), transparent 28rem), hsl(268 46% 10%);
+}
+
+.quizify-shell[data-style='quest'] .quizify-hero h2,
+.quizify-shell[data-style='quest'] .quizify-style-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 900;
+  letter-spacing: -0.08em;
+}
+
+.quizify-shell[data-style='quest'] .quizify-hero-accent {
+  color: hsl(var(--accent));
+  text-shadow: 0 0 22px hsl(var(--accent) / 0.34);
+}
+
+.quizify-shell[data-style='quest'] .quizify-brand-mark {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+  border-radius: 0.75rem;
+  transform: rotate(6deg);
+}
+
+.quizify-shell[data-style='quest'] .quizify-style-option.is-selected {
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  box-shadow: 0 10px 26px hsl(var(--primary) / 0.18);
+}
+
+/* 11 — Meadow OS: a duskier pixel-world / frosted-panel blend. */
+.quizify-shell[data-style='meadow'] {
+  --background: 209 50% 36%;
+  --foreground: 211 48% 15%;
+  --card: 198 72% 94%;
+  --card-foreground: 211 48% 15%;
+  --popover: 198 72% 94%;
+  --popover-foreground: 211 48% 15%;
+  --primary: 211 64% 24%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 197 52% 76%;
+  --secondary-foreground: 211 48% 15%;
+  --muted: 198 54% 80%;
+  --muted-foreground: 211 30% 30%;
+  --accent: 43 85% 63%;
+  --accent-foreground: 211 48% 15%;
+  --success: 145 48% 54%;
+  --success-foreground: 152 45% 10%;
+  --destructive: 4 76% 64%;
+  --destructive-foreground: 211 48% 15%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --ring: 43 85% 63%;
+  --radius: 0.55rem;
+  --card-alpha: 0.58;
+  --glass-edge: 0 0% 100%;
+  --meadow-control: 211 52% 27%;
+  --meadow-control-muted: 208 45% 34%;
+  --meadow-control-foreground: 0 0% 100%;
+  --style-shadow: 0 10px 24px hsl(211 48% 15% / 0.1);
+  --style-line: hsl(0 0% 100% / 0.2);
+  --style-background: linear-gradient(145deg, hsl(207 58% 44%), hsl(208 53% 38%) 58%, hsl(210 47% 33%));
+}
+
+/* 12 — Lookout: blue-sky command deck with the lightest glass controls. */
+.quizify-shell[data-style='lookout'] {
+  --background: 207 72% 45%;
+  --foreground: 0 0% 100%;
+  --card: 205 68% 41%;
+  --card-foreground: 0 0% 100%;
+  --popover: 205 68% 41%;
+  --popover-foreground: 0 0% 100%;
+  --primary: 0 0% 100%;
+  --primary-foreground: 211 51% 16%;
+  --secondary: 201 57% 55%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 202 55% 51%;
+  --muted-foreground: 0 0% 100%;
+  --accent: 145 57% 61%;
+  --accent-foreground: 211 51% 16%;
+  --success: 145 60% 41%;
+  --success-foreground: 0 0% 100%;
+  --destructive: 4 76% 58%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --ring: 145 57% 61%;
+  --radius: 0.55rem;
+  --card-alpha: 0.3;
+  --glass-edge: 0 0% 100%;
+  --style-shadow: 0 16px 42px hsl(211 51% 16% / 0.18);
+  --style-line: hsl(0 0% 100% / 0.15);
+  --style-background: linear-gradient(145deg, hsl(202 84% 58%), hsl(199 69% 49%) 62%, hsl(154 42% 38%));
+}
+
+/* 13 — Field Guide: quiet off-white surfaces with a green study-map signal. */
+.quizify-shell[data-style='fieldguide'] {
+  --background: 42 32% 94%;
+  --foreground: 214 34% 19%;
+  --card: 42 50% 98%;
+  --card-foreground: 214 34% 19%;
+  --popover: 42 50% 98%;
+  --popover-foreground: 214 34% 19%;
+  --primary: 155 44% 27%;
+  --primary-foreground: 48 40% 98%;
+  --secondary: 157 24% 83%;
+  --secondary-foreground: 214 34% 19%;
+  --muted: 45 28% 87%;
+  --muted-foreground: 214 20% 38%;
+  --accent: 37 75% 59%;
+  --accent-foreground: 214 34% 19%;
+  --success: 151 55% 31%;
+  --success-foreground: 0 0% 100%;
+  --destructive: 4 70% 47%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --ring: 155 44% 27%;
+  --radius: 0.55rem;
+  --card-alpha: 0.45;
+  --glass-edge: 214 34% 19%;
+  --style-shadow: 0 14px 34px hsl(155 44% 20% / 0.09);
+  --style-line: hsl(155 44% 27% / 0.09);
+  --style-background: linear-gradient(135deg, hsl(43 42% 95%), hsl(160 26% 87%));
+}
+
+/* 14 — Harbor: a blue-green twilight desk for long, quiet study sessions. */
+.quizify-shell[data-style='harbor'] {
+  --background: 204 45% 15%;
+  --foreground: 183 66% 93%;
+  --card: 204 42% 22%;
+  --card-foreground: 183 66% 93%;
+  --popover: 204 42% 22%;
+  --popover-foreground: 183 66% 93%;
+  --primary: 177 61% 67%;
+  --primary-foreground: 204 45% 15%;
+  --secondary: 204 35% 28%;
+  --secondary-foreground: 183 66% 93%;
+  --muted: 205 32% 25%;
+  --muted-foreground: 194 22% 72%;
+  --accent: 31 84% 64%;
+  --accent-foreground: 204 45% 15%;
+  --success: 150 59% 50%;
+  --success-foreground: 150 54% 8%;
+  --destructive: 4 76% 64%;
+  --destructive-foreground: 204 45% 15%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --ring: 177 61% 67%;
+  --radius: 0.55rem;
+  --card-alpha: 0.3;
+  --glass-edge: 183 66% 93%;
+  --style-shadow: 0 16px 42px hsl(0 0% 0% / 0.25);
+  --style-line: hsl(183 66% 93% / 0.1);
+  --style-background: linear-gradient(145deg, hsl(205 47% 20%), hsl(194 43% 17%) 55%, hsl(154 31% 22%));
+}
+
+/* 15 — Canopy: forest focus with a lime signal and a high-altitude blue glow. */
+.quizify-shell[data-style='canopy'] {
+  --background: 153 34% 21%;
+  --foreground: 46 44% 96%;
+  --card: 153 32% 28%;
+  --card-foreground: 46 44% 96%;
+  --popover: 153 32% 28%;
+  --popover-foreground: 46 44% 96%;
+  --primary: 77 80% 62%;
+  --primary-foreground: 151 42% 12%;
+  --secondary: 151 27% 35%;
+  --secondary-foreground: 46 44% 96%;
+  --muted: 151 24% 31%;
+  --muted-foreground: 142 17% 77%;
+  --accent: 198 76% 68%;
+  --accent-foreground: 151 42% 12%;
+  --success: 150 63% 51%;
+  --success-foreground: 150 54% 8%;
+  --destructive: 4 77% 66%;
+  --destructive-foreground: 151 42% 12%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --ring: 77 80% 62%;
+  --radius: 0.55rem;
+  --card-alpha: 0.3;
+  --glass-edge: 46 44% 96%;
+  --style-shadow: 0 16px 42px hsl(0 0% 0% / 0.26);
+  --style-line: hsl(198 76% 68% / 0.11);
+  --style-background: linear-gradient(160deg, hsl(154 33% 24%), hsl(168 32% 20%) 58%, hsl(202 40% 25%));
+}
+
+/* Shared frosted controls for the new Cofounder-inspired directions. */
+.quizify-shell--frosted .quizify-topbar-meta,
+.quizify-shell--frosted .quizify-view-tabs,
+.quizify-shell--frosted .quizify-style-option,
+.quizify-shell--frosted .surface-card.bg-card {
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  backdrop-filter: blur(16px) saturate(120%);
+  border-color: hsl(var(--glass-edge) / 0.28);
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.52),
+    inset 0 -1px 2px hsl(var(--foreground) / 0.12),
+    var(--style-shadow);
+}
+
+.quizify-shell--frosted .quizify-topbar-meta {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.16), transparent 32%),
+    hsl(var(--card) / 0.42);
+  border: 1px solid hsl(var(--glass-edge) / 0.36);
+  border-radius: 0.5rem;
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.58),
+    inset 0 -1px 2px hsl(var(--foreground) / 0.12),
+    0 8px 18px hsl(var(--foreground) / 0.1);
+  padding: 0.65rem 0.85rem;
+}
+
+.quizify-shell--frosted .quizify-style-option {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.16), transparent 30%),
+    hsl(var(--card) / 0.46);
+  border-color: hsl(var(--glass-edge) / 0.36);
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.5),
+    inset 0 -1px 2px hsl(var(--foreground) / 0.12),
+    0 8px 20px hsl(var(--foreground) / 0.1);
+}
+
+.quizify-shell--frosted .quizify-style-option:hover {
+  border-color: hsl(var(--glass-edge) / 0.62);
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.64),
+    inset 0 -1px 2px hsl(var(--foreground) / 0.15),
+    0 14px 26px hsl(var(--foreground) / 0.15);
+  transform: translateY(-3px);
+}
+
+.quizify-shell--frosted .quizify-style-option.is-selected {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.2), transparent 32%),
+    hsl(var(--primary) / 0.9);
+  border-color: hsl(var(--primary) / 0.86);
+  color: hsl(var(--primary-foreground));
+  box-shadow:
+    inset 0 2px 0 hsl(0 0% 100% / 0.58),
+    inset 0 -1px 2px hsl(var(--foreground) / 0.18),
+    0 6px 18px hsl(var(--foreground) / 0.18);
+}
+
+.quizify-shell--frosted .quizify-view-tab.is-active {
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.48),
+    0 3px 4px hsl(var(--foreground) / 0.18);
+}
+
+.quizify-shell--frosted .quizify-view-tabs {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.14), transparent 32%),
+    hsl(var(--card) / 0.36);
+  border-color: hsl(var(--glass-edge) / 0.36);
+  border-radius: 0.5rem;
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.56),
+    inset 0 -1px 2px hsl(var(--foreground) / 0.14),
+    0 8px 18px hsl(var(--foreground) / 0.1);
+}
+
+.quizify-shell--frosted .quizify-view-tab {
+  border-radius: 0.4rem;
+}
+
+.quizify-shell--frosted .quizify-view-tab:hover {
+  background: hsl(0 0% 100% / 0.14);
+}
+
+.quizify-shell--frosted .quizify-view-tab.is-active {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.2), transparent 34%),
+    hsl(var(--primary) / 0.9);
+  border: 1px solid hsl(var(--glass-edge) / 0.28);
+  box-shadow:
+    inset 0 2px 0 hsl(0 0% 100% / 0.58),
+    inset 0 -1px 2px hsl(var(--foreground) / 0.18),
+    0 4px 8px hsl(var(--foreground) / 0.16);
+}
+
+.quizify-shell--frosted .quizify-hero h2 {
+  font-weight: 520;
+  letter-spacing: -0.095em;
+  line-height: 0.92;
+}
+
+.quizify-shell--frosted .quizify-hero-accent {
+  color: hsl(var(--accent));
+}
+
+.quizify-shell--frosted .quizify-workspace button:not(:disabled) {
+  border-color: hsl(var(--glass-edge) / 0.34);
+  border-radius: 0.5rem;
+  box-shadow:
+    inset 0 2px 0 hsl(0 0% 100% / 0.28),
+    inset 0 -1px 2px hsl(var(--foreground) / 0.16),
+    0 2px 8px hsl(var(--foreground) / 0.08);
+}
+
+.quizify-shell--frosted .quizify-workspace button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .surface-card.bg-card {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.38), transparent 36%),
+    hsl(198 76% 94% / 0.68);
+  border-color: hsl(0 0% 100% / 0.7);
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.82),
+    inset 0 -1px 2px hsl(211 48% 15% / 0.1);
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-source-tabs {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.16), transparent 36%),
+    hsl(var(--meadow-control) / 0.82);
+  border-color: hsl(0 0% 100% / 0.54);
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.46),
+    inset 0 -1px 2px hsl(0 0% 0% / 0.2);
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-source-tab:not([data-state='active']) {
+  background: hsl(var(--meadow-control-muted) / 0.82);
+  border-color: hsl(0 0% 100% / 0.24);
+  color: hsl(var(--meadow-control-foreground) / 0.82);
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-source-tab[data-state='active'] {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.2), transparent 36%),
+    hsl(var(--primary) / 0.98);
+  border-color: hsl(0 0% 100% / 0.5);
+  box-shadow:
+    inset 0 2px 0 hsl(0 0% 100% / 0.52),
+    inset 0 -1px 2px hsl(0 0% 0% / 0.22),
+    0 3px 7px hsl(211 48% 15% / 0.16);
+  color: hsl(var(--primary-foreground));
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='dropzone-file'],
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='camera-file'] {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.14), transparent 34%),
+    hsl(var(--meadow-control) / 0.7);
+  border-color: hsl(0 0% 100% / 0.56);
+  color: hsl(var(--meadow-control-foreground));
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='dropzone-file']:hover,
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='camera-file']:hover {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.2), transparent 34%),
+    hsl(var(--meadow-control) / 0.82);
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='dropzone-file'] .text-foreground,
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='camera-file'] .text-foreground {
+  color: hsl(var(--meadow-control-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='dropzone-file'] .text-primary,
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='camera-file'] .text-primary {
+  color: hsl(var(--accent)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='dropzone-file'] .text-muted-foreground,
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='camera-file'] .text-muted-foreground {
+  color: hsl(var(--meadow-control-foreground) / 0.7) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace #lecture-text,
+.quizify-shell[data-style='meadow'] .quizify-workspace input[aria-label='Article URL'],
+.quizify-shell[data-style='meadow'] .quizify-workspace input[aria-label='Custom number of questions'],
+.quizify-shell[data-style='meadow'] .quizify-workspace select {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.12), transparent 34%),
+    hsl(var(--meadow-control) / 0.72) !important;
+  border-color: hsl(0 0% 100% / 0.48) !important;
+  color: hsl(var(--meadow-control-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace #lecture-text::placeholder,
+.quizify-shell[data-style='meadow'] .quizify-workspace input[aria-label='Article URL']::placeholder {
+  color: hsl(var(--meadow-control-foreground) / 0.68) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace select option {
+  background: hsl(var(--meadow-control));
+  color: hsl(var(--meadow-control-foreground));
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-parameter-toggle,
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-question-formats {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.12), transparent 34%),
+    hsl(var(--meadow-control) / 0.64) !important;
+  border-color: hsl(0 0% 100% / 0.42) !important;
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.34),
+    inset 0 -1px 2px hsl(0 0% 0% / 0.18);
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-parameter-toggle button[aria-pressed='false'],
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-question-format[aria-pressed='false'] {
+  background: hsl(var(--meadow-control-muted) / 0.72) !important;
+  border-color: hsl(0 0% 100% / 0.2) !important;
+  color: hsl(var(--meadow-control-foreground) / 0.82) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-parameter-toggle button[aria-pressed='false']:hover,
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-question-format[aria-pressed='false']:hover {
+  background: hsl(var(--meadow-control-muted) / 0.92) !important;
+  color: hsl(var(--meadow-control-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-question-format[aria-pressed='true'] {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.2), transparent 34%),
+    hsl(var(--primary) / 0.98) !important;
+  border-color: hsl(0 0% 100% / 0.48) !important;
+  box-shadow:
+    inset 0 2px 0 hsl(0 0% 100% / 0.5),
+    inset 0 -1px 2px hsl(0 0% 0% / 0.2),
+    0 3px 8px hsl(211 48% 15% / 0.14);
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+/* Keep the format rail quiet so the active choice owns the navy fill. */
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-question-formats {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-question-format[aria-pressed='false'] {
+  background: transparent !important;
+  border-color: hsl(var(--foreground) / 0.18) !important;
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.28) !important;
+  color: hsl(var(--foreground) / 0.78) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-question-format[aria-pressed='false']:hover {
+  background: hsl(var(--primary) / 0.08) !important;
+  border-color: hsl(var(--primary) / 0.36) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Meadow layout variations: the palette and glass treatment stay shared while
+   the Configure Quiz card changes its information architecture. */
+.quizify-shell[data-layout='dock'] .quizify-setup-card {
+  border-radius: 1.15rem;
+}
+
+.quizify-shell[data-layout='dock'] .quizify-setup-header {
+  border-bottom: 1px solid hsl(var(--border) / 0.34);
+  padding-bottom: 1.1rem !important;
+}
+
+.quizify-shell[data-layout='dock'] .quizify-setup-content {
+  column-gap: 1.25rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(17rem, 0.85fr);
+  row-gap: 1rem;
+}
+
+.quizify-shell[data-layout='dock'] .quizify-control-grid {
+  grid-template-columns: 1fr;
+}
+
+.quizify-shell[data-layout='dock'] .quizify-source-workbench {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.quizify-shell[data-layout='dock'] .quizify-parameter-panel {
+  border-left: 1px solid hsl(var(--border) / 0.34);
+  border-top: 0;
+  grid-column: 2;
+  grid-row: 1;
+  margin-top: 0 !important;
+  padding-left: 1.25rem;
+  padding-top: 0.15rem !important;
+}
+
+.quizify-shell[data-layout='dock'] .quizify-setup-footer {
+  grid-column: 1 / -1;
+}
+
+.quizify-shell[data-layout='lookout'] .quizify-setup-card {
+  border-radius: 1.35rem;
+}
+
+.quizify-shell[data-layout='lookout'] .quizify-setup-header {
+  align-items: end;
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 1.1rem !important;
+}
+
+.quizify-shell[data-layout='lookout'] .quizify-source-tabs {
+  border-radius: 999px;
+  gap: 0.2rem;
+  padding: 0.25rem;
+}
+
+.quizify-shell[data-layout='lookout'] .quizify-source-tab {
+  flex-direction: row;
+  gap: 0.45rem;
+  min-height: 2.9rem;
+  padding: 0.45rem 0.85rem;
+}
+
+.quizify-shell[data-layout='lookout'] .quizify-parameter-panel {
+  padding-top: 1rem !important;
+}
+
+.quizify-shell[data-layout='fieldnotes'] .quizify-setup-card {
+  border-left: 4px solid hsl(var(--accent));
+  border-radius: 0.9rem;
+}
+
+.quizify-shell[data-layout='fieldnotes'] .quizify-setup-header {
+  padding-left: 0.65rem;
+}
+
+.quizify-shell[data-layout='fieldnotes'] .quizify-source-workbench,
+.quizify-shell[data-layout='fieldnotes'] .quizify-parameter-panel {
+  background: hsl(var(--card) / 0.22);
+  border: 1px solid hsl(var(--glass-edge) / 0.24);
+  border-radius: 0.85rem;
+  padding: 0.75rem;
+}
+
+.quizify-shell[data-layout='fieldnotes'] .quizify-parameter-panel {
+  padding-top: 0.75rem !important;
+}
+
+.quizify-shell[data-layout='pixeltray'] .quizify-setup-card {
+  border-radius: 0.7rem;
+}
+
+.quizify-shell[data-layout='pixeltray'] .quizify-setup-header {
+  border-bottom: 1px solid hsl(var(--border) / 0.34);
+  padding-bottom: 0.9rem !important;
+}
+
+.quizify-shell[data-layout='pixeltray'] .quizify-parameter-panel {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  margin-top: 0 !important;
+  padding-top: 1rem !important;
+}
+
+.quizify-shell[data-layout='pixeltray'] .quizify-parameter-panel > * {
+  margin-top: 0 !important;
+}
+
+.quizify-shell[data-layout='pixeltray'] .quizify-parameter-panel > .grid {
+  grid-column: 1 / -1;
+}
+
+.quizify-shell[data-layout='pixeltray'] .quizify-format-field {
+  grid-column: 2;
+}
+
+.quizify-shell[data-layout='pixeltray'] .quizify-setup-footer {
+  padding-top: 0.9rem;
+}
+
+.quizify-shell[data-layout='command'] .quizify-setup-card {
+  border-radius: 0.8rem;
+}
+
+.quizify-shell[data-layout='command'] .quizify-setup-header {
+  border-bottom: 1px solid hsl(var(--border) / 0.34);
+  padding-bottom: 0.9rem !important;
+}
+
+.quizify-shell[data-layout='command'] .quizify-control-grid {
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.45fr) minmax(0, 0.75fr);
+}
+
+.quizify-shell[data-layout='command'] .quizify-parameter-toggle,
+.quizify-shell[data-layout='command'] .quizify-parameter-toggle button {
+  border-radius: 999px;
+}
+
+.quizify-shell[data-layout='command'] .quizify-question-formats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.quizify-shell[data-layout='command'] .quizify-question-format {
+  flex-direction: row;
+  gap: 0.45rem;
+  min-height: 2.85rem;
+}
+
+.quizify-shell[data-layout='notebook'] .quizify-setup-card {
+  border-radius: 0.95rem;
+  border-top: 3px solid hsl(var(--accent));
+}
+
+.quizify-shell[data-layout='notebook'] .quizify-setup-content {
+  column-gap: 1.15rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(17rem, 0.9fr);
+  row-gap: 1rem;
+}
+
+.quizify-shell[data-layout='notebook'] .quizify-source-workbench {
+  background: hsl(var(--card) / 0.18);
+  border: 1px solid hsl(var(--glass-edge) / 0.24);
+  border-radius: 0.85rem;
+  grid-column: 1;
+  padding: 0.7rem;
+}
+
+.quizify-shell[data-layout='notebook'] .quizify-parameter-panel {
+  border-left: 1px solid hsl(var(--border) / 0.34);
+  border-top: 0;
+  grid-column: 2;
+  margin-top: 0 !important;
+  padding-left: 1.15rem;
+  padding-top: 0 !important;
+}
+
+.quizify-shell[data-layout='notebook'] .quizify-setup-footer {
+  grid-column: 1 / -1;
+}
+
+.quizify-shell[data-layout='signal'] .quizify-setup-card {
+  border-radius: 1.25rem;
+}
+
+.quizify-shell[data-layout='signal'] .quizify-source-tabs {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  gap: 0.55rem;
+  padding: 0;
+}
+
+.quizify-shell[data-layout='signal'] .quizify-source-tab:not([data-state='active']) {
+  background: hsl(var(--card) / 0.24);
+  border-color: hsl(var(--glass-edge) / 0.28);
+}
+
+.quizify-shell[data-layout='signal'] .quizify-parameter-toggle {
+  background: hsl(var(--card) / 0.22) !important;
+  border-radius: 0.85rem;
+  gap: 0.35rem;
+  padding: 0.3rem;
+}
+
+.quizify-shell[data-layout='signal'] .quizify-parameter-toggle button {
+  border-radius: 0.6rem;
+}
+
+.quizify-shell[data-layout='signal'] .quizify-parameter-toggle button[aria-pressed='false'] {
+  background: hsl(var(--card) / 0.18) !important;
+  border-color: hsl(var(--glass-edge) / 0.24) !important;
+  color: hsl(var(--foreground) / 0.78) !important;
+}
+
+.quizify-shell[data-layout='signal'] .quizify-question-formats {
+  gap: 0.6rem;
+}
+
+.quizify-shell[data-layout='signal'] .quizify-question-format[aria-pressed='false'] {
+  background: hsl(var(--card) / 0.2) !important;
+  border-color: hsl(var(--glass-edge) / 0.28) !important;
+}
+
+/* Meadow system surfaces: keep the complete study flow in the same blue glass world. */
+.quizify-shared-shell .quizify-frame {
+  min-height: 100dvh;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .surface-card,
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-runner-header {
+  -webkit-backdrop-filter: blur(14px) saturate(118%);
+  backdrop-filter: blur(14px) saturate(118%);
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.38), transparent 36%),
+    hsl(198 76% 94% / 0.68) !important;
+  border-color: hsl(0 0% 100% / 0.7) !important;
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.82),
+    inset 0 -1px 2px hsl(211 48% 15% / 0.1),
+    0 10px 24px hsl(211 48% 15% / 0.1);
+}
+
+.quizify-shell[data-style='meadow'] .quizify-runner-header {
+  align-items: flex-start;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-runner-title-block {
+  flex: 1 1 19rem;
+  max-width: 34rem;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-runner-actions {
+  flex: 1 1 30rem;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-export-stack {
+  display: flex;
+  width: min(12rem, 100%);
+  min-width: 0;
+  flex: 0 1 12rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55rem;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-runner-action-row {
+  align-items: flex-start;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-public-visibility-button {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.14), transparent 34%),
+    hsl(var(--meadow-control) / 0.74) !important;
+  border-color: hsl(0 0% 100% / 0.42) !important;
+  color: hsl(var(--meadow-control-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-public-visibility-button:hover {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.2), transparent 34%),
+    hsl(var(--meadow-control) / 0.9) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-public-visibility-button[data-listed='true'] {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.22), transparent 34%),
+    hsl(var(--primary) / 0.96) !important;
+  border-color: hsl(0 0% 100% / 0.5) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-score-actions {
+  border-top: 1px solid hsl(var(--foreground) / 0.12);
+  padding-top: 1rem;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-score-action-row > * {
+  max-width: 100%;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-score-primary-action {
+  box-shadow:
+    inset 0 2px 0 hsl(0 0% 100% / 0.22),
+    0 4px 10px hsl(211 48% 15% / 0.16);
+}
+
+.quizify-shell[data-style='meadow'] .quizify-score-quote {
+  color: hsl(var(--foreground) / 0.7);
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-summary-card {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.34), transparent 36%),
+    hsl(var(--primary) / 0.12) !important;
+  border-color: hsl(var(--primary) / 0.34) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-score-card {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.4), transparent 36%),
+    hsl(198 76% 94% / 0.78) !important;
+  border-color: hsl(145 48% 54% / 0.46) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-score-card [class~='bg-background/80'] {
+  background: hsl(var(--meadow-control) / 0.78) !important;
+  border-color: hsl(0 0% 100% / 0.38) !important;
+  color: hsl(var(--meadow-control-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-score-card [class~='bg-background/80'] .text-foreground {
+  color: hsl(var(--meadow-control-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-score-card [class~='bg-background/80'] .text-muted-foreground {
+  color: hsl(var(--meadow-control-foreground) / 0.72) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-share-card {
+  -webkit-backdrop-filter: blur(14px) saturate(118%);
+  backdrop-filter: blur(14px) saturate(118%);
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.42), transparent 38%),
+    hsl(198 76% 94% / 0.9) !important;
+  border-color: hsl(0 0% 100% / 0.76) !important;
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.88),
+    0 14px 30px hsl(211 48% 15% / 0.14);
+  color: hsl(var(--foreground));
+}
+
+.quizify-shell[data-style='meadow'] .quizify-share-panel {
+  -webkit-backdrop-filter: blur(14px) saturate(118%);
+  backdrop-filter: blur(14px) saturate(118%);
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.42), transparent 38%),
+    hsl(198 76% 94% / 0.9) !important;
+  border-color: hsl(0 0% 100% / 0.76) !important;
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.88),
+    0 14px 30px hsl(211 48% 15% / 0.14);
+  color: hsl(var(--foreground));
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace input:not([type='checkbox']),
+.quizify-shell[data-style='meadow'] .quizify-workspace select,
+.quizify-shell[data-style='meadow'] .quizify-workspace textarea {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.12), transparent 34%),
+    hsl(var(--meadow-control) / 0.72) !important;
+  border-color: hsl(0 0% 100% / 0.48) !important;
+  color: hsl(var(--meadow-control-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace input:not([type='checkbox'])::placeholder,
+.quizify-shell[data-style='meadow'] .quizify-workspace textarea::placeholder {
+  color: hsl(var(--meadow-control-foreground) / 0.68) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace button[class~='border-border/80'],
+.quizify-shell[data-style='meadow'] .quizify-workspace button[class~='border-border'] {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.14), transparent 34%),
+    hsl(var(--meadow-control) / 0.74) !important;
+  border-color: hsl(0 0% 100% / 0.42) !important;
+  color: hsl(var(--meadow-control-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace button[class~='border-border/80']:hover,
+.quizify-shell[data-style='meadow'] .quizify-workspace button[class~='border-border']:hover {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.2), transparent 34%),
+    hsl(var(--meadow-control) / 0.88) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answered='false'],
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-match-option[data-match-state='idle'] {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.13), transparent 34%),
+    hsl(var(--meadow-control) / 0.76) !important;
+  border-color: hsl(0 0% 100% / 0.34) !important;
+  color: hsl(var(--meadow-control-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answered='false']:hover,
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-match-option[data-match-state='idle']:hover {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.2), transparent 34%),
+    hsl(var(--meadow-control) / 0.9) !important;
+  border-color: hsl(0 0% 100% / 0.56) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answered='false'] .quizify-answer-key {
+  background: hsl(0 0% 100% / 0.12) !important;
+  border-color: hsl(0 0% 100% / 0.42) !important;
+  color: hsl(var(--meadow-control-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-match-option[data-match-state='selected'] {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.2), transparent 34%),
+    hsl(var(--primary) / 0.98) !important;
+  border-color: hsl(0 0% 100% / 0.52) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-match-option[data-match-state='matched'] {
+  background: hsl(198 76% 82% / 0.7) !important;
+  border-color: hsl(var(--primary) / 0.38) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-match-option[data-match-state='correct'] {
+  background: hsl(145 48% 54% / 0.24) !important;
+  border-color: hsl(145 48% 38% / 0.52) !important;
+  color: hsl(145 48% 20%) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-match-option[data-match-state='incorrect'] {
+  background: hsl(4 76% 64% / 0.2) !important;
+  border-color: hsl(4 76% 48% / 0.5) !important;
+  color: hsl(4 62% 28%) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-tutor-chip {
+  background: hsl(var(--primary) / 0.12) !important;
+  border-color: hsl(var(--primary) / 0.34) !important;
+  color: hsl(var(--primary)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-tutor-chip:hover {
+  background: hsl(var(--primary) / 0.2) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-tutor-input {
+  background: hsl(var(--meadow-control) / 0.72) !important;
+  border-color: hsl(0 0% 100% / 0.48) !important;
+  color: hsl(var(--meadow-control-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-tutor-input::placeholder {
+  color: hsl(var(--meadow-control-foreground) / 0.68) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-tutor-guidance {
+  background: hsl(var(--primary) / 0.1) !important;
+  border-color: hsl(var(--primary) / 0.28) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-history-panel .surface-card,
+.quizify-shell[data-style='meadow'] .quizify-public-panel .surface-card {
+  border-radius: 0.9rem;
+}
+
+@media (max-width: 900px) {
+  .quizify-shell[data-layout='dock'] .quizify-setup-content {
+    display: block;
+  }
+
+  .quizify-shell[data-layout='dock'] .quizify-parameter-panel {
+    border-left: 0;
+    border-top: 1px solid hsl(var(--border) / 0.34);
+    margin-top: 1rem !important;
+    padding-left: 0;
+    padding-top: 1rem !important;
+  }
+
+  .quizify-shell[data-layout='pixeltray'] .quizify-parameter-panel {
+    display: block;
+  }
+
+  .quizify-shell[data-layout='pixeltray'] .quizify-parameter-panel > * {
+    margin-top: 1rem !important;
+  }
+
+  .quizify-shell[data-layout='command'] .quizify-control-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quizify-shell[data-layout='notebook'] .quizify-setup-content {
+    display: block;
+  }
+
+  .quizify-shell[data-layout='notebook'] .quizify-parameter-panel {
+    border-left: 0;
+    border-top: 1px solid hsl(var(--border) / 0.34);
+    margin-top: 1rem !important;
+    padding-left: 0;
+    padding-top: 1rem !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .quizify-frame {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .quizify-content {
+    padding-top: 3.75rem;
+  }
+
+  .quizify-topbar-meta {
+    font-size: 0.6rem;
+  }
+
+  .quizify-style-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quizify-style-option {
+    min-height: 6.4rem;
+  }
+
+  .quizify-style-heading {
+    align-items: start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .quizify-view-nav {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .quizify-view-tabs {
+    align-self: stretch;
+    border-radius: 1rem;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+  }
+
+  .quizify-view-tab {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 2.75rem;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+  }
+
+  .quizify-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .quizify-footer-mark {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quizify-shell,
+  .quizify-hero,
+  .quizify-style-option,
+  .quizify-view-tab,
+  .quizify-workspace,
+  .quizify-shell .surface-card {
+    animation: none;
+    transition: none;
   }
 }

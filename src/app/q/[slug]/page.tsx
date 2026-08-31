@@ -26,9 +26,11 @@ export default async function SharedQuizPage({ params }: SharedQuizPageProps) {
   if (!quiz || quiz.questions.length === 0) notFound();
 
   return (
-    <main className="flex-1 flex flex-col items-center justify-center min-h-screen py-8 px-4 sm:px-6">
-      <div className="w-full max-w-4xl flex flex-col items-center my-auto py-4">
-        <SharedQuizClient quiz={quiz} />
+    <main className="quizify-shell quizify-shell--meadow quizify-shell--frosted quizify-shared-shell" data-style="meadow">
+      <div className="quizify-frame">
+        <div className="w-full max-w-4xl mx-auto">
+          <SharedQuizClient quiz={quiz} />
+        </div>
       </div>
     </main>
   );
