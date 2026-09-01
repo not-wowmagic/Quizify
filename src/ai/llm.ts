@@ -250,6 +250,12 @@ export interface OpenAIChatResponse {
   error?: { message?: string };
 }
 
+interface OpenAIResponsesResponse {
+  output_text?: string;
+  output?: Array<{ content?: Array<{ text?: string }> }>;
+  error?: { message?: string };
+}
+
 /** Extracts the assistant text from a chat/completions response. */
 export function parseOpenAIChatResponse(data: OpenAIChatResponse): string {
   if (data?.error?.message) {
@@ -268,21 +274,35 @@ export function parseOpenAIChatResponse(data: OpenAIChatResponse): string {
   return content;
 }
 
+/** Extracts assistant text from an OpenAI Responses API response. */
+export function parseOpenAIResponsesResponse(data: OpenAIResponsesResponse): string {
+  if (data?.error?.message) {
+    throw new LLMAPIError(`opencode AI API error: ${data.error.message}`);
+  }
+  const content = data?.output_text || data?.output?.flatMap(item => item.content ?? []).find(item => item.text)?.text;
+  if (!content) {
+    console.error('opencode AI response (truncated):', JSON.stringify(data).slice(0, 500));
+    throw new Error('opencode AI API returned no content or an unexpected response structure.');
+  }
+  return content;
+}
+
 async function callOpenCodeChat(prompt: string, options: LLMOptions = {}): Promise<string> {
   const apiKey = process.env.OPENCODE_API_KEY;
   if (!apiKey) {
     throw new Error('OPENCODE_API_KEY environment variable is not set. Add it in the Netlify dashboard (or local .env.local for development).');
   }
 
-  const model = process.env.OPENCODE_MODEL || 'deepseek-v4-flash';
-  // opencode (subscription) endpoint by default. See https://opencode.ai/docs/go/
-  const url = process.env.OPENCODE_BASE_URL || 'https://opencode.ai/zen/go/v1/chat/completions';
+  const model = process.env.OPENCODE_MODEL || 'muse-spark-1.2-contributor';
+  const usesResponsesAPI = model === 'muse-spark-1.2-contributor';
+  // Muse is served through Responses; most other Go models use chat completions.
+  const url = process.env.OPENCODE_BASE_URL || `https://opencode.ai/zen/go/v1/${usesResponsesAPI ? 'responses' : 'chat/completions'}`;
   const timeoutMs = options.timeoutMs ?? 30000;
 
-  const body = {
-    model,
-    messages: buildChatMessages(prompt, options.systemInstruction),
-  };
+  const messages = buildChatMessages(prompt, options.systemInstruction);
+  const body = usesResponsesAPI
+    ? { model, input: messages }
+    : { model, messages };
 
   try {
     const data = await fetchWithRetry(
@@ -299,7 +319,9 @@ async function callOpenCodeChat(prompt: string, options: LLMOptions = {}): Promi
     );
     // SAFETY: response is JSON from the documented OpenAI-compatible API;
     // parseOpenAIChatResponse validates the shape and surfaces API errors.
-    return parseOpenAIChatResponse(data as OpenAIChatResponse);
+    return usesResponsesAPI
+      ? parseOpenAIResponsesResponse(data as OpenAIResponsesResponse)
+      : parseOpenAIChatResponse(data as OpenAIChatResponse);
   } catch (err: unknown) {
     console.error('opencode AI API execution error:', err);
     throw err;

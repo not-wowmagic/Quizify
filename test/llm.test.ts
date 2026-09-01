@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { buildChatMessages, parseOpenAIChatResponse, resolveProvider, LLMAPIError } from '@/ai/llm';
+import { buildChatMessages, parseOpenAIChatResponse, parseOpenAIResponsesResponse, resolveProvider, LLMAPIError } from '@/ai/llm';
+
+interface MuseRequestBody {
+  model?: string;
+  input?: unknown;
+}
 
 describe('buildChatMessages', () => {
   it('puts the system instruction first, then the user content', () => {
@@ -54,6 +59,12 @@ describe('parseOpenAIChatResponse', () => {
   });
 });
 
+describe('parseOpenAIResponsesResponse', () => {
+  it('extracts output_text from a Responses API response', () => {
+    expect(parseOpenAIResponsesResponse({ output_text: '{"ok":true}' })).toBe('{"ok":true}');
+  });
+});
+
 describe('resolveProvider', () => {
   const original = process.env.AI_PROVIDER;
 
@@ -93,6 +104,56 @@ describe('callLLM env key errors (no network)', () => {
   it('reports a missing OPENCODE_API_KEY with the env var name (for client error mapping)', async () => {
     const { callLLM } = await import('@/ai/llm');
     await expect(callLLM('hello')).rejects.toThrow(/OPENCODE_API_KEY/);
+  });
+});
+
+describe('callLLM provider defaults', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it('uses the Muse Spark OpenCode model when no model is configured', async () => {
+    let requestedModel = '';
+    vi.stubGlobal('fetch', async (_url: string, init: { body?: BodyInit }) => {
+      // SAFETY: this test supplies the JSON request body and only reads its model field.
+      const requestBody = JSON.parse(String(init.body)) as { model?: string };
+      requestedModel = requestBody.model ?? '';
+      return new Response(JSON.stringify({ output_text: '{"ok":true}' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    vi.stubEnv('OPENCODE_API_KEY', 'test-key');
+    vi.stubEnv('AI_PROVIDER', 'opencode');
+    vi.stubEnv('OPENCODE_MODEL', '');
+
+    const { callLLM } = await import('@/ai/llm');
+    await expect(callLLM('hello')).resolves.toBe('{"ok":true}');
+    expect(requestedModel).toBe('muse-spark-1.2-contributor');
+  });
+
+  it('uses the Responses API for Muse Spark', async () => {
+    let requestUrl = '';
+    let requestBody: MuseRequestBody = {};
+    vi.stubGlobal('fetch', async (url: string, init: { body?: BodyInit }) => {
+      requestUrl = url;
+      // SAFETY: this test supplies the JSON request body and only reads its request fields.
+      requestBody = JSON.parse(String(init.body)) as typeof requestBody;
+      return new Response(JSON.stringify({ output_text: '{"questions":[]}' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    vi.stubEnv('OPENCODE_API_KEY', 'test-key');
+    vi.stubEnv('AI_PROVIDER', 'opencode');
+    vi.stubEnv('OPENCODE_MODEL', 'muse-spark-1.2-contributor');
+
+    const { callLLM } = await import('@/ai/llm');
+    await expect(callLLM('hello')).resolves.toBe('{"questions":[]}');
+    expect(requestUrl).toContain('/responses');
+    expect(requestBody.model).toBe('muse-spark-1.2-contributor');
+    expect(requestBody.input).toBeDefined();
   });
 });
 
