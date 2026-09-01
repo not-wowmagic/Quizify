@@ -507,9 +507,48 @@ export const QUIZ_GENERATION_DEADLINE_MS = 50_000;
  * Smaller question counts get larger/full-document chunks;
  * larger counts get proportional chunks for variety.
  */
-export function computeChunkSize(textLength: number, numQuestions: number, minChunkSize = 8000): number {
+export const MAX_GENERATION_CHUNK_SIZE = 16_000;
+export const QUESTIONS_PER_GENERATION_CALL = 10;
+
+export function computeChunkSize(
+  textLength: number,
+  numQuestions: number,
+  minChunkSize = 8000,
+  maxChunkSize = MAX_GENERATION_CHUNK_SIZE,
+): number {
   const maxChunks = Math.max(1, Math.ceil(numQuestions / 6));
-  return Math.max(minChunkSize, Math.ceil(textLength / maxChunks));
+  return Math.min(maxChunkSize, Math.max(minChunkSize, Math.ceil(textLength / maxChunks)));
+}
+
+export interface GenerationTask {
+  chunk: string;
+  count: number;
+}
+
+/** Builds bounded prompts sampled across a large document. */
+export function createGenerationTasks(
+  text: string,
+  numQuestions: number,
+  questionsPerCall = QUESTIONS_PER_GENERATION_CALL,
+): GenerationTask[] {
+  const questionBatchCount = Math.ceil(numQuestions / questionsPerCall);
+  const coverageBatchCount = Math.ceil(text.length / 50_000);
+  const batchCount = Math.min(numQuestions, Math.max(questionBatchCount, coverageBatchCount));
+  const chunks = splitTextIntoChunks(text, computeChunkSize(text.length, numQuestions));
+  const baseCount = Math.floor(numQuestions / batchCount);
+  const extraCount = numQuestions % batchCount;
+
+  return Array.from({ length: batchCount }, (_, index) => {
+    const chunkIndex = batchCount === 1
+      ? Math.floor((chunks.length - 1) / 2)
+      : batchCount <= chunks.length
+        ? Math.round(index * (chunks.length - 1) / (batchCount - 1))
+        : index % chunks.length;
+    return {
+      chunk: chunks[chunkIndex],
+      count: baseCount + (index < extraCount ? 1 : 0),
+    };
+  });
 }
 
 /**
@@ -523,18 +562,8 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
   const isMatching = validatedInput.questionType === 'matching';
   const isMixed = validatedInput.questionType === 'mixed';
 
-  // Cap questions per parallel call to keep token generation fast (~1-2s per prompt)
-  const questionsPerCall = isMixed ? 8 : 6;
-  const batchCount = Math.ceil(numQuestions / questionsPerCall);
-
-  const chunkSize = computeChunkSize(validatedInput.lectureText.length, numQuestions);
-  const chunks = splitTextIntoChunks(validatedInput.lectureText, chunkSize);
-
   const deadlineMs = Date.now() + QUIZ_GENERATION_DEADLINE_MS;
-  const tasks = Array.from({ length: batchCount }, (_, i) => ({
-    chunk: chunks[i % chunks.length],
-    count: Math.min(questionsPerCall, numQuestions - i * questionsPerCall),
-  }));
+  const tasks = createGenerationTasks(validatedInput.lectureText, numQuestions);
 
   // Run batches with high concurrency (up to 6 parallel workers) for ultra-fast generation
   const results = await mapWithConcurrency(tasks, 6, async task => {
