@@ -312,6 +312,22 @@ export function validateQuestions(raw: QuestionRaw[], context: string): Question
 /**
  * Processes a single chunk of text to generate standard quiz questions
  */
+export function buildStandardQuizPrompt(chunk: string, params: {
+  questionsPerChunk: number;
+  questionType: QuestionType;
+  difficulty: string;
+  language: string;
+}): string {
+  const adaptiveField = params.difficulty === 'adaptive'
+    ? ',"difficultyTier":"easy|medium|hard"'
+    : '';
+  return `Create exactly ${params.questionsPerChunk} concise ${params.questionType} questions in ${params.language} at ${params.difficulty} difficulty.
+Format guidance: ${QUESTION_TYPE_GUIDANCE[params.questionType]}
+Use only the document. Give exactly four distinct options and one correct index. Avoid duplicate questions.
+Return ONLY minified JSON: {"title":"3-10 words","questions":[{"question":"...","options":["A","B","C","D"],"correctAnswerIndex":0,"topic":"1-4 words"${adaptiveField}}]}
+<document>${chunk}</document>`;
+}
+
 async function processStandardChunk(chunk: string, params: {
   questionsPerChunk: number;
   questionType: QuestionType;
@@ -320,44 +336,7 @@ async function processStandardChunk(chunk: string, params: {
   deadlineMs: number;
   model?: string;
 }): Promise<ChunkResult> {
-  const typeGuidance = QUESTION_TYPE_GUIDANCE[params.questionType];
-
-  const difficultyGuidance = params.difficulty === 'adaptive'
-    ? 'Generate a balanced mix of difficulty tiers: roughly one-third easy, one-third medium, one-third hard. Assign each question a "difficultyTier" field of "easy", "medium", or "hard".'
-    : `Match the difficulty level: ${
-        params.difficulty === 'easy' ? 'basic recall and understanding' :
-        params.difficulty === 'medium' ? 'application of concepts and relationships' :
-        'complex analysis and evaluation'
-      }`;
-
-  const prompt = `Generate ${params.questionsPerChunk} ${params.questionType} question(s) at '${params.difficulty}' difficulty level from the study material below, strictly in ${params.language}.
-
-For each question:
-- The question must be answerable from the document
-- All options must be relevant to the question
-- The correct answer must be supported by a specific phrase from the document
-- Incorrect options should be plausible but clearly wrong based on the document
-- Include a "topic" field with a short (1-4 word) topic label for the question, e.g. "Cellular Respiration" or "The French Revolution"
-- ${difficultyGuidance}
-- Question type guidance: ${typeGuidance}
-
-<document>
-${chunk}
-</document>
-
-Return one concise plain-text title (3-10 words) plus questions in this exact JSON format:
-{
-  "title": "Specific topic title",
-  "questions": [
-    {
-      "question": "Question text here?",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correctAnswerIndex": 0,
-      "topic": "Short topic label",
-      "supportingText": "Exact quote from the text that supports the correct answer"
-    }
-  ]
-}`;
+  const prompt = buildStandardQuizPrompt(chunk, params);
 
   try {
     const response = await callLLM(prompt, {
@@ -515,7 +494,7 @@ export const QUIZ_GENERATION_DEADLINE_MS = 50_000;
  * larger counts get proportional chunks for variety.
  */
 export const MAX_GENERATION_CHUNK_SIZE = 16_000;
-export const SMALL_QUIZ_QUESTIONS_PER_CALL = 5;
+export const SMALL_QUIZ_QUESTIONS_PER_CALL = 3;
 export const LARGE_QUIZ_QUESTIONS_PER_CALL = 10;
 
 /** Muse is fastest with small outputs, but 50-question quizzes need fewer calls. */
@@ -527,6 +506,7 @@ export function questionsPerGenerationCall(numQuestions: number): number {
 
 /** MiMo is the fastest measured low-cost model for grounded quiz JSON. */
 export function generationModelOverride(_numQuestions: number): string {
+  void _numQuestions;
   return 'mimo-v2.5';
 }
 
@@ -586,8 +566,8 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
   const tasks = createGenerationTasks(validatedInput.lectureText, numQuestions);
   const model = generationModelOverride(numQuestions);
 
-  // Run batches with high concurrency (up to 6 parallel workers) for ultra-fast generation
-  const results = await mapWithConcurrency(tasks, 6, async task => {
+  // Run batches with high concurrency (up to 7 parallel workers) for ultra-fast generation
+  const results = await mapWithConcurrency(tasks, 7, async task => {
     try {
       if (isMatching) {
         return await processMatchingChunk(task.chunk, {
