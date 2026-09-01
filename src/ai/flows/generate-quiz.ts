@@ -496,8 +496,11 @@ async function processMixedChunk(chunk: string, params: {
 // Main Export
 // =========================================
 
-/** Global budget for the entire quiz generation, including all retries. */
-export const QUIZ_GENERATION_DEADLINE_MS = 110_000;
+/**
+ * Global budget for the entire quiz generation, including all retries.
+ * Keep margin below Netlify's 60s ceiling so Next.js can serialize the action response.
+ */
+export const QUIZ_GENERATION_DEADLINE_MS = 50_000;
 
 /**
  * Adaptive chunk size: distributes text across batches.

@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { splitTextIntoChunks, computeChunkSize, generateQuiz, GenerateQuizInputSchema } from '@/ai/flows/generate-quiz';
+import {
+  splitTextIntoChunks,
+  computeChunkSize,
+  generateQuiz,
+  GenerateQuizInputSchema,
+  QUIZ_GENERATION_DEADLINE_MS,
+} from '@/ai/flows/generate-quiz';
+
+describe('quiz generation deployment budget', () => {
+  it('finishes before Netlify can truncate the Server Action response', () => {
+    expect(QUIZ_GENERATION_DEADLINE_MS).toBeLessThan(60_000);
+  });
+});
 
 describe('splitTextIntoChunks', () => {
   it('returns a single chunk for short text', () => {
