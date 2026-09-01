@@ -3,6 +3,7 @@ import {
   createGenerationTasks,
   MAX_GENERATION_CHUNK_SIZE,
   questionsPerGenerationCall,
+  generationModelOverride,
 } from '@/ai/flows/generate-quiz';
 
 const largeStudyText = Array.from(
@@ -44,5 +45,7 @@ describe('large-text generation batching', () => {
     expect(questionsPerGenerationCall(50)).toBe(10);
     expect(tasks).toHaveLength(5);
     expect(tasks.every(task => task.count === 10)).toBe(true);
+    expect(generationModelOverride(20)).toBe('mimo-v2.5');
+    expect(generationModelOverride(50)).toBe('mimo-v2.5');
   });
 });

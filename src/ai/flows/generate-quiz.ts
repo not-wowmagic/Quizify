@@ -318,6 +318,7 @@ async function processStandardChunk(chunk: string, params: {
   difficulty: string;
   language: string;
   deadlineMs: number;
+  model?: string;
 }): Promise<ChunkResult> {
   const typeGuidance = QUESTION_TYPE_GUIDANCE[params.questionType];
 
@@ -363,6 +364,7 @@ Return one concise plain-text title (3-10 words) plus questions in this exact JS
       systemInstruction: QUIZ_SYSTEM_INSTRUCTION,
       timeoutMs: 90000,
       deadlineMs: params.deadlineMs,
+      model: params.model,
     });
 
     // SAFETY: raw AI JSON parsed at the trust boundary; every question is
@@ -387,6 +389,7 @@ async function processMatchingChunk(chunk: string, params: {
   difficulty: string;
   language: string;
   deadlineMs: number;
+  model?: string;
 }): Promise<ChunkResult> {
   const difficultyGuidance = params.difficulty === 'adaptive'
     ? 'Generate a balanced mix of difficulty tiers: roughly one-third easy, one-third medium, one-third hard. Assign each question a "difficultyTier" field of "easy", "medium", or "hard".'
@@ -432,6 +435,7 @@ Return one concise plain-text title (3-10 words) plus questions in this exact JS
       systemInstruction: QUIZ_SYSTEM_INSTRUCTION,
       timeoutMs: 90000,
       deadlineMs: params.deadlineMs,
+      model: params.model,
     });
 
     // SAFETY: raw AI JSON parsed at the trust boundary; every question is
@@ -457,6 +461,7 @@ async function processMixedChunk(chunk: string, params: {
   difficulty: string;
   language: string;
   deadlineMs: number;
+  model?: string;
 }): Promise<ChunkResult> {
   // Allocate roughly 1 matching question per 4 total, minimum 1
   const matchingCount = Math.max(1, Math.floor(params.questionsPerChunk / 4));
@@ -471,6 +476,7 @@ async function processMixedChunk(chunk: string, params: {
           difficulty: params.difficulty,
           language: params.language,
           deadlineMs: params.deadlineMs,
+          model: params.model,
         })
       : Promise.resolve(emptyChunkResult),
     matchingCount > 0
@@ -479,6 +485,7 @@ async function processMixedChunk(chunk: string, params: {
           difficulty: params.difficulty,
           language: params.language,
           deadlineMs: params.deadlineMs,
+          model: params.model,
         })
       : Promise.resolve(emptyChunkResult),
   ]);
@@ -516,6 +523,11 @@ export function questionsPerGenerationCall(numQuestions: number): number {
   return numQuestions <= 20
     ? SMALL_QUIZ_QUESTIONS_PER_CALL
     : LARGE_QUIZ_QUESTIONS_PER_CALL;
+}
+
+/** MiMo is the fastest measured low-cost model for grounded quiz JSON. */
+export function generationModelOverride(_numQuestions: number): string {
+  return 'mimo-v2.5';
 }
 
 export function computeChunkSize(
@@ -572,6 +584,7 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
 
   const deadlineMs = Date.now() + QUIZ_GENERATION_DEADLINE_MS;
   const tasks = createGenerationTasks(validatedInput.lectureText, numQuestions);
+  const model = generationModelOverride(numQuestions);
 
   // Run batches with high concurrency (up to 6 parallel workers) for ultra-fast generation
   const results = await mapWithConcurrency(tasks, 6, async task => {
@@ -582,6 +595,7 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
           difficulty: validatedInput.difficulty,
           language: validatedInput.language,
           deadlineMs,
+          model,
         });
       } else if (isMixed) {
         return await processMixedChunk(task.chunk, {
@@ -589,6 +603,7 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
           difficulty: validatedInput.difficulty,
           language: validatedInput.language,
           deadlineMs,
+          model,
         });
       } else {
         return await processStandardChunk(task.chunk, {
@@ -597,6 +612,7 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
           difficulty: validatedInput.difficulty,
           language: validatedInput.language,
           deadlineMs,
+          model,
         });
       }
     } catch (err) {

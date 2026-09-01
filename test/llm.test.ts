@@ -155,6 +155,28 @@ describe('callLLM provider defaults', () => {
     expect(requestBody.model).toBe('muse-spark-1.2-contributor');
     expect(requestBody.input).toBeDefined();
   });
+
+  it('allows quiz generation to override Muse with the faster MiMo chat model', async () => {
+    let requestUrl = '';
+    let requestedModel = '';
+    vi.stubGlobal('fetch', async (url: string, init: { body?: BodyInit }) => {
+      requestUrl = url;
+      // SAFETY: this test supplies the JSON body and validates only its model field.
+      const requestBody = JSON.parse(String(init.body)) as { model?: string };
+      requestedModel = requestBody.model ?? '';
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"questions":[]}' }, finish_reason: 'stop' }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    vi.stubEnv('OPENCODE_API_KEY', 'test-key');
+    vi.stubEnv('AI_PROVIDER', 'opencode');
+    vi.stubEnv('OPENCODE_MODEL', 'muse-spark-1.2-contributor');
+
+    const { callLLM } = await import('@/ai/llm');
+    await expect(callLLM('hello', { model: 'mimo-v2.5' })).resolves.toBe('{"questions":[]}');
+    expect(requestUrl).toContain('/chat/completions');
+    expect(requestedModel).toBe('mimo-v2.5');
+  });
 });
 
 describe('callLLM deadline handling (stubbed fetch)', () => {
