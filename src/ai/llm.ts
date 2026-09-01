@@ -274,7 +274,7 @@ async function callOpenCodeChat(prompt: string, options: LLMOptions = {}): Promi
     throw new Error('OPENCODE_API_KEY environment variable is not set. Add it in the Netlify dashboard (or local .env.local for development).');
   }
 
-  const model = process.env.OPENCODE_MODEL || 'deepseek-v4-flash';
+  const model = process.env.OPENCODE_MODEL || 'muse-spark-1.2-contributor';
   // opencode (subscription) endpoint by default. See https://opencode.ai/docs/go/
   const url = process.env.OPENCODE_BASE_URL || 'https://opencode.ai/zen/go/v1/chat/completions';
   const timeoutMs = options.timeoutMs ?? 30000;
