@@ -1916,6 +1916,52 @@
   color: hsl(var(--meadow-control-foreground)) !important;
 }
 
+/* Keep revealed-but-neutral options readable instead of washing them out. */
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answer-state='unrevealed'] {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.26), transparent 38%),
+    hsl(198 58% 74% / 0.38) !important;
+  border-color: hsl(var(--foreground) / 0.16) !important;
+  color: hsl(var(--foreground)) !important;
+  opacity: 1 !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answer-state='unrevealed'] .quizify-answer-key {
+  background: hsl(0 0% 100% / 0.28) !important;
+  border-color: hsl(var(--foreground) / 0.22) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Use Meadow's sky and sun signals instead of a traffic-light palette. */
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answer-state='correct'] {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.34), transparent 38%),
+    hsl(var(--primary) / 0.24) !important;
+  border-color: hsl(var(--primary) / 0.72) !important;
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.42) !important;
+  color: hsl(var(--primary)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answer-state='incorrect'] {
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.32), transparent 38%),
+    hsl(var(--accent) / 0.26) !important;
+  border-color: hsl(var(--accent) / 0.58) !important;
+  color: hsl(var(--accent-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answer-state='correct'] .quizify-answer-key {
+  background: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answer-state='incorrect'] .quizify-answer-key {
+  background: hsl(var(--accent)) !important;
+  border-color: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+}
+
 .quizify-shell[data-style='meadow'] .quizify-question-card .quizify-match-option[data-match-state='selected'] {
   background:
     linear-gradient(180deg, hsl(0 0% 100% / 0.2), transparent 34%),
@@ -1950,6 +1996,24 @@
 
 .quizify-shell[data-style='meadow'] .quizify-tutor-chip:hover {
   background: hsl(var(--primary) / 0.2) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-tutor-trigger {
+  background: transparent !important;
+  border-color: transparent !important;
+  border-radius: 0.4rem;
+  box-shadow: none !important;
+  color: hsl(var(--primary)) !important;
+  padding: 0.35rem 0.15rem;
+  text-decoration: underline;
+  text-decoration-color: hsl(var(--primary) / 0.3);
+  text-underline-offset: 0.2rem;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-tutor-trigger:hover {
+  background: transparent !important;
+  border-color: transparent !important;
+  transform: none;
 }
 
 .quizify-shell[data-style='meadow'] .quizify-tutor-input {
