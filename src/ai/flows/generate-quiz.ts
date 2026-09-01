@@ -508,7 +508,15 @@ export const QUIZ_GENERATION_DEADLINE_MS = 50_000;
  * larger counts get proportional chunks for variety.
  */
 export const MAX_GENERATION_CHUNK_SIZE = 16_000;
-export const QUESTIONS_PER_GENERATION_CALL = 20;
+export const SMALL_QUIZ_QUESTIONS_PER_CALL = 5;
+export const LARGE_QUIZ_QUESTIONS_PER_CALL = 10;
+
+/** Muse is fastest with small outputs, but 50-question quizzes need fewer calls. */
+export function questionsPerGenerationCall(numQuestions: number): number {
+  return numQuestions <= 20
+    ? SMALL_QUIZ_QUESTIONS_PER_CALL
+    : LARGE_QUIZ_QUESTIONS_PER_CALL;
+}
 
 export function computeChunkSize(
   textLength: number,
@@ -529,7 +537,7 @@ export interface GenerationTask {
 export function createGenerationTasks(
   text: string,
   numQuestions: number,
-  questionsPerCall = QUESTIONS_PER_GENERATION_CALL,
+  questionsPerCall = questionsPerGenerationCall(numQuestions),
 ): GenerationTask[] {
   const questionBatchCount = Math.ceil(numQuestions / questionsPerCall);
   const coverageBatchCount = Math.ceil(text.length / 50_000);
