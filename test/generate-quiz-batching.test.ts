@@ -25,4 +25,14 @@ describe('large-text generation batching', () => {
     expect(tasks).toHaveLength(5);
     expect(tasks.reduce((total, task) => total + task.count, 0)).toBe(50);
   });
+
+  it('keeps a typical 6-8k study text to one provider call for 20 questions', () => {
+    const typicalText = 'Nursing care includes assessment, planning, implementation, and evaluation. '.repeat(90);
+    const tasks = createGenerationTasks(typicalText, 20);
+
+    expect(typicalText.length).toBeGreaterThan(6000);
+    expect(typicalText.length).toBeLessThan(8000);
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].count).toBe(20);
+  });
 });

@@ -508,7 +508,7 @@ export const QUIZ_GENERATION_DEADLINE_MS = 50_000;
  * larger counts get proportional chunks for variety.
  */
 export const MAX_GENERATION_CHUNK_SIZE = 16_000;
-export const QUESTIONS_PER_GENERATION_CALL = 10;
+export const QUESTIONS_PER_GENERATION_CALL = 20;
 
 export function computeChunkSize(
   textLength: number,
