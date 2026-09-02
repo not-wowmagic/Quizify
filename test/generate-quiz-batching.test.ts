@@ -6,6 +6,7 @@ import {
   generationModelOverride,
   buildStandardQuizPrompt,
 } from '@/ai/flows/generate-quiz';
+import { splitQuestionCount } from '@/lib/quiz-batching';
 
 const largeStudyText = Array.from(
   { length: 1200 },
@@ -13,6 +14,11 @@ const largeStudyText = Array.from(
 ).join(' ');
 
 describe('large-text generation batching', () => {
+  it('splits high-count client requests into independently bounded actions', () => {
+    expect(splitQuestionCount(20)).toEqual([10, 10]);
+    expect(splitQuestionCount(50)).toEqual([10, 10, 10, 10, 10]);
+  });
+
   it('keeps model prompts bounded while distributing questions across the document', () => {
     const tasks = createGenerationTasks(largeStudyText, 10, 10);
 

@@ -4,10 +4,11 @@
 // Orchestrator for the quiz flow. Presentation lives in src/components/quiz/*.
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { Quiz } from '@/types/quiz';
-import { createQuiz, createSummary, publishQuiz, saveAttempt } from '@/app/actions';
+import { createQuiz, createSummary, publishQuiz, saveAttempt, type CreateQuizInput } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { processQuiz, quizHelpers } from '@/lib/quiz-processors';
 import { normalizeQuizTitle } from '@/lib/quiz-title';
+import { splitQuestionCount } from '@/lib/quiz-batching';
 import { getDeviceId } from '@/lib/device-id';
 import { buildAnkiTxt, buildQuizCsv, downloadTextFile, printQuiz, printCramSheet } from '@/lib/quiz-export';
 import {
@@ -37,6 +38,23 @@ const motivationalQuotes = [
 ];
 
 const getRandomQuote = () => motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
+
+type QuizGenerationResult = Awaited<ReturnType<typeof createQuiz>>;
+
+async function createQuizBatch(input: CreateQuizInput): Promise<QuizGenerationResult> {
+  try {
+    const response = await fetch('/api/generate-quiz', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    // SAFETY: the same-origin route returns the createQuiz result union.
+    const result = await response.json() as QuizGenerationResult;
+    return response.ok ? result : ('error' in result ? result : { error: 'Failed to generate the quiz. Please try again.' });
+  } catch {
+    return { error: 'Failed to generate the quiz. Please try again.' };
+  }
+}
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
@@ -153,9 +171,10 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
       setQuiz(null);
       setUserAnswers({});
 
-      const result = await createQuiz({
+      const requestedQuestionCount = Number(numQuestions) || 10;
+      const request: CreateQuizInput = {
         lectureText,
-        numQuestions: Number(numQuestions) || 10,
+        numQuestions: requestedQuestionCount,
         difficulty,
         questionType,
         language,
@@ -163,16 +182,37 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
         bypassCache: incognito,
         fallbackTitle: fileName || undefined,
         fallbackWebTitle: sourceTitle || undefined,
-      });
+      };
 
-      if ('error' in result) {
+      // Netlify can time out one large server action even when the provider
+      // calls themselves are bounded. Split 21-50 question requests into
+      // independent 10-question actions and merge their validated results.
+      const batchCounts = requestedQuestionCount > 20
+        ? splitQuestionCount(requestedQuestionCount)
+        : [requestedQuestionCount];
+      const batchResults = await Promise.all(
+        batchCounts.map(batchCount => requestedQuestionCount > 20
+          ? createQuizBatch({ ...request, numQuestions: batchCount })
+          : createQuiz({ ...request, numQuestions: batchCount })),
+      );
+      const successfulResults = batchResults.filter(
+        (batch): batch is Pick<Quiz, 'questions' | 'title'> => !('error' in batch),
+      );
+
+      if (successfulResults.length === 0) {
+        const failure = batchResults.find((batch): batch is { error: string } => 'error' in batch);
         toast({
           title: 'Error Generating Quiz',
-          description: result.error,
+          description: failure?.error ?? 'The AI could not generate a quiz from the provided text. Please try refining your text.',
           variant: 'destructive',
         });
         return;
       }
+
+      const result = {
+        title: successfulResults[0].title,
+        questions: successfulResults.flatMap(batch => batch.questions).slice(0, requestedQuestionCount),
+      };
 
       rawQuizRef.current = result;
       attemptSavedRef.current = false;
@@ -189,7 +229,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
       setQuiz(processedQuiz);
 
       trackQuizGenerated({
-        questionCount: Number(numQuestions) || 10,
+        questionCount: requestedQuestionCount,
         difficulty,
         format: questionType,
         language,
