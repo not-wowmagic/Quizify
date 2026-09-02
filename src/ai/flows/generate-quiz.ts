@@ -504,10 +504,9 @@ export function questionsPerGenerationCall(numQuestions: number): number {
     : LARGE_QUIZ_QUESTIONS_PER_CALL;
 }
 
-/** Muse is the measured low-cost model that handles parallel quiz batches reliably. */
-export function generationModelOverride(_numQuestions: number): string {
-  void _numQuestions;
-  return 'muse-spark-1.2-contributor';
+/** Muse is best for normal quizzes; MiMo handles large batch fan-out better. */
+export function generationModelOverride(numQuestions: number): string {
+  return numQuestions > 20 ? 'mimo-v2.5' : 'muse-spark-1.2-contributor';
 }
 
 export function computeChunkSize(

@@ -51,7 +51,7 @@ describe('large-text generation batching', () => {
     expect(tasks).toHaveLength(5);
     expect(tasks.every(task => task.count === 10)).toBe(true);
     expect(generationModelOverride(20)).toBe('muse-spark-1.2-contributor');
-    expect(generationModelOverride(50)).toBe('muse-spark-1.2-contributor');
+    expect(generationModelOverride(50)).toBe('mimo-v2.5');
   });
 
   it('keeps the low-cost provider prompt concise and omits optional quote generation', () => {
