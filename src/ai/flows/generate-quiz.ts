@@ -494,10 +494,10 @@ export const QUIZ_GENERATION_DEADLINE_MS = 50_000;
  * larger counts get proportional chunks for variety.
  */
 export const MAX_GENERATION_CHUNK_SIZE = 16_000;
-export const SMALL_QUIZ_QUESTIONS_PER_CALL = 5;
+export const SMALL_QUIZ_QUESTIONS_PER_CALL = 10;
 export const LARGE_QUIZ_QUESTIONS_PER_CALL = 10;
 
-/** Muse is fastest with small outputs, but 50-question quizzes need fewer calls. */
+/** Keep each request large enough to avoid provider fan-out throttling. */
 export function questionsPerGenerationCall(numQuestions: number): number {
   return numQuestions <= 20
     ? SMALL_QUIZ_QUESTIONS_PER_CALL
