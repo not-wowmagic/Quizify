@@ -14,7 +14,7 @@
  */
 
 import { z } from 'zod';
-import { callLLM, extractJSON } from '@/ai/llm';
+import { callLLM, extractJSON, resolveProvider, type LLMProvider } from '@/ai/llm';
 
 // =========================================
 // Type Definitions and Validation Schemas
@@ -110,7 +110,7 @@ const MatchingQuestionSchema = z.object({
 type StandardQuestionRaw = z.infer<typeof StandardQuestionSchema>;
 type MatchingQuestionRaw = z.infer<typeof MatchingQuestionSchema>;
 type QuestionRaw = StandardQuestionRaw | MatchingQuestionRaw;
-type ChunkResult = { questions: QuestionRaw[]; title?: string };
+type ChunkResult = { questions: QuestionRaw[]; title?: string; failed?: boolean };
 
 /** A single validated quiz question (standard or matching). */
 export const QuizQuestionSchema = z.union([StandardQuestionSchema, MatchingQuestionSchema]);
@@ -255,6 +255,19 @@ export function stringSimilarity(a: string, b: string): number {
 }
 
 /**
+ * Character similarity alone is too aggressive for short labels that share a
+ * suffix, such as "Pediatric Nursing" and "Geriatric Nursing". Keep exact
+ * normalized duplicates blocked, but require meaningful token overlap before
+ * rejecting a merely similar distractor.
+ */
+function areNearDuplicateOptions(a: string, b: string): boolean {
+  const normalizedA = normalizeForCompare(a);
+  const normalizedB = normalizeForCompare(b);
+  if (normalizedA === normalizedB) return true;
+  return stringSimilarity(a, b) > SIMILARITY_THRESHOLD && jaccardSimilarity(normalizedA, normalizedB) >= 0.5;
+}
+
+/**
  * Drops standard questions whose options are too similar to each other or to
  * the correct answer (near-duplicate distractors make questions trivially
  * guessable). Matching questions keep pairs unique via the schema.
@@ -263,7 +276,7 @@ export function dedupeQuestionOptions(questions: StandardQuestionRaw[]): Standar
   return questions.filter(q => {
     for (let i = 0; i < q.options.length; i++) {
       for (let j = i + 1; j < q.options.length; j++) {
-        if (stringSimilarity(q.options[i], q.options[j]) > SIMILARITY_THRESHOLD) {
+        if (areNearDuplicateOptions(q.options[i], q.options[j])) {
           console.warn(`[generate-quiz] Dropped question with near-duplicate options (${q.options[i].slice(0, 40)} / ${q.options[j].slice(0, 40)}).`);
           return false;
         }
@@ -272,7 +285,7 @@ export function dedupeQuestionOptions(questions: StandardQuestionRaw[]): Standar
     const correct = q.options[q.correctAnswerIndex];
     for (let i = 0; i < q.options.length; i++) {
       if (i === q.correctAnswerIndex) continue;
-      if (stringSimilarity(q.options[i], correct) > SIMILARITY_THRESHOLD) {
+      if (areNearDuplicateOptions(q.options[i], correct)) {
         console.warn(`[generate-quiz] Dropped question with distractor too close to the correct answer (${q.options[i].slice(0, 40)}).`);
         return false;
       }
@@ -317,6 +330,7 @@ export function buildStandardQuizPrompt(chunk: string, params: {
   questionType: QuestionType;
   difficulty: string;
   language: string;
+  topUpInstruction?: string;
 }): string {
   const adaptiveField = params.difficulty === 'adaptive'
     ? ',"difficultyTier":"easy|medium|hard"'
@@ -325,6 +339,7 @@ export function buildStandardQuizPrompt(chunk: string, params: {
 Format guidance: ${QUESTION_TYPE_GUIDANCE[params.questionType]}
 Use only the document. Give exactly four distinct options and one correct index. Avoid duplicate questions.
 Return ONLY minified JSON: {"title":"3-10 words","questions":[{"question":"...","options":["A","B","C","D"],"correctAnswerIndex":0,"topic":"1-4 words"${adaptiveField}}]}
+${params.topUpInstruction ? `\n${params.topUpInstruction}` : ''}
 <document>${chunk}</document>`;
 }
 
@@ -335,6 +350,8 @@ async function processStandardChunk(chunk: string, params: {
   language: string;
   deadlineMs: number;
   model?: string;
+  provider: LLMProvider;
+  topUpInstruction?: string;
 }): Promise<ChunkResult> {
   const prompt = buildStandardQuizPrompt(chunk, params);
 
@@ -344,6 +361,7 @@ async function processStandardChunk(chunk: string, params: {
       timeoutMs: 90000,
       deadlineMs: params.deadlineMs,
       model: params.model,
+      provider: params.provider,
     });
 
     // SAFETY: raw AI JSON parsed at the trust boundary; every question is
@@ -356,7 +374,7 @@ async function processStandardChunk(chunk: string, params: {
     };
   } catch (err) {
     console.error('[generate-quiz] Failed to generate/parse standard questions from chunk:', err);
-    return { questions: [] };
+    return { questions: [], failed: true };
   }
 }
 
@@ -369,6 +387,8 @@ async function processMatchingChunk(chunk: string, params: {
   language: string;
   deadlineMs: number;
   model?: string;
+  provider: LLMProvider;
+  topUpInstruction?: string;
 }): Promise<ChunkResult> {
   const difficultyGuidance = params.difficulty === 'adaptive'
     ? 'Generate a balanced mix of difficulty tiers: roughly one-third easy, one-third medium, one-third hard. Assign each question a "difficultyTier" field of "easy", "medium", or "hard".'
@@ -387,6 +407,7 @@ Rules:
 - Each pair must be clearly and unambiguously connected based on the document.
 - Include a "topic" field with a short (1-4 word) topic label for the question, e.g. "Cellular Respiration" or "The French Revolution"
 - ${difficultyGuidance}
+${params.topUpInstruction ? `\n${params.topUpInstruction}` : ''}
 
 <document>
 ${chunk}
@@ -415,6 +436,7 @@ Return one concise plain-text title (3-10 words) plus questions in this exact JS
       timeoutMs: 90000,
       deadlineMs: params.deadlineMs,
       model: params.model,
+      provider: params.provider,
     });
 
     // SAFETY: raw AI JSON parsed at the trust boundary; every question is
@@ -427,7 +449,7 @@ Return one concise plain-text title (3-10 words) plus questions in this exact JS
     };
   } catch (err) {
     console.error('[generate-quiz] Failed to generate/parse matching JSON from chunk response:', err);
-    return { questions: [] };
+    return { questions: [], failed: true };
   }
 }
 
@@ -441,6 +463,8 @@ async function processMixedChunk(chunk: string, params: {
   language: string;
   deadlineMs: number;
   model?: string;
+  provider: LLMProvider;
+  topUpInstruction?: string;
 }): Promise<ChunkResult> {
   // Allocate roughly 1 matching question per 4 total, minimum 1
   const matchingCount = Math.max(1, Math.floor(params.questionsPerChunk / 4));
@@ -456,6 +480,8 @@ async function processMixedChunk(chunk: string, params: {
           language: params.language,
           deadlineMs: params.deadlineMs,
           model: params.model,
+          provider: params.provider,
+          topUpInstruction: params.topUpInstruction,
         })
       : Promise.resolve(emptyChunkResult),
     matchingCount > 0
@@ -465,6 +491,8 @@ async function processMixedChunk(chunk: string, params: {
           language: params.language,
           deadlineMs: params.deadlineMs,
           model: params.model,
+          provider: params.provider,
+          topUpInstruction: params.topUpInstruction,
         })
       : Promise.resolve(emptyChunkResult),
   ]);
@@ -475,7 +503,11 @@ async function processMixedChunk(chunk: string, params: {
     const j = Math.floor(Math.random() * (i + 1));
     [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
   }
-  return { title: standardResults.title ?? matchingResult.title, questions: allQuestions };
+  return {
+    title: standardResults.title ?? matchingResult.title,
+    questions: allQuestions,
+    failed: standardResults.failed === true && matchingResult.failed === true,
+  };
 }
 
 // =========================================
@@ -496,6 +528,13 @@ export const QUIZ_GENERATION_DEADLINE_MS = 50_000;
 export const MAX_GENERATION_CHUNK_SIZE = 16_000;
 export const SMALL_QUIZ_QUESTIONS_PER_CALL = 10;
 export const LARGE_QUIZ_QUESTIONS_PER_CALL = 10;
+export const GENERATION_OVERSAMPLE_RATIO = 0.15;
+const TOP_UP_MARGIN = 2;
+
+/** Requests a small safety margin so validation can discard bad questions. */
+export function getGenerationQuestionCount(requestedCount: number): number {
+  return requestedCount + Math.max(1, Math.ceil(requestedCount * GENERATION_OVERSAMPLE_RATIO));
+}
 
 /** Keep each request large enough to avoid provider fan-out throttling. */
 export function questionsPerGenerationCall(numQuestions: number): number {
@@ -550,6 +589,84 @@ export function createGenerationTasks(
   });
 }
 
+interface GenerationRun {
+  results: ChunkResult[];
+  rawQuestions: QuestionRaw[];
+}
+
+/** Executes one provider pass while keeping request concurrency bounded. */
+async function runGenerationTasks(
+  tasks: GenerationTask[],
+  input: GenerateQuizInput,
+  deadlineMs: number,
+  provider: LLMProvider,
+  model: string,
+  topUpInstruction?: string,
+): Promise<GenerationRun> {
+  const results = await mapWithConcurrency(tasks, 5, async task => {
+    try {
+      if (input.questionType === 'matching') {
+        return await processMatchingChunk(task.chunk, {
+          questionsPerChunk: task.count,
+          difficulty: input.difficulty,
+          language: input.language,
+          deadlineMs,
+          model,
+          provider,
+          topUpInstruction,
+        });
+      }
+      if (input.questionType === 'mixed') {
+        return await processMixedChunk(task.chunk, {
+          questionsPerChunk: task.count,
+          difficulty: input.difficulty,
+          language: input.language,
+          deadlineMs,
+          model,
+          provider,
+          topUpInstruction,
+        });
+      }
+      return await processStandardChunk(task.chunk, {
+        questionsPerChunk: task.count,
+        questionType: input.questionType,
+        difficulty: input.difficulty,
+        language: input.language,
+        deadlineMs,
+        model,
+        provider,
+        topUpInstruction,
+      });
+    } catch (err) {
+      console.error('[generate-quiz] Chunk task execution failed:', err);
+      // SAFETY: failed tasks intentionally use the empty ChunkResult shape;
+      // no provider response is trusted on this path.
+      return { questions: [], failed: true } as ChunkResult;
+    }
+  });
+
+  return {
+    results,
+    rawQuestions: results.flatMap(chunkResult => chunkResult.questions),
+  };
+}
+
+/** Gives a top-up request enough context to avoid repeating existing stems. */
+function buildTopUpInstruction(questions: QuestionRaw[]): string {
+  const stems = questions
+    .map(question => question.question.trim().replace(/\s+/g, ' ').slice(0, 180))
+    .filter(Boolean)
+    .slice(-30);
+  const existingStems = stems.length > 0
+    ? stems.map(stem => `- ${stem}`).join('\n')
+    : '- none';
+
+  return `This is a top-up pass. Generate new questions only; do not repeat these existing question stems:
+<existing_question_stems>
+${existingStems}
+</existing_question_stems>`;
+}
+
 /**
  * Generates quiz questions from text based on given parameters
  */
@@ -558,56 +675,55 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
   const validatedInput = GenerateQuizInputSchema.parse(input);
 
   const numQuestions = validatedInput.numQuestions;
-  const isMatching = validatedInput.questionType === 'matching';
-  const isMixed = validatedInput.questionType === 'mixed';
 
   const deadlineMs = Date.now() + QUIZ_GENERATION_DEADLINE_MS;
-  const tasks = createGenerationTasks(validatedInput.lectureText, numQuestions);
+  const provider = resolveProvider();
+  const generationCount = getGenerationQuestionCount(numQuestions);
+  const tasks = createGenerationTasks(validatedInput.lectureText, generationCount);
   const model = generationModelOverride(numQuestions);
+  const runs: GenerationRun[] = [];
 
-  // Run short batches concurrently to stay within the Netlify request window.
-  const results = await mapWithConcurrency(tasks, 5, async task => {
-    try {
-      if (isMatching) {
-        return await processMatchingChunk(task.chunk, {
-          questionsPerChunk: task.count,
-          difficulty: validatedInput.difficulty,
-          language: validatedInput.language,
-          deadlineMs,
-          model,
-        });
-      } else if (isMixed) {
-        return await processMixedChunk(task.chunk, {
-          questionsPerChunk: task.count,
-          difficulty: validatedInput.difficulty,
-          language: validatedInput.language,
-          deadlineMs,
-          model,
-        });
-      } else {
-        return await processStandardChunk(task.chunk, {
-          questionsPerChunk: task.count,
-          questionType: validatedInput.questionType,
-          difficulty: validatedInput.difficulty,
-          language: validatedInput.language,
-          deadlineMs,
-          model,
-        });
-      }
-    } catch (err) {
-      console.error('[generate-quiz] Chunk task execution failed:', err);
-      // SAFETY: failed chunk tasks are represented by an empty ChunkResult.
-      return { questions: [] } as ChunkResult;
-    }
-  });
+  const primaryRun = await runGenerationTasks(tasks, validatedInput, deadlineMs, provider, model);
+  runs.push(primaryRun);
 
-  const rawQuestions: QuestionRaw[] = [];
-  for (const chunkResult of results) {
-    rawQuestions.push(...chunkResult.questions);
+  // Validate and bounds-check every AI-generated question.
+  let validated = validateQuestions(primaryRun.rawQuestions, 'quiz generation');
+
+  // Gemini is fast enough for one bounded top-up pass when validation removes
+  // questions. This preserves exact requested counts without rerunning all work.
+  if (provider === 'gemini' && validated.length > 0 && validated.length < numQuestions) {
+    const missing = numQuestions - validated.length;
+    const topUpCount = Math.min(SMALL_QUIZ_QUESTIONS_PER_CALL, missing + TOP_UP_MARGIN);
+    const topUpRun = await runGenerationTasks(
+      createGenerationTasks(validatedInput.lectureText, topUpCount),
+      validatedInput,
+      deadlineMs,
+      provider,
+      model,
+      buildTopUpInstruction(validated),
+    );
+    runs.push(topUpRun);
+    validated = [
+      ...validated,
+      ...validateQuestions(topUpRun.rawQuestions, 'quiz generation top-up'),
+    ];
   }
 
-  // Validate and bounds-check every AI-generated question
-  const validated = validateQuestions(rawQuestions, 'quiz generation');
+  // If Gemini produced no usable questions at all, use the cheap Muse model
+  // through OpenCode as a last-resort provider fallback.
+  if (provider === 'gemini' && validated.length === 0) {
+    const fallbackRun = await runGenerationTasks(
+      tasks,
+      validatedInput,
+      deadlineMs,
+      'opencode',
+      'muse-spark-1.2-contributor',
+    );
+    runs.push(fallbackRun);
+    validated = validateQuestions(fallbackRun.rawQuestions, 'OpenCode fallback');
+  }
+
+  const results = runs.flatMap(run => run.results);
 
   // Adaptive mode: keep a balanced tier mix (round-robin across easy/medium/
   // hard) instead of a naive head-slice, which would bias toward whatever the

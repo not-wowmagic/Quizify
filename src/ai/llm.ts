@@ -18,10 +18,14 @@ import 'server-only';
  * are fast, free, and never rate-limited.
  */
 
+export type LLMProvider = 'opencode' | 'gemini';
+
 export interface LLMOptions {
   systemInstruction?: string;
   /** Optional per-request OpenCode model override. */
   model?: string;
+  /** Optional per-call provider override used by bounded fallback flows. */
+  provider?: LLMProvider;
   /** Per-attempt timeout in milliseconds. Defaults to 30s. */
   timeoutMs?: number;
   /**
@@ -428,8 +432,6 @@ async function callGeminiDirect(prompt: string, options: LLMOptions = {}): Promi
 // Public entry point
 // =========================================
 
-export type LLMProvider = 'opencode' | 'gemini';
-
 /** Resolves the active provider from AI_PROVIDER (default: opencode). */
 export function resolveProvider(): LLMProvider {
   const provider = (process.env.AI_PROVIDER ?? 'opencode').trim().toLowerCase();
@@ -443,7 +445,7 @@ export async function callLLM(prompt: string, options: LLMOptions = {}): Promise
   if (process.env.E2E_MOCK_AI === '1') {
     return mockLLM(prompt);
   }
-  const provider = resolveProvider();
+  const provider = options.provider ?? resolveProvider();
   if (provider === 'gemini') {
     return callGeminiDirect(prompt, options);
   }
