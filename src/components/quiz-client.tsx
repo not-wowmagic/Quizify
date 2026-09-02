@@ -40,6 +40,7 @@ const motivationalQuotes = [
 const getRandomQuote = () => motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
 
 type QuizGenerationResult = Awaited<ReturnType<typeof createQuiz>>;
+const HIGH_COUNT_BATCH_CONCURRENCY = 3;
 
 async function createQuizBatch(input: CreateQuizInput): Promise<QuizGenerationResult> {
   try {
@@ -190,11 +191,15 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
       const batchCounts = requestedQuestionCount > 20
         ? splitQuestionCount(requestedQuestionCount)
         : [requestedQuestionCount];
-      const batchResults = await Promise.all(
-        batchCounts.map(batchCount => requestedQuestionCount > 20
-          ? createQuizBatch({ ...request, numQuestions: batchCount })
-          : createQuiz({ ...request, numQuestions: batchCount })),
-      );
+      const batchResults: QuizGenerationResult[] = [];
+      for (let index = 0; index < batchCounts.length; index += HIGH_COUNT_BATCH_CONCURRENCY) {
+        const wave = await Promise.all(
+          batchCounts.slice(index, index + HIGH_COUNT_BATCH_CONCURRENCY).map(batchCount => requestedQuestionCount > 20
+            ? createQuizBatch({ ...request, numQuestions: batchCount })
+            : createQuiz({ ...request, numQuestions: batchCount })),
+        );
+        batchResults.push(...wave);
+      }
       const successfulResults = batchResults.filter(
         (batch): batch is Pick<Quiz, 'questions' | 'title'> => !('error' in batch),
       );
