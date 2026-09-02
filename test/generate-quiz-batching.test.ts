@@ -29,29 +29,32 @@ describe('large-text generation batching', () => {
     expect(tasks.reduce((total, task) => total + task.count, 0)).toBe(50);
   });
 
-  it('uses seven short provider calls for a typical 6-8k text with 20 questions', () => {
-    const typicalText = 'Nursing care includes assessment, planning, implementation, and evaluation. '.repeat(90);
+  it('uses four short provider calls for a typical 6-8k text with 20 questions', () => {
+    const typicalText = Array.from(
+      { length: 90 },
+      (_, index) => `Nursing section ${index} covers assessment, planning, implementation, and evaluation.`,
+    ).join(' ');
     const tasks = createGenerationTasks(typicalText, 20);
 
     expect(typicalText.length).toBeGreaterThan(6000);
     expect(typicalText.length).toBeLessThan(8000);
-    expect(tasks).toHaveLength(7);
+    expect(tasks).toHaveLength(4);
     expect(tasks.reduce((total, task) => total + task.count, 0)).toBe(20);
-    expect(tasks.every(task => task.count <= 3)).toBe(true);
+    expect(tasks.every(task => task.count === 5)).toBe(true);
   });
 
   it('caps maximum-size quizzes at five concurrent provider calls', () => {
     const tasks = createGenerationTasks(largeStudyText, 50);
 
-    expect(questionsPerGenerationCall(20)).toBe(3);
+    expect(questionsPerGenerationCall(20)).toBe(5);
     expect(questionsPerGenerationCall(50)).toBe(10);
     expect(tasks).toHaveLength(5);
     expect(tasks.every(task => task.count === 10)).toBe(true);
-    expect(generationModelOverride(20)).toBe('mimo-v2.5');
-    expect(generationModelOverride(50)).toBe('mimo-v2.5');
+    expect(generationModelOverride(20)).toBe('muse-spark-1.2-contributor');
+    expect(generationModelOverride(50)).toBe('muse-spark-1.2-contributor');
   });
 
-  it('keeps the MiMo prompt concise and omits optional quote generation', () => {
+  it('keeps the low-cost provider prompt concise and omits optional quote generation', () => {
     const document = 'Grounded study material. '.repeat(200);
     const prompt = buildStandardQuizPrompt(document, {
       questionsPerChunk: 5,

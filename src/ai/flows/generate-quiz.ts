@@ -494,7 +494,7 @@ export const QUIZ_GENERATION_DEADLINE_MS = 50_000;
  * larger counts get proportional chunks for variety.
  */
 export const MAX_GENERATION_CHUNK_SIZE = 16_000;
-export const SMALL_QUIZ_QUESTIONS_PER_CALL = 3;
+export const SMALL_QUIZ_QUESTIONS_PER_CALL = 5;
 export const LARGE_QUIZ_QUESTIONS_PER_CALL = 10;
 
 /** Muse is fastest with small outputs, but 50-question quizzes need fewer calls. */
@@ -504,10 +504,10 @@ export function questionsPerGenerationCall(numQuestions: number): number {
     : LARGE_QUIZ_QUESTIONS_PER_CALL;
 }
 
-/** MiMo is the fastest measured low-cost model for grounded quiz JSON. */
+/** Muse is the measured low-cost model that handles parallel quiz batches reliably. */
 export function generationModelOverride(_numQuestions: number): string {
   void _numQuestions;
-  return 'mimo-v2.5';
+  return 'muse-spark-1.2-contributor';
 }
 
 export function computeChunkSize(
@@ -566,8 +566,8 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
   const tasks = createGenerationTasks(validatedInput.lectureText, numQuestions);
   const model = generationModelOverride(numQuestions);
 
-  // Run batches with high concurrency (up to 7 parallel workers) for ultra-fast generation
-  const results = await mapWithConcurrency(tasks, 7, async task => {
+  // Run short batches concurrently to stay within the Netlify request window.
+  const results = await mapWithConcurrency(tasks, 5, async task => {
     try {
       if (isMatching) {
         return await processMatchingChunk(task.chunk, {
