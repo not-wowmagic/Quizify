@@ -51,7 +51,7 @@ test.describe('focus management', () => {
 });
 
 test.describe('dark-mode contrast', () => {
-  test('normal text and the destructive option pass contrast in dark mode', async ({ page }) => {
+  test('normal text and the themed answer signal pass contrast in dark mode', async ({ page }) => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
@@ -63,7 +63,7 @@ test.describe('dark-mode contrast', () => {
     expect(foreground).toBe('rgb(248, 250, 252)');
 
     // Option order is shuffled, so pick a deterministically-wrong option;
-    // Wrong answers render the active Meadow destructive color token.
+    // Wrong answers render the active Meadow sun-signal treatment.
     const cards = questionCards(page);
     const total = await cards.count();
     let cardIndex = -1;
@@ -82,8 +82,8 @@ test.describe('dark-mode contrast', () => {
     }
     expect(wrongIndex).toBeGreaterThanOrEqual(0);
     await options.nth(wrongIndex).click();
-    await expect(options.nth(wrongIndex)).toHaveClass(/text-destructive/);
-    await expect(options.nth(wrongIndex)).toHaveCSS('color', 'rgb(233, 103, 93)');
+    await expect(options.nth(wrongIndex)).toHaveAttribute('data-answer-state', 'incorrect');
+    await expect(options.nth(wrongIndex)).toHaveClass(/bg-accent\/15/);
   });
 });
 

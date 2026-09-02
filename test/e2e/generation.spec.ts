@@ -81,7 +81,7 @@ test.describe('answer UX', () => {
     await expect(option).toBeDisabled();
   });
 
-  test('wrong selection is styled with destructive colors and the correct one is highlighted', async ({ page }) => {
+  test('wrong selection uses the themed answer signals and the correct one is highlighted', async ({ page }) => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
@@ -108,9 +108,11 @@ test.describe('answer UX', () => {
     }
     expect(wrongIndex).toBeGreaterThanOrEqual(0);
     await options.nth(wrongIndex).click();
-    await expect(options.nth(wrongIndex)).toHaveClass(/text-destructive/);
-    await expect(options.nth(wrongIndex)).toHaveCSS('color', 'rgb(233, 103, 93)');
-    await expect(card.locator('button', { hasText: rightText }).first()).toHaveCSS('color', /rgb\(16, 185, 129\)|rgb\(52, 211, 153\)/);
+    await expect(options.nth(wrongIndex)).toHaveAttribute('data-answer-state', 'incorrect');
+    await expect(options.nth(wrongIndex)).toHaveClass(/bg-accent\/15/);
+    const correctOption = card.locator('button', { hasText: rightText }).first();
+    await expect(correctOption).toHaveAttribute('data-answer-state', 'correct');
+    await expect(correctOption).toHaveClass(/bg-primary\/20/);
   });
 });
 
