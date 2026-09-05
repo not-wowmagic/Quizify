@@ -1,114 +1,144 @@
-# Quizify Design System & Language Specification
+# Quizify design direction
 
-This document defines the visual guidelines, design tokens, component states, and layout structure of the Quizify application. Use this specification to redesign or rebuild the interface using modern UI design tools (such as Google Stitch or Figma).
+This is the visual contract for Quizify. It describes a focused study tool with
+its own point of view, not a generic AI dashboard. If a new component does not
+help a learner read, answer, review, or recover from an interruption, it should
+not compete for attention.
 
----
+## North star
 
-## 1. Visual Design Philosophy
-Quizify is a clean, modern, and delightful educational tool. The design goals are:
-- **Focused Learning:** A clean, distraction-free environment that maximizes readability of quiz questions and explanations.
-- **Intellectual and Calming Tone:** Muted blue-grey palettes paired with friendly, supportive details (like motivational quotes and success green accent details) to lower text anxiety.
-- **Delightful & Modern (Glassmorphism):** Dotted grid backgrounds, subtle gradient backdrops, soft glass borders, card overlays, and smooth transitions that make the app feel alive and premium.
+Quizify should feel like a well-made study instrument: blue field notes, paper
+cards, clear marks, and small moments of feedback. The interface can be warm and
+encouraging, but it should never perform “AI magic” through purple gradients,
+glowing controls, decorative motion, or a wall of rounded containers.
 
----
+The product has one presentation mode. There is no dark-theme switch or dark
+theme-specific control styling in the interface.
 
-## 2. Design Tokens (Color & Styling)
+## Visual language
 
-### Color Palette (Tailwind & CSS Custom Properties)
+The active Meadow palette is the product identity. It is intentionally limited
+to a deep blue workspace, pale blue paper surfaces, dark ink, and a saffron
+accent.
 
-#### Light Mode
-| Token | Tailwind Class / Variable | HSL / Hex Value | Purpose |
-| :--- | :--- | :--- | :--- |
-| **Background** | `bg-background` | `hsl(210, 40%, 98%)` to `hsl(210, 40%, 90%)` | Radial gradient background (light blue to clean white) |
-| **Foreground** | `text-foreground` | `hsl(222.2, 84%, 4.9%)` | Dark slate for maximum text contrast |
-| **Primary** | `bg-primary` | `hsl(206, 83%, 53%)` / `#6699CC` | Muted blue for core branding, CTA buttons, and icons |
-| **Accent / Success** | `bg-accent` | `hsl(151, 46%, 74%)` / `#A0D6B4` | Pale green for correct answer states and highlight badges |
-| **Destructive** | `bg-destructive` | `hsl(0, 84.2%, 60.2%)` | Soft crimson red for incorrect answer states |
-| **Card Background** | `bg-card` | `hsl(0, 0%, 100% / 60%)` | White card overlay with glassmorphic transparency |
-| **Border** | `border-border` | `hsl(214.3, 31.8%, 91.4%)` | Subtle borders for card dividers and inputs |
+| Role | Value | Use |
+| --- | --- | --- |
+| Field blue | `#2E5D8A` | Page background and quiet depth |
+| Paper blue | `#C6DFEF` | Setup, runner, summary, and score surfaces |
+| Ink | `#142639` | Headings, question text, and primary contrast |
+| Water | `#7298B9` | Secondary text, inactive controls, and dividers |
+| Saffron | `#F6C649` | Attention, selected state, and key calls to action |
+| Focus teal | `#0B6E8E` | Keyboard focus and links |
 
-#### Dark Mode
-| Token | Tailwind Class / Variable | HSL / Hex Value | Purpose |
-| :--- | :--- | :--- | :--- |
-| **Background** | `bg-background` | `hsl(224, 71%, 4%)` | Deep midnight navy background with dotted grid pattern (`background-size: 2rem 2rem`) |
-| **Foreground** | `text-foreground` | `hsl(210, 40%, 98%)` | Near-white for high legibility |
-| **Primary** | `bg-primary` | `hsl(210, 40%, 98%)` | Inverted primary (clean white) for high-contrast visibility |
-| **Secondary** | `bg-secondary` | `hsl(215, 28%, 17%)` | Dark slate background for inputs, selectors, and secondary actions |
-| **Success** | `bg-success` | `hsl(145, 63%, 42%)` | Deep green for dark mode correct answer highlight |
-| **Destructive** | `bg-destructive` | `hsl(0, 63%, 31%)` | Muted maroon for dark mode incorrect answer highlight |
-| **Border** | `border-border` | `hsl(215, 28%, 17%)` | Dark grey slate borders for containment |
+Use color to explain state, not to decorate every surface. Success and error
+states should remain distinguishable through text and borders as well as hue.
+Do not introduce a new accent without a concrete interaction that needs it.
 
-### Borders, Shadows & Backdrop Filters
-- **Border Radius:** Main cards use `--radius: 12px` (fully rounded corners). Active CTA buttons are highly rounded or pill-shaped (`rounded-full`).
-- **Glassmorphic Filter:** Cards overlaying the background use `backdrop-blur-xl` combined with transparent borders (e.g. `border-white/10` or `border-white/20` on hover) to integrate smoothly with the background gradients.
-- **Shadows:** Cards use deep, soft drop shadows (`shadow-2xl` and `shadow-lg`) to establish depth.
+### Surfaces and shape
 
----
+- Treat the blue workspace as the canvas and pale cards as paper placed on it.
+- Cards use a modest radius and a quiet border. One restrained shadow is enough.
+- Glass effects are optional and subordinate: a little translucency can help a
+  surface sit in the field, but blur must not reduce text contrast or turn every
+  element into frosted glass.
+- Do not use large decorative gradients, gradient text, neon glows, or mesh
+  backgrounds.
+- Buttons are compact rectangles with readable labels. Reserve pill shapes for
+  status badges and compact filters, never for every action.
+- Icons are supporting marks, not labels. Keep them close to their text,
+  `aria-hidden` when decorative, and remove them when they make a small layout
+  harder to scan.
 
-## 3. Typography System
-Quizify relies on two core font families:
-1. **Body & Headings:** `Inter` (sans-serif)
-   - Clean, highly readable, and geometric. Used for titles, question text, option labels, and instructions.
-2. **Code & Snippets:** `Source Code Pro` (monospace)
-   - Used for any technical snippets, variables, or system code output.
+## Typography
 
-### Typographic Scale
-- **Main Heading:** `4xl` or `5xl` (bold, tracking-tight, centered)
-- **Sub-headings / Card Titles:** `xl` or `2xl` (semi-bold)
-- **Body / Question Options:** `base` (16px) or `lg` (18px) for comfortable reading.
-- **Helper Labels / Captions:** `sm` (14px) or `xs` (12px) (regular/medium, muted color).
+Use the humanist system sans stack used by the app:
+`"Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif`.
 
----
+Typography should do the hierarchy work. Use strong ink headings, comfortable
+question text, and small uppercase labels only for metadata. Do not use a
+display font, all-caps paragraphs, or arbitrary font-size jumps to manufacture
+personality. A monospace face is reserved for literal counts, IDs, and exported
+technical content.
 
-## 4. Layout & Responsive Structure
-The application follows a centered single-column layout:
-- **Maximum Width:** Constrained to `max-w-4xl` (`960px`) for optimal readability.
-- **Responsive Padding:** `px-4 py-8` (mobile) to `px-6 py-12` (desktop).
-- **Floating Accents:** Background features an absolute positioned multi-color gradient mesh overlay (`from-indigo-500/10 via-purple-500/10 to-pink-500/10` with `-z-10`) to provide structural depth without visual noise.
+Suggested hierarchy:
 
----
+- Page title: 2–3rem, heavy, left aligned on wide screens.
+- Workspace title: 1.25–1.5rem, heavy.
+- Question text: 1–1.125rem, bold enough to scan without shouting.
+- Body and answer text: 0.9375–1rem with a relaxed line height.
+- Metadata: 0.75–0.8125rem, medium contrast, never the only way to understand
+  an action.
 
-## 5. Components & UI States
+## Layout rules
 
-### A. Quiz Settings & Setup Panel
-This initial view allows the user to prepare their lecture text. It utilizes a central container card (`bg-card/60 backdrop-blur-xl`):
-1. **Input Tabs (File Upload vs. Paste Text):**
-   - **File Upload:** Drag-and-drop dotted target box. Displays simple upload icon, clear file format advice (`PDF, DOCX`), and a highlight label showing the filename when loaded.
-   - **Text Paste Area:** Large, clean textarea (`bg-secondary/80`) with soft placeholder text and disabled states during generation.
-2. **Parameters Grid:** A responsive 3-column layout containing:
-   - **Number of Questions Selector:** Numerical input capped at 50 questions.
-   - **Difficulty Dropdown:** Select dropdown containing "Easy", "Medium", and "Hard".
-   - **Question Type Dropdown:** Select dropdown supporting "Multiple Choice", "Situational", "Fill in the Blank", "True / False", and "Mixed".
-3. **Generate Action CTA:** Primary button featuring a sparkles icon and a loading state (`Loader2` spinner + "Generating Quiz...").
-4. **Footer Motivational Area:** Centered italicized text rotating random inspirational quotes to encourage the user.
+The experience is a readable single column, not a marketing hero surrounded by
+cards. Keep the main reading measure around 60–72rem and let the question list
+own the page.
 
-### B. Summary Panel
-Once a quiz is generated, Quizify displays an optional lecture summary:
-- **Collapse Toggle:** A clean secondary button labeled "Show Summary" with a document icon.
-- **Expanded State:** Renders the AI-generated bulleted key points in a container card styled with a secondary background (`bg-secondary/50`) and muted text.
+- Setup should show the source input first, then question parameters, then the
+  generate action.
+- The paste area reports characters and words beside the input and makes the
+  100-character minimum explicit.
+- The runner header should be compact. On small screens, secondary actions live
+  in a `More` menu; the question and its answer choices stay primary.
+- Preserve the current quiz while regeneration runs. Show progress, cancel, and
+  retry in context instead of replacing the page with an empty setup state.
+- On mobile, content should size to its contents. Never give a column child a
+  desktop flex basis that creates a tall empty card.
+- Use real links for navigation destinations so open-in-new-tab and keyboard
+  browsing continue to work. Use buttons for state changes and submissions.
 
-### C. Interactive Question Cards
-Questions are listed sequentially inside distinct, clean cards (`bg-card/80 backdrop-blur-sm`). Each card includes:
-1. **Title:** Displayed as `<Question Number>. <Question Text>` (bold, clear font-size).
-2. **Options list:** Vertical grid/stack of option buttons.
-3. **Option State Styling (CRITICAL):**
-   - **Unanswered / Idle:** Light bordered outline buttons with a circular icon containing the option letter (A, B, C, D) on the left. Subtle hover background change.
-   - **Correct Answer (Selected or Revealed):** Soft green background, green text, success icon (`CheckCircle2`) on the right.
-   - **Incorrect Answer (Selected):** Soft red background, red text, alert icon (`XCircle`) on the right.
-   - **Unselected / Distractor Options (Once Answered):** High transparency opacity (`opacity-60`), muted grey borders, and click actions disabled.
-4. **Explanation Section:** Hidden by default. After selection, a link button ("Show Explanation") reveals a card block (`bg-secondary/80`) containing context details accompanied by a yellow lightbulb icon.
+## Component behavior
 
-### D. Final Scorecard Card
-Appears at the bottom of the questions array once all questions have been answered:
-- **Background:** Blended soft-green to teal gradient border (`from-green-500/20 to-cyan-500/20 border-green-500/30`).
-- **Main Output:** Large-scale score display (e.g., `8 / 10`) with a percentage indicator (`80%`) and custom success/feedback message based on performance.
-- **Controls:**
-  - **Regenerate Quiz:** Secondary outline button to query new questions on the same notes.
-  - **Start Over:** Secondary outline button to completely reset inputs and return to the Setup panel.
+### Setup
 
----
+The setup card accepts upload, paste, web, and camera sources. Every source has
+one clear next action. Loading states distinguish reading a file from generating
+a quiz. Generation exposes a cancel action; failed generation leaves the input
+intact and exposes retry.
 
-## 6. Animations & Transitions
-- **Fade-Ins:** Smooth CSS fade-in transitions (`animate-in fade-in duration-500`) applied to the quiz layout, cards, and individual explanation blocks when they appear.
-- **Button Hover States:** Dynamic background transitions with standard transition rates (`transition-all duration-300`).
-- **Spinners:** Infinite rotations applied to loader icons (`animate-spin`) during generation requests.
+### Runner
+
+The runner keeps the title, question count, format, and language in a compact
+header. Desktop may show the common actions inline. Mobile uses `More` for
+export, share, visibility, summary, and settings. The active question list
+never disappears while a replacement quiz is being generated.
+
+### History
+
+Deletion is reversible in intent: ask for confirmation before the destructive
+request and make the specific attempt clear. Empty, loading, error, and filtered
+states all explain what happened and what the learner can do next.
+
+### Completion
+
+The score card leads with the result and next useful actions. It does not need a
+celebration icon, emoji, rotating quote, or green halo to communicate success.
+Answer feedback uses text, border, and contrast so it remains understandable
+without relying on color alone.
+
+## Motion and accessibility
+
+Motion is functional: use it to reveal a new summary, acknowledge a completed
+action, or show asynchronous work. Avoid perpetual ambient animation and
+transitioning every property. Respect `prefers-reduced-motion` and never hide
+focus indicators.
+
+Interactive controls need visible labels or an accessible name. Form fields
+need labels and useful descriptions. Async status belongs in an announced
+`status` or `alert` region. Destructive actions need confirmation or undo.
+Keyboard order, touch targets, contrast, and text resizing are part of the
+design—not a final polish pass.
+
+## Review checklist
+
+Before shipping a screen, ask:
+
+1. Does it look recognizably like Quizify’s blue-paper study instrument?
+2. Is the learner’s next action obvious without decorative explanation?
+3. Are icons earning their space and aligned with the text they support?
+4. Does the mobile layout remain compact and usable at narrow widths?
+5. Can the user cancel, retry, navigate, refresh, and recover without losing
+   work?
+6. Does the screen still work with a keyboard, reduced motion, and no emoji or
+   color-only cues?

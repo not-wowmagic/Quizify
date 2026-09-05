@@ -36,7 +36,7 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
               question.difficultyTier === 'medium' && "border-amber-500/30 bg-amber-500/10 text-amber-500",
               question.difficultyTier === 'hard' && "border-red-500/30 bg-red-500/10 text-red-500",
             )}>
-              {question.difficultyTier === 'easy' ? '🟢 Easy' : question.difficultyTier === 'medium' ? '🟡 Medium' : '🔴 Hard'}
+              {question.difficultyTier === 'easy' ? 'Easy' : question.difficultyTier === 'medium' ? 'Medium' : 'Hard'}
             </span>
           )}
         </div>
@@ -58,11 +58,11 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
 
           if (isAnswered) {
             if (isCorrectAnswer) {
-              optionStyle = "border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium";
+              optionStyle = "border-primary/60 bg-primary/20 text-primary font-medium";
             } else if (isSelected) {
-              optionStyle = "border-destructive/50 bg-destructive/10 text-destructive font-medium";
+              optionStyle = "border-accent/50 bg-accent/15 text-accent-foreground font-medium";
             } else {
-              optionStyle = "border-border/30 bg-muted/10 text-muted-foreground opacity-50";
+              optionStyle = "border-border/30 bg-muted/10 text-foreground/80";
             }
           }
 
@@ -73,16 +73,17 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
               disabled={isAnswered}
               aria-pressed={isSelected}
               data-answered={isAnswered ? 'true' : 'false'}
+              data-answer-state={isAnswered ? (isCorrectAnswer ? 'correct' : isSelected ? 'incorrect' : 'unrevealed') : 'idle'}
               className={cn(
-                "quizify-answer-option w-full text-left p-3.5 rounded-xl border flex items-center justify-between gap-3 text-sm transition-all duration-200",
+                "quizify-answer-option w-full text-left p-3.5 rounded-xl border flex items-center justify-between gap-3 text-sm transition-colors duration-200",
                 optionStyle
               )}
             >
               <div className="flex items-center gap-3">
                 <span className={cn(
                   "quizify-answer-key flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold",
-                  isAnswered && isCorrectAnswer ? "border-emerald-500 bg-emerald-500 text-white" :
-                  isAnswered && isSelected ? "border-destructive bg-destructive text-white" :
+                  isAnswered && isCorrectAnswer ? "border-primary bg-primary text-primary-foreground" :
+                  isAnswered && isSelected ? "border-accent bg-accent text-accent-foreground" :
                   "border-border bg-background text-muted-foreground"
                 )}>
                   {optionLetter}
@@ -90,8 +91,8 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
                 <span>{option}</span>
               </div>
 
-              {isAnswered && isCorrectAnswer && <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500 ml-2" />}
-              {isAnswered && isSelected && !isCorrectAnswer && <XCircle className="h-4 w-4 shrink-0 text-destructive ml-2" />}
+              {isAnswered && isCorrectAnswer && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary ml-2" />}
+              {isAnswered && isSelected && !isCorrectAnswer && <XCircle className="h-4 w-4 shrink-0 text-accent-foreground ml-2" />}
             </button>
           );
         })}

@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Loader2, FileText, Sparkles, RotateCcw, Share2, Download, Link2, Pencil, Check, X, Globe2 } from 'lucide-react';
+import { Loader2, FileText, Sparkles, RotateCcw, Share2, Download, Link2, Pencil, Check, X, Globe2, MoreHorizontal } from 'lucide-react';
 import { StandardQuestionCard } from '@/components/quiz/standard-question-card';
 import { MatchingQuestionCard } from '@/components/quiz/matching-question-card';
 import { ScoreCard } from '@/components/quiz/score-card';
@@ -37,9 +37,9 @@ interface QuizRunnerProps {
   scorePercentage: number;
   allAnswered: boolean;
   feedbackMessage: string;
-  currentQuote: string;
   onRegenerate: () => void;
-  onStartOver: () => void;
+  onStartOver?: () => void;
+  startOverHref?: string;
   headerRef: React.RefObject<HTMLHeadingElement | null>;
   onExport?: (format: ExportFormat) => void;
   onShare?: () => void;
@@ -48,6 +48,10 @@ interface QuizRunnerProps {
   publicVisibility?: boolean;
   onPublicVisibilityChange?: (value: boolean) => void;
   isSharing?: boolean;
+  isGenerating?: boolean;
+  generationError?: string | null;
+  onCancelGeneration?: () => void;
+  onRetryGeneration?: () => void;
   /** Incorrect answers count; enables the "Practice Missed" action on the score card. */
   missedCount?: number;
   onPracticeMissed?: () => void;
@@ -73,9 +77,9 @@ export function QuizRunner({
   scorePercentage,
   allAnswered,
   feedbackMessage,
-  currentQuote,
   onRegenerate,
   onStartOver,
+  startOverHref,
   headerRef,
   onExport,
   onShare,
@@ -84,6 +88,10 @@ export function QuizRunner({
   publicVisibility = false,
   onPublicVisibilityChange,
   isSharing,
+  isGenerating = false,
+  generationError = null,
+  onCancelGeneration,
+  onRetryGeneration,
   missedCount = 0,
   onPracticeMissed,
   masteryPercentage,
@@ -153,7 +161,32 @@ export function QuizRunner({
         </div>
 
         <div className="quizify-runner-actions flex w-full flex-col gap-3 sm:w-auto sm:max-w-[40rem] sm:items-end">
-          <div className="quizify-runner-action-row flex w-full flex-wrap items-center justify-start gap-2 sm:justify-end">
+          {(isGenerating || generationError) && (
+            <div className="flex flex-wrap items-center justify-end gap-2 text-xs" role={isGenerating ? 'status' : 'alert'} aria-live="polite">
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  <span>Regenerating this quiz…</span>
+                  {onCancelGeneration && (
+                    <Button type="button" variant="outline" size="sm" onClick={onCancelGeneration} className="h-8 px-2.5 text-xs">
+                      Cancel
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span className="text-destructive">{generationError}</span>
+                  {onRetryGeneration && (
+                    <Button type="button" variant="outline" size="sm" onClick={onRetryGeneration} className="h-8 border-destructive/40 px-2.5 text-xs text-destructive hover:bg-destructive/10">
+                      Retry
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          <div className="quizify-runner-action-row hidden w-full flex-wrap items-center justify-start gap-2 sm:flex sm:justify-end">
           <div className="quizify-export-stack">
             {onExport && (
               <DropdownMenu>
@@ -247,6 +280,55 @@ export function QuizRunner({
           </Button>
           </div>
 
+          <div className="sm:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline" size="sm" className="h-10 w-full justify-between border-border/80 px-3 text-xs font-semibold">
+                  <span>More</span>
+                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {onExport && (
+                  <>
+                    <DropdownMenuItem onClick={() => onExport('anki')}>
+                      <Link2 className="mr-2 h-4 w-4" aria-hidden="true" /> Anki (.txt)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onExport('csv')}>
+                      <FileText className="mr-2 h-4 w-4" aria-hidden="true" /> CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onExport('print')}>
+                      <FileText className="mr-2 h-4 w-4" aria-hidden="true" /> Print / PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onExport('cram')}>
+                      <FileText className="mr-2 h-4 w-4" aria-hidden="true" /> Study Cram Sheet
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {onShare && (
+                  <DropdownMenuItem onClick={onShare} disabled={isSharing}>
+                    <Share2 className="mr-2 h-4 w-4" aria-hidden="true" /> Share
+                  </DropdownMenuItem>
+                )}
+                {onShare && onPublicVisibilityChange && (
+                  <DropdownMenuItem onClick={() => onPublicVisibilityChange(!publicVisibility)}>
+                    {publicVisibility ? <Check className="mr-2 h-4 w-4" aria-hidden="true" /> : <Globe2 className="mr-2 h-4 w-4" aria-hidden="true" />}
+                    {publicVisibility ? 'Public Quizzes' : 'Link only'}
+                  </DropdownMenuItem>
+                )}
+                {onSummaryClick && (
+                  <DropdownMenuItem onClick={onSummaryClick} disabled={isSummaryLoading}>
+                    <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
+                    {quiz.summary ? (showSummary ? 'Hide Summary' : 'Show Summary') : 'Generate Summary'}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={onOpenSettings}>
+                  <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" /> {settingsLabel}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
         </div>
       </div>
 
@@ -267,7 +349,7 @@ export function QuizRunner({
       </div>
 
       {/* Questions Array */}
-      <div className="quizify-question-list space-y-6">
+      <div className="quizify-question-list space-y-6" aria-busy={isGenerating}>
         {quiz.questions.map((q, index) => {
           const answer = userAnswers[index];
           if (q.type === 'matching') {
@@ -300,13 +382,13 @@ export function QuizRunner({
           totalQuestions={quiz.questions.length}
           scorePercentage={scorePercentage}
           feedbackMessage={feedbackMessage}
-          currentQuote={currentQuote}
           missedCount={missedCount}
           onPracticeMissed={onPracticeMissed}
           masteryPercentage={masteryPercentage}
           onRegenerate={onRegenerate}
           regenerateLabel={regenerateLabel}
           onStartOver={onStartOver}
+          startOverHref={startOverHref}
           onExport={onExport}
           onShare={onShare}
           isSharing={isSharing}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { getPublicQuizzes, type PublicQuizSummary } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -10,8 +10,6 @@ import { Loader2, Globe2, RotateCcw } from 'lucide-react';
 export function PublicQuizzesPanel({ active = false }: { active?: boolean }) {
   const [quizzes, setQuizzes] = useState<PublicQuizSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-
   const load = useCallback(async () => {
     setError(null);
     const result = await getPublicQuizzes();
@@ -77,8 +75,10 @@ export function PublicQuizzesPanel({ active = false }: { active?: boolean }) {
           <p className="mt-3 text-xs text-muted-foreground">
             Published {new Date(quiz.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
           </p>
-          <Button className="mt-4 w-full" onClick={() => router.push(`/q/${quiz.slug}`)} aria-label={`Take Quiz: ${quiz.title}`}>
-            Take Quiz
+          <Button asChild className="mt-4 w-full">
+            <Link href={`/q/${quiz.slug}`} aria-label={`Take Quiz: ${quiz.title}`}>
+              Take Quiz
+            </Link>
           </Button>
         </Card>
       ))}

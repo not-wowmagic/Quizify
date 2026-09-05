@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { splitTextIntoChunks, computeChunkSize, generateQuiz, GenerateQuizInputSchema } from '@/ai/flows/generate-quiz';
+import {
+  splitTextIntoChunks,
+  computeChunkSize,
+  generateQuiz,
+  GenerateQuizInputSchema,
+  QUIZ_GENERATION_DEADLINE_MS,
+} from '@/ai/flows/generate-quiz';
 
 describe('splitTextIntoChunks', () => {
   it('returns a single chunk for short text', () => {
@@ -39,12 +45,12 @@ describe('splitTextIntoChunks', () => {
 describe('computeChunkSize (adaptive chunking)', () => {
   it('splits large documents into proportional chunks for large question counts', () => {
     expect(computeChunkSize(100_000, 50)).toBe(11_112);
-    expect(computeChunkSize(100_000, 24)).toBe(25_000);
+    expect(computeChunkSize(100_000, 24)).toBe(16_000);
   });
 
-  it('uses a single full-document chunk for small question counts (<= 6)', () => {
-    expect(computeChunkSize(100_000, 6)).toBe(100_000);
-    expect(computeChunkSize(100_000, 2)).toBe(100_000);
+  it('caps large prompts even for small question counts', () => {
+    expect(computeChunkSize(100_000, 6)).toBe(16_000);
+    expect(computeChunkSize(100_000, 2)).toBe(16_000);
   });
 
   it('never drops below the minimum chunk size floor for short docs', () => {
@@ -55,7 +61,7 @@ describe('computeChunkSize (adaptive chunking)', () => {
     const text = Array.from({ length: 2200 }, (_, i) => `Sentence ${i} about study material with enough words.`).join(' ');
     const chunkSize = computeChunkSize(text.length, 10);
     const chunks = splitTextIntoChunks(text, chunkSize);
-    expect(chunks.length).toBeLessThanOrEqual(3);
+    expect(chunks.length).toBeLessThanOrEqual(Math.ceil(text.length / chunkSize) + 1);
     expect(chunks.length).toBeGreaterThan(0);
     for (const chunk of chunks) {
       expect(chunk.length).toBeLessThanOrEqual(chunkSize);
@@ -121,6 +127,10 @@ describe('GenerateQuizInputSchema (strict input validation)', () => {
 });
 
 describe('generateQuiz (large question count support)', () => {
+  it('keeps the generation deadline below Netlify’s 60-second function ceiling', () => {
+    expect(QUIZ_GENERATION_DEADLINE_MS).toBeLessThan(60_000);
+  });
+
   it('successfully generates quizzes with 20 questions', async () => {
     process.env.E2E_MOCK_AI = '1';
     const result = await generateQuiz({

@@ -30,9 +30,13 @@ interface QuizSetupProps {
   language: string;
   onLanguageChange: (value: string) => void;
   isLoading: boolean;
+  isParsing?: boolean;
+  isGenerating?: boolean;
+  generationError?: string | null;
+  onCancelGeneration?: () => void;
+  onRetryGeneration?: () => void;
   fileName: string;
   onSourceTitleChange: (value: string) => void;
-  currentQuote: string;
   /** Seconds since loading started, used to show "still working" hints. */
   elapsedSec: number;
   onFileSelected: (file: File) => void;
@@ -67,9 +71,13 @@ export function QuizSetup({
   language,
   onLanguageChange,
   isLoading,
+  isParsing = false,
+  isGenerating = false,
+  generationError = null,
+  onCancelGeneration,
+  onRetryGeneration,
   fileName,
   onSourceTitleChange,
-  currentQuote,
   elapsedSec,
   onFileSelected,
   onGenerate,
@@ -91,6 +99,10 @@ export function QuizSetup({
   const [ocrPreview, setOcrPreview] = useState<string | null>(null);
   const [isOcrExtracting, setIsOcrExtracting] = useState(false);
   const [ocrStatus, setOcrStatus] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const characterCount = lectureText.length;
+  const wordCount = lectureText.trim() ? lectureText.trim().split(/\s+/).length : 0;
+  const minimumCharacters = 100;
 
   const handleWebFetch = async () => {
     const url = webUrl.trim();
@@ -273,6 +285,9 @@ export function QuizSetup({
           </TabsContent>
 
           <TabsContent value="paste" className="mt-4">
+            <label htmlFor="lecture-text" className="mb-2 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Study material
+            </label>
             <Textarea
               id="lecture-text"
               placeholder="Paste lecture notes, article excerpts, or textbook chapters here (at least 100 characters)..."
@@ -280,8 +295,17 @@ export function QuizSetup({
               value={lectureText}
               onChange={(e) => onLectureTextChange(e.target.value)}
               disabled={isLoading}
-              className="font-sans text-sm bg-background border-border/80 rounded-xl focus-visible:ring-primary"
+              aria-describedby="lecture-text-help"
+              className="font-body text-sm bg-background border-border/80 rounded-xl focus-visible:ring-primary"
             />
+            <div id="lecture-text-help" className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <span>{characterCount.toLocaleString()} characters · {wordCount.toLocaleString()} words</span>
+              <span className={characterCount >= minimumCharacters ? 'text-primary' : undefined}>
+                {characterCount >= minimumCharacters
+                  ? '100 character minimum met'
+                  : `${(minimumCharacters - characterCount).toLocaleString()} more ${minimumCharacters - characterCount === 1 ? 'character' : 'characters'} needed · 100 character minimum`}
+              </span>
+            </div>
           </TabsContent>
 
           <TabsContent value="web" className="mt-4">
@@ -487,7 +511,7 @@ export function QuizSetup({
                     disabled={isLoading}
                     aria-pressed={isActive}
                     className={cn(
-                      "quizify-question-format rounded-lg p-2 border flex flex-col items-center justify-center gap-1.5 transition-all duration-200 text-center text-xs font-medium",
+                      "quizify-question-format rounded-lg p-2 border flex flex-col items-center justify-center gap-1.5 transition-colors duration-200 text-center text-xs font-medium",
                       isActive
                         ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/40 font-semibold shadow-sm"
                         : "border-border/60 bg-background text-muted-foreground hover:border-border hover:text-foreground hover:bg-muted/40"
@@ -503,10 +527,7 @@ export function QuizSetup({
         </div>
       </CardContent>
 
-      <CardFooter className="quizify-setup-footer p-0 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border/60 mt-4">
-        <p className="text-xs italic text-muted-foreground text-center sm:text-left max-w-sm" aria-live="polite">
-          {currentQuote ? `“${currentQuote}”` : ''}
-        </p>
+      <CardFooter className="quizify-setup-footer p-0 pt-4 flex flex-col sm:flex-row items-center justify-end gap-3 border-t border-border/60 mt-4">
         <div className="flex flex-col items-center gap-2 w-full sm:w-auto">
           {turnstileSiteKey && (
             <TurnstileWidget siteKey={turnstileSiteKey} onToken={onTurnstileToken} />
@@ -537,20 +558,40 @@ export function QuizSetup({
           <Button
             onClick={onGenerate}
             disabled={isLoading || (!lectureText.trim() && !fileName)}
-            className="w-full sm:w-auto h-11 px-6 bg-primary text-primary-foreground font-semibold rounded-lg shadow transition-all hover:bg-primary/90"
+            className="w-full sm:w-auto h-11 px-6 bg-primary text-primary-foreground font-semibold rounded-lg shadow transition-colors hover:bg-primary/90"
           >
-            {isLoading ? (
+            {isParsing ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generating Quiz...
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                Reading file…
+              </>
+            ) : isGenerating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                Generating quiz…
               </>
             ) : (
               <>
-                <Sparkles className="mr-2 h-5 w-5" />
+                <Sparkles className="mr-2 h-5 w-5" aria-hidden="true" />
                 Generate Quiz
               </>
             )}
           </Button>
+          {isGenerating && onCancelGeneration && (
+            <Button type="button" variant="outline" onClick={onCancelGeneration} className="w-full sm:w-auto h-11 px-5">
+              Cancel generation
+            </Button>
+          )}
+          {generationError && (
+            <div className="flex max-w-[28rem] flex-wrap items-center justify-center gap-2 text-center text-xs text-destructive" role="alert">
+              <span>{generationError}</span>
+              {onRetryGeneration && (
+                <Button type="button" variant="outline" size="sm" onClick={onRetryGeneration} className="h-8 border-destructive/40 text-destructive hover:bg-destructive/10">
+                  Retry
+                </Button>
+              )}
+            </div>
+          )}
           {isLoading && elapsedSec >= 10 && (
             <p className="text-xs text-muted-foreground text-center max-w-[240px]" role="status" aria-live="polite">
               {elapsedSec >= 45

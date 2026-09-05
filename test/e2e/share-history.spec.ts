@@ -52,7 +52,7 @@ test.describe('share', () => {
     expect(url).toMatch(/\/q\//);
     await page.getByRole('button', { name: 'Public Quizzes', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Photosynthesis and Light Energy' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Take Quiz: Photosynthesis and Light Energy/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Take Quiz: Photosynthesis and Light Energy/ })).toBeVisible();
   });
 
   test('publishes a quiz from the after-quiz scorecard', async ({ page }) => {
@@ -187,6 +187,8 @@ test.describe('history', () => {
     await page.getByRole('button', { name: /History & Insights/ }).click();
     await expect(page.getByText(/correct/)).toBeVisible();
     await page.getByTitle('Delete this attempt').click();
+    await expect(page.getByText('Delete this attempt?')).toBeVisible();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'No quizzes yet' })).toBeVisible();
   });
 

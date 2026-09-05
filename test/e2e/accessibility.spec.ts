@@ -1,6 +1,6 @@
 // test/e2e/accessibility.spec.ts
 // A11y + layout + metadata: keyboard view-tab navigation, focus management,
-// dark-mode contrast, horizontal overflow at scroll/zoom, theme-toggle layout,
+// light-mode contrast, horizontal overflow at scroll/zoom, theme-control removal,
 // canonical/noindex metadata, and console/network hygiene.
 import { test, expect } from '@playwright/test';
 import { LECTURE, gotoHome, goPasteTab, generateQuiz, completeQuiz, attachErrorTracking, questionCards, correctAnswerForCard } from './helpers';
@@ -50,20 +50,20 @@ test.describe('focus management', () => {
   });
 });
 
-test.describe('dark-mode contrast', () => {
-  test('normal text and the destructive option pass contrast in dark mode', async ({ page }) => {
+test.describe('light-mode contrast', () => {
+  test('normal text and the themed answer signal pass contrast without a dark theme', async ({ page }) => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
     await generateQuiz(page, 3);
-    await expect(page.locator('html')).toHaveClass(/dark/);
+    await expect(page.locator('html')).not.toHaveClass(/dark/);
 
-    // Normal text color should be light on the dark background.
+    // Normal text should remain readable in the single Meadow presentation.
     const foreground = await page.locator('body').evaluate(el => getComputedStyle(el).color);
-    expect(foreground).toBe('rgb(248, 250, 252)');
+    expect(foreground).not.toBe('rgb(255, 255, 255)');
 
     // Option order is shuffled, so pick a deterministically-wrong option;
-    // Wrong answers render the active Meadow destructive color token.
+    // Wrong answers render the active Meadow sun-signal treatment.
     const cards = questionCards(page);
     const total = await cards.count();
     let cardIndex = -1;
@@ -82,8 +82,8 @@ test.describe('dark-mode contrast', () => {
     }
     expect(wrongIndex).toBeGreaterThanOrEqual(0);
     await options.nth(wrongIndex).click();
-    await expect(options.nth(wrongIndex)).toHaveClass(/text-destructive/);
-    await expect(options.nth(wrongIndex)).toHaveCSS('color', 'rgb(233, 103, 93)');
+    await expect(options.nth(wrongIndex)).toHaveAttribute('data-answer-state', 'incorrect');
+    await expect(options.nth(wrongIndex)).toHaveClass(/bg-accent\/15/);
   });
 });
 
@@ -121,20 +121,9 @@ test.describe('layout / overflow', () => {
     expect(overflow).toBeLessThanOrEqual(0);
   });
 
-  test('fixed theme toggle does not overlap the hero heading', async ({ page }) => {
+  test('does not render a fixed theme control', async ({ page }) => {
     await page.goto('/');
-    await page.waitForSelector('h1');
-    const hero = await page.locator('h1').boundingBox();
-    const toggle = await page.locator('div.fixed.top-4.right-4').boundingBox();
-    expect(hero).not.toBeNull();
-    expect(toggle).not.toBeNull();
-    // The toggle sits in the top-right corner; the hero is centered and below
-    // the very top, so the two must not intersect.
-    if (hero && toggle) {
-      const overlapX = Math.max(0, Math.min(hero.x + hero.width, toggle.x + toggle.width) - Math.max(hero.x, toggle.x));
-      const overlapY = Math.max(0, Math.min(hero.y + hero.height, toggle.y + toggle.height) - Math.max(hero.y, toggle.y));
-      expect(overlapX * overlapY).toBe(0);
-    }
+    await expect(page.locator('div.fixed.top-4.right-4')).toHaveCount(0);
   });
 });
 

@@ -152,6 +152,20 @@ describe('similarity + dedup behavior', () => {
     expect(stringSimilarity('Mitochondrion', 'Ribosome')).toBeLessThan(SIMILARITY_THRESHOLD);
   });
 
+  it('keeps distinct options that share a descriptive suffix', () => {
+    const kept = dedupeQuestionOptions([
+      {
+        type: 'standard',
+        question: 'Which nursing specialty focuses on children?',
+        options: ['Pediatric Nursing', 'Geriatric Nursing', 'Neonatal Nursing', 'Community Health Nursing'],
+        correctAnswerIndex: 0,
+        topic: 'Nursing',
+      },
+    ]);
+
+    expect(kept).toHaveLength(1);
+  });
+
   it('drops questions whose distractor duplicates the correct answer', () => {
     const bad: Parameters<typeof dedupeQuestionOptions>[0] = [
       { type: 'standard', question: 'Q?', options: ['Answer A', 'Answer B', 'Answer A'], correctAnswerIndex: 0, topic: 'T' },

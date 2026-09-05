@@ -18,12 +18,12 @@ interface MatchingQuestionCardProps {
 }
 
 const matchColors = [
-  'border-blue-500/50 bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  'border-purple-500/50 bg-purple-500/10 text-purple-600 dark:text-purple-400',
-  'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  'border-cyan-500/50 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400',
-  'border-pink-500/50 bg-pink-500/10 text-pink-600 dark:text-pink-400',
-  'border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+  'border-blue-500/50 bg-blue-500/10 text-blue-700',
+  'border-purple-500/50 bg-purple-500/10 text-purple-700',
+  'border-amber-500/50 bg-amber-500/10 text-amber-700',
+  'border-cyan-500/50 bg-cyan-500/10 text-cyan-700',
+  'border-pink-500/50 bg-pink-500/10 text-pink-700',
+  'border-emerald-500/50 bg-emerald-500/10 text-emerald-700',
 ];
 
 export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUpdate }: MatchingQuestionCardProps) {
@@ -124,7 +124,7 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
               question.difficultyTier === 'medium' && "border-amber-500/30 bg-amber-500/10 text-amber-500",
               question.difficultyTier === 'hard' && "border-red-500/30 bg-red-500/10 text-red-500",
             )}>
-              {question.difficultyTier === 'easy' ? '🟢 Easy' : question.difficultyTier === 'medium' ? '🟡 Medium' : '🔴 Hard'}
+              {question.difficultyTier === 'easy' ? 'Easy' : question.difficultyTier === 'medium' ? 'Medium' : 'Hard'}
             </span>
           )}
         </div>
@@ -154,12 +154,12 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
                   aria-pressed={isSelected}
                   data-match-state={checked ? matchResult ?? 'checked' : isSelected ? 'selected' : isMatched ? 'matched' : 'idle'}
                   className={cn(
-                    'quizify-match-option w-full text-left p-3 rounded-xl border text-sm transition-all duration-200 flex items-center justify-between gap-2',
+                    'quizify-match-option w-full text-left p-3 rounded-xl border text-sm transition-colors duration-200 flex items-center justify-between gap-2',
                     {
                       'border-primary bg-primary/15 text-primary ring-2 ring-primary/30 font-medium': isSelected && !checked,
                       [matchColors[colorIdx]]: isMatched && !checked,
                       'border-border/60 bg-muted/20 hover:border-border hover:bg-muted/50': !isSelected && !isMatched && !checked,
-                      'bg-emerald-500/10 border-emerald-500/50 text-emerald-600 dark:text-emerald-400': matchResult === 'correct',
+                      'bg-emerald-500/10 border-emerald-500/50 text-emerald-700': matchResult === 'correct',
                       'bg-destructive/10 border-destructive/50 text-destructive': matchResult === 'incorrect',
                       'opacity-60 cursor-not-allowed': checked,
                     }
@@ -194,11 +194,11 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
                   disabled={checked}
                   data-match-state={checked ? matchResult ?? 'checked' : isMatched ? 'matched' : 'idle'}
                   className={cn(
-                    'quizify-match-option w-full text-left p-3 rounded-xl border text-sm transition-all duration-200 flex items-center justify-between gap-2',
+                    'quizify-match-option w-full text-left p-3 rounded-xl border text-sm transition-colors duration-200 flex items-center justify-between gap-2',
                     {
                       [matchColors[colorIdx]]: isMatched && !checked,
                       'border-border/60 bg-muted/20 hover:border-border hover:bg-muted/50': !isMatched && !checked,
-                      'bg-emerald-500/10 border-emerald-500/50 text-emerald-600 dark:text-emerald-400': matchResult === 'correct',
+                      'bg-emerald-500/10 border-emerald-500/50 text-emerald-700': matchResult === 'correct',
                       'bg-destructive/10 border-destructive/50 text-destructive': matchResult === 'incorrect',
                       'opacity-60 cursor-not-allowed': checked,
                     }

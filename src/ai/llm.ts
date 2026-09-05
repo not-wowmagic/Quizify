@@ -18,8 +18,12 @@ import 'server-only';
  * are fast, free, and never rate-limited.
  */
 
+export type LLMProvider = 'opencode' | 'gemini';
+
 export interface LLMOptions {
   systemInstruction?: string;
+  /** Optional per-call provider override used by bounded fallback flows. */
+  provider?: LLMProvider;
   /** Per-attempt timeout in milliseconds. Defaults to 30s. */
   timeoutMs?: number;
   /**
@@ -426,8 +430,6 @@ async function callGeminiDirect(prompt: string, options: LLMOptions = {}): Promi
 // Public entry point
 // =========================================
 
-export type LLMProvider = 'opencode' | 'gemini';
-
 /** Resolves the active provider from AI_PROVIDER (default: opencode). */
 export function resolveProvider(): LLMProvider {
   const provider = (process.env.AI_PROVIDER ?? 'opencode').trim().toLowerCase();
@@ -441,7 +443,7 @@ export async function callLLM(prompt: string, options: LLMOptions = {}): Promise
   if (process.env.E2E_MOCK_AI === '1') {
     return mockLLM(prompt);
   }
-  const provider = resolveProvider();
+  const provider = options.provider ?? resolveProvider();
   if (provider === 'gemini') {
     return callGeminiDirect(prompt, options);
   }
@@ -612,7 +614,7 @@ export function mockLLM(prompt: string): string {
 
   const isMatching = prompt.includes('"premise"') || prompt.includes('"pairs"');
   const requested = parseInt(prompt.match(/Generate (\d+)/)?.[1] ?? '3', 10);
-  const count = Number.isFinite(requested) ? Math.min(Math.max(1, requested), 8) : 3;
+  const count = Number.isFinite(requested) ? Math.min(Math.max(1, requested), 50) : 3;
 
   if (isMatching) {
     return JSON.stringify({

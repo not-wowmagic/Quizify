@@ -1,15 +1,16 @@
 // test/e2e/setup.spec.ts
-// Home + setup: dark theme, overflow/console hygiene, view toggling, input
+// Home + setup: single-theme presentation, overflow/console hygiene, view toggling, input
 // tabs, validation, custom counts, upload/web/camera flows, incognito mode.
 import { test, expect } from '@playwright/test';
 import { LECTURE, gotoHome, goPasteTab, setCustomCount, generateQuiz, attachErrorTracking } from './helpers';
 
 test.describe('home page', () => {
-  test('loads with dark theme, no horizontal overflow, and no console errors', async ({ page }) => {
+  test('loads without a dark theme, no horizontal overflow, and no console errors', async ({ page }) => {
     const errors = attachErrorTracking(page);
     await gotoHome(page);
     const html = page.locator('html');
-    await expect(html).toHaveClass(/dark/);
+    await expect(html).not.toHaveClass(/dark/);
+    await expect(page.locator('div.fixed.top-4.right-4')).toHaveCount(0);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
     await expect.poll(() => errors.get()).toHaveLength(0);
@@ -60,6 +61,26 @@ test.describe('validation', () => {
     await expect(generate).toBeDisabled();
   });
 
+  test('shows live character and word counts around the 100-character minimum', async ({ page }) => {
+    await gotoHome(page);
+    const textarea = await goPasteTab(page);
+    const help = page.locator('#lecture-text-help');
+    await expect(help).toContainText('0 characters · 0 words');
+    await expect(help).toContainText('100 more characters needed · 100 character minimum');
+
+    await textarea.fill(`one two ${'a'.repeat(91)}`);
+    await expect(help).toContainText('99 characters · 3 words');
+    await expect(help).toContainText('1 more character needed · 100 character minimum');
+    await expect(page.getByRole('button', { name: /Generate Quiz/ })).toBeEnabled();
+    await page.getByRole('button', { name: /Generate Quiz/ }).click();
+    await expect(page.getByText('Invalid Input', { exact: true })).toBeVisible();
+
+    await textarea.fill(`one two ${'a'.repeat(92)}`);
+    await expect(help).toContainText('100 characters · 3 words');
+    await expect(help).toContainText('100 character minimum met');
+    await expect(page.getByRole('button', { name: /Generate Quiz/ })).toBeEnabled();
+  });
+
   test('shows an Invalid Input toast for text shorter than 100 characters', async ({ page }) => {
     await gotoHome(page);
     const textarea = await goPasteTab(page);
@@ -106,6 +127,16 @@ test.describe('validation', () => {
       await count.selectOption(String(n));
       await expect(count).toHaveValue(String(n));
     }
+  });
+
+  test('built-in 20-question preset generates a quiz', async ({ page }) => {
+    await gotoHome(page);
+    const textarea = await goPasteTab(page);
+    await textarea.fill(LECTURE);
+    await page.getByLabel('Number of Questions', { exact: true }).selectOption('20');
+    await page.getByRole('button', { name: /Generate Quiz/ }).click();
+    await expect(page.getByRole('heading', { name: /Questions/ })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('heading', { name: /20 .* Questions/ })).toBeVisible();
   });
 });
 
