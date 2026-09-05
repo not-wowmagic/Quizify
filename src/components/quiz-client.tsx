@@ -624,7 +624,6 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     if (!allAnswered || !quiz || attemptSavedRef.current || attemptSaveInFlightRef.current) return;
     if (incognito) {
       attemptSavedRef.current = true;
-      setAttemptSaved(true);
       return;
     }
     attemptSaveInFlightRef.current = true;
