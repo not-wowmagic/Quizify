@@ -4,9 +4,6 @@ import Script from 'next/script';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
-// Bound Server Actions below Netlify's function ceiling.
-export const maxDuration = 55;
-
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://quizifyyyy.netlify.app';
 const siteDescription = 'Turn lecture notes, textbook excerpts, and study documents into interactive quizzes in seconds.';
 
