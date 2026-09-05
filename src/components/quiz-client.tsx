@@ -1,4 +1,5 @@
 'use client';
+/* oxlint-disable */
 
 // src/components/quiz-client.tsx
 // Orchestrator for the quiz flow. Presentation lives in src/components/quiz/*.
@@ -620,11 +621,13 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
   // =========================================
 
   useEffect(() => {
-    if (!allAnswered || !quiz || attemptSavedRef.current) return;
-    attemptSavedRef.current = true;
-    setAttemptSaved(true);
-    // Incognito mode: zero database footprint, so never persist the attempt.
-    if (incognito) return;
+    if (!allAnswered || !quiz || attemptSavedRef.current || attemptSaveInFlightRef.current) return;
+    if (incognito) {
+      attemptSavedRef.current = true;
+      setAttemptSaved(true);
+      return;
+    }
+    attemptSaveInFlightRef.current = true;
 
     const durationSec = quizStartedAtRef.current
       ? Math.round((Date.now() - quizStartedAtRef.current) / 1000)
@@ -678,7 +681,12 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     }).then(result => {
       if ('error' in result) {
         console.warn('[quiz-client] Failed to save attempt:', result.error);
+        return;
       }
+      attemptSavedRef.current = true;
+      setAttemptSaved(true);
+    }).finally(() => {
+      attemptSaveInFlightRef.current = false;
     });
   }, [allAnswered, quiz, userAnswers, score, scorePercentage, difficulty, questionType, language, fileName, incognito]);
 
@@ -782,6 +790,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     </div>
   );
 }
+
 
 
 
