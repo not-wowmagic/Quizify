@@ -7,12 +7,6 @@ import {
   QUIZ_GENERATION_DEADLINE_MS,
 } from '@/ai/flows/generate-quiz';
 
-describe('quiz generation deployment budget', () => {
-  it('finishes before Netlify can truncate the Server Action response', () => {
-    expect(QUIZ_GENERATION_DEADLINE_MS).toBeLessThan(60_000);
-  });
-});
-
 describe('splitTextIntoChunks', () => {
   it('returns a single chunk for short text', () => {
     const chunks = splitTextIntoChunks('Short text here. Second sentence.');
@@ -133,6 +127,10 @@ describe('GenerateQuizInputSchema (strict input validation)', () => {
 });
 
 describe('generateQuiz (large question count support)', () => {
+  it('keeps the generation deadline below Netlify’s 60-second function ceiling', () => {
+    expect(QUIZ_GENERATION_DEADLINE_MS).toBeLessThan(60_000);
+  });
+
   it('successfully generates quizzes with 20 questions', async () => {
     process.env.E2E_MOCK_AI = '1';
     const result = await generateQuiz({

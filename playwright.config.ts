@@ -22,7 +22,21 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     viewport: { width: 1280, height: 800 },
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+      testIgnore: /.*\.mobile\.spec\.ts/,
+    },
+    {
+      name: 'mobile-chromium',
+      use: {
+        ...devices['Pixel 7'],
+        viewport: { width: 390, height: 844 },
+      },
+      testMatch: /.*\.mobile\.spec\.ts/,
+    },
+  ],
   webServer: {
     // Production build: every route serves instantly with no per-route dev
     // compilation. Rebuilds are incremental via the persisted .next-e2e cache.

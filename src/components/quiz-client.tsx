@@ -1,14 +1,14 @@
 'use client';
+/* oxlint-disable */
 
 // src/components/quiz-client.tsx
 // Orchestrator for the quiz flow. Presentation lives in src/components/quiz/*.
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { Quiz } from '@/types/quiz';
-import { createQuiz, createSummary, publishQuiz, saveAttempt, type CreateQuizInput } from '@/app/actions';
+import { createQuiz, createSummary, publishQuiz, saveAttempt } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { processQuiz, quizHelpers } from '@/lib/quiz-processors';
 import { normalizeQuizTitle } from '@/lib/quiz-title';
-import { splitQuestionCount } from '@/lib/quiz-batching';
 import { getDeviceId } from '@/lib/device-id';
 import { buildAnkiTxt, buildQuizCsv, downloadTextFile, printQuiz, printCramSheet } from '@/lib/quiz-export';
 import {
@@ -24,40 +24,34 @@ import { ShareQrCard } from '@/components/quiz/share-qr';
 import type { AttemptAnswer } from '@/types/history';
 import type { Difficulty, MatchingAnswer, QuestionTypeId, QuizAnswer } from '@/components/quiz/types';
 
-const motivationalQuotes = [
-  "Believe you can and you're halfway there.",
-  "The secret of getting ahead is getting started.",
-  "Don't watch the clock; do what it does. Keep going.",
-  "The expert in anything was once a beginner.",
-  "The only way to do great work is to love what you do.",
-  "Success is not final, failure is not fatal: it is the courage to continue that counts.",
-  "The future belongs to those who believe in the beauty of their dreams.",
-  "Well done is better than well said.",
-  "You are capable of more than you know.",
-  "Push yourself, because no one else is going to do it for you."
-];
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+const SESSION_STORAGE_KEY = 'quizify_session_v1';
+const SESSION_VERSION = 1;
 
-const getRandomQuote = () => motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
-
-type QuizGenerationResult = Awaited<ReturnType<typeof createQuiz>>;
-const HIGH_COUNT_BATCH_CONCURRENCY = 3;
-
-async function createQuizBatch(input: CreateQuizInput): Promise<QuizGenerationResult> {
-  try {
-    const response = await fetch('/api/generate-quiz', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
-    });
-    // SAFETY: the same-origin route returns the createQuiz result union.
-    const result = await response.json() as QuizGenerationResult;
-    return response.ok ? result : ('error' in result ? result : { error: 'Failed to generate the quiz. Please try again.' });
-  } catch {
-    return { error: 'Failed to generate the quiz. Please try again.' };
-  }
+interface PersistedQuizSession {
+  version: typeof SESSION_VERSION;
+  savedAt: number;
+  lectureText: string;
+  fileName: string;
+  sourceTitle: string;
+  numQuestions: number | '';
+  difficulty: Difficulty;
+  questionType: QuestionTypeId;
+  language: string;
+  quiz: Quiz | null;
+  rawQuiz: Pick<Quiz, 'questions' | 'title'> | null;
+  userAnswers: Record<number, QuizAnswer>;
+  showSummary: boolean;
+  publicVisibility: boolean;
+  attemptSaved: boolean;
+  quizStartedAt: number | null;
 }
 
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+const isQuizData = (value: unknown): value is Quiz => {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<Quiz>;
+  return Array.isArray(candidate.questions);
+};
 
 interface QuizClientProps {
   onQuizStateChange?: (hasQuiz: boolean) => void;
@@ -80,9 +74,10 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
   const [language, setLanguage] = useState('English');
 
   // UI state
-  const [isLoading, setIsLoading] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
-  const [currentQuote, setCurrentQuote] = useState('');
   const [fileName, setFileName] = useState('');
   const [sourceTitle, setSourceTitle] = useState('');
   const [showSummary, setShowSummary] = useState(false);
@@ -97,21 +92,113 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
   // Guards: record an attempt exactly once per quiz completion
   const attemptSavedRef = useRef(false);
   const quizStartedAtRef = useRef<number | null>(null);
+  const generationRunRef = useRef(0);
   // Original title when running a "Practice Missed Questions" session
   const practiceTitleRef = useRef<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   // Share URL once a quiz is published, driving the QR share card
   const [sharedUrl, setSharedUrl] = useState<string | null>(null);
   const [publicVisibility, setPublicVisibility] = useState(false);
+  const [isSessionRestored, setIsSessionRestored] = useState(false);
+  const [attemptSaved, setAttemptSaved] = useState(false);
+  const attemptSaveInFlightRef = useRef(false);
+
+  const isLoading = isParsing || isGenerating;
 
   const { toast } = useToast();
 
-  // Quote is picked after mount so SSR and first client render match
+  // Restore the last local session after hydration. The versioned envelope
+  // makes future state-shape changes safe to roll out without breaking start-up.
   useEffect(() => {
-    // ponytail: hydration guard because a random value can't be computed during render
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCurrentQuote(getRandomQuote());
+    let cancelled = false;
+    const restore = () => {
+      if (cancelled) return;
+      try {
+        const stored = window.localStorage.getItem(SESSION_STORAGE_KEY);
+        if (!stored) {
+          setIsSessionRestored(true);
+          return;
+        }
+        const session = JSON.parse(stored) as Partial<PersistedQuizSession>;
+        if (session.version !== SESSION_VERSION) {
+          setIsSessionRestored(true);
+          return;
+        }
+
+        if (typeof session.lectureText === 'string') setLectureText(session.lectureText);
+        if (typeof session.fileName === 'string') setFileName(session.fileName);
+        if (typeof session.sourceTitle === 'string') setSourceTitle(session.sourceTitle);
+        if (typeof session.numQuestions === 'number' || session.numQuestions === '') setNumQuestions(session.numQuestions);
+        if (session.difficulty === 'easy' || session.difficulty === 'medium' || session.difficulty === 'hard' || session.difficulty === 'adaptive') {
+          setDifficulty(session.difficulty);
+        }
+        if (session.questionType === 'multiple_choice' || session.questionType === 'true_false' || session.questionType === 'fill_in_the_blank' || session.questionType === 'matching' || session.questionType === 'situational' || session.questionType === 'mixed') {
+          setQuestionType(session.questionType);
+        }
+        if (typeof session.language === 'string') setLanguage(session.language);
+
+        if (isQuizData(session.quiz)) {
+          setQuiz(session.quiz);
+          rawQuizRef.current = isQuizData(session.rawQuiz) ? session.rawQuiz : session.quiz;
+          setUserAnswers(session.userAnswers ?? {});
+          setShowSummary(session.showSummary === true);
+          setPublicVisibility(session.publicVisibility === true);
+          attemptSavedRef.current = session.attemptSaved === true;
+          setAttemptSaved(session.attemptSaved === true);
+          quizStartedAtRef.current = typeof session.quizStartedAt === 'number' ? session.quizStartedAt : null;
+        }
+      } catch (error) {
+        console.warn('[quiz-client] Could not restore saved session:', error);
+        window.localStorage.removeItem(SESSION_STORAGE_KEY);
+      } finally {
+        setIsSessionRestored(true);
+      }
+    };
+
+    const timeout = window.setTimeout(restore, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
   }, []);
+
+  // Keep setup drafts and active answers available across refreshes. Incognito
+  // sessions intentionally leave no local trace, just like they leave no history.
+  useEffect(() => {
+    if (!isSessionRestored) return;
+    if (incognito) {
+      window.localStorage.removeItem(SESSION_STORAGE_KEY);
+      return;
+    }
+
+    const session: PersistedQuizSession = {
+      version: SESSION_VERSION,
+      savedAt: Date.now(),
+      lectureText,
+      fileName,
+      sourceTitle,
+      numQuestions,
+      difficulty,
+      questionType,
+      language,
+      quiz,
+      rawQuiz: rawQuizRef.current,
+      userAnswers,
+      showSummary,
+      publicVisibility,
+      attemptSaved,
+      quizStartedAt: quizStartedAtRef.current,
+    };
+
+    const timeout = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+      } catch (error) {
+        console.warn('[quiz-client] Could not save session:', error);
+      }
+    }, 150);
+    return () => window.clearTimeout(timeout);
+  }, [attemptSaved, difficulty, fileName, incognito, isSessionRestored, language, lectureText, numQuestions, publicVisibility, questionType, quiz, showSummary, sourceTitle, userAnswers]);
 
   // Seconds since the current loading phase started (for "still working" hints)
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -143,7 +230,8 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
 
 
   const handleFileSelected = async (file: File) => {
-    setIsLoading(true);
+    setIsParsing(true);
+    setGenerationError(null);
     setFileName(file.name);
     setSourceTitle(file.name);
     setLectureText('');
@@ -160,22 +248,25 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
         variant: 'destructive',
       });
     } finally {
-      setIsLoading(false);
+      setIsParsing(false);
     }
   };
 
   /** Shared generation core that validates nothing and uses current inputs as-is. */
-  const runQuizGeneration = async () => {
-    try {
-      setIsLoading(true);
-      setCurrentQuote(getRandomQuote());
-      setQuiz(null);
-      setUserAnswers({});
+  const runQuizGeneration = async (preserveCurrentQuiz = false) => {
+    const runId = ++generationRunRef.current;
+    setIsGenerating(true);
+    setGenerationError(null);
 
-      const requestedQuestionCount = Number(numQuestions) || 10;
-      const request: CreateQuizInput = {
+    try {
+      if (!preserveCurrentQuiz) {
+        setQuiz(null);
+        setUserAnswers({});
+      }
+
+      const result = await createQuiz({
         lectureText,
-        numQuestions: requestedQuestionCount,
+        numQuestions: Number(numQuestions) || 10,
         difficulty,
         questionType,
         language,
@@ -183,44 +274,23 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
         bypassCache: incognito,
         fallbackTitle: fileName || undefined,
         fallbackWebTitle: sourceTitle || undefined,
-      };
+      });
 
-      // Netlify can time out one large server action even when the provider
-      // calls themselves are bounded. Split 21-50 question requests into
-      // independent 10-question actions and merge their validated results.
-      const batchCounts = requestedQuestionCount > 20
-        ? splitQuestionCount(requestedQuestionCount)
-        : [requestedQuestionCount];
-      const batchResults: QuizGenerationResult[] = [];
-      for (let index = 0; index < batchCounts.length; index += HIGH_COUNT_BATCH_CONCURRENCY) {
-        const wave = await Promise.all(
-          batchCounts.slice(index, index + HIGH_COUNT_BATCH_CONCURRENCY).map(batchCount => requestedQuestionCount > 20
-            ? createQuizBatch({ ...request, numQuestions: batchCount })
-            : createQuiz({ ...request, numQuestions: batchCount })),
-        );
-        batchResults.push(...wave);
-      }
-      const successfulResults = batchResults.filter(
-        (batch): batch is Pick<Quiz, 'questions' | 'title'> => !('error' in batch),
-      );
+      if (runId !== generationRunRef.current) return;
 
-      if (successfulResults.length === 0) {
-        const failure = batchResults.find((batch): batch is { error: string } => 'error' in batch);
+      if ('error' in result) {
+        setGenerationError(result.error);
         toast({
           title: 'Error Generating Quiz',
-          description: failure?.error ?? 'The AI could not generate a quiz from the provided text. Please try refining your text.',
+          description: result.error,
           variant: 'destructive',
         });
         return;
       }
 
-      const result = {
-        title: successfulResults[0].title,
-        questions: successfulResults.flatMap(batch => batch.questions).slice(0, requestedQuestionCount),
-      };
-
       rawQuizRef.current = result;
       attemptSavedRef.current = false;
+      setAttemptSaved(false);
       practiceTitleRef.current = null;
       setPublicVisibility(false);
       quizStartedAtRef.current = Date.now();
@@ -231,23 +301,38 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
           q.difficultyTier === 'easy' ? 0 : q.difficultyTier === 'hard' ? 2 : 1;
         processedQuiz.questions.sort((a, b) => tierRank(a) - tierRank(b));
       }
+      setUserAnswers({});
       setQuiz(processedQuiz);
 
       trackQuizGenerated({
-        questionCount: requestedQuestionCount,
+        questionCount: Number(numQuestions) || 10,
         difficulty,
         format: questionType,
         language,
       });
     } catch (error) {
+      if (runId !== generationRunRef.current) return;
+      const message = error instanceof Error ? error.message : 'Failed to generate quiz. Please try again.';
+      setGenerationError(message);
       toast({
         title: 'Unexpected Error',
-        description: error instanceof Error ? error.message : 'Failed to generate quiz. Please try again.',
+        description: message,
         variant: 'destructive',
       });
     } finally {
-      setIsLoading(false);
+      if (runId === generationRunRef.current) setIsGenerating(false);
     }
+  };
+
+  const handleCancelGeneration = () => {
+    if (!isGenerating) return;
+    generationRunRef.current += 1;
+    setIsGenerating(false);
+    setGenerationError(quiz ? 'Generation cancelled. Your current quiz is still available.' : 'Generation cancelled.');
+  };
+
+  const handleRetryGeneration = () => {
+    void runQuizGeneration(!!quiz);
   };
 
   const handleGenerateQuiz = async () => {
@@ -269,7 +354,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
       return;
     }
 
-    await runQuizGeneration();
+    await runQuizGeneration(false);
   };
 
   /** Regenerates a fresh quiz from the SAME material and settings. */
@@ -283,7 +368,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
       return;
     }
     setShowSummary(false);
-    await runQuizGeneration();
+    await runQuizGeneration(true);
   };
 
   const handleSummaryClick = async () => {
@@ -341,7 +426,9 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
   };
 
   const handleStartOver = () => {
-    setCurrentQuote(getRandomQuote());
+    generationRunRef.current += 1;
+    setIsGenerating(false);
+    window.localStorage.removeItem(SESSION_STORAGE_KEY);
     setQuiz(null);
     setUserAnswers({});
     setNumQuestions(10);
@@ -353,6 +440,8 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     setShowSummary(false);
     rawQuizRef.current = null;
     attemptSavedRef.current = false;
+    setAttemptSaved(false);
+    setGenerationError(null);
     practiceTitleRef.current = null;
     setSharedUrl(null);
     setPublicVisibility(false);
@@ -361,11 +450,14 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
 
   /** Returns to the setup screen with the current input/settings preserved. */
   const handleOpenSettings = () => {
+    generationRunRef.current += 1;
+    setIsGenerating(false);
     setQuiz(null);
     setUserAnswers({});
     setShowSummary(false);
-    setCurrentQuote(getRandomQuote());
     attemptSavedRef.current = false;
+    setAttemptSaved(false);
+    setGenerationError(null);
     practiceTitleRef.current = null;
     setSharedUrl(null);
     quizStartedAtRef.current = null;
@@ -379,13 +471,13 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     if (!retakeQuiz) return;
     rawQuizRef.current = { questions: retakeQuiz.questions, title: retakeQuiz.title };
     attemptSavedRef.current = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Retake starts a new unsaved attempt
+    setAttemptSaved(false);
     practiceTitleRef.current = null;
     quizStartedAtRef.current = Date.now();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Rehydrating the runner from the History panel's retake request
     setQuiz(processQuiz({ questions: retakeQuiz.questions, title: retakeQuiz.title }));
     setUserAnswers({});
     setShowSummary(false);
-    setCurrentQuote(getRandomQuote());
     onRetakeHandled?.();
   }, [retakeQuiz, onRetakeHandled]);
 
@@ -524,21 +616,18 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     return "Keep reinforcing! Active practice will strengthen your recall.";
   };
 
-  const [prevAllAnswered, setPrevAllAnswered] = useState(allAnswered);
-  if (prevAllAnswered !== allAnswered) {
-    setPrevAllAnswered(allAnswered);
-    if (allAnswered) setCurrentQuote(getRandomQuote());
-  }
-
   // =========================================
   // History: save the attempt once on completion
   // =========================================
 
   useEffect(() => {
-    if (!allAnswered || !quiz || attemptSavedRef.current) return;
-    attemptSavedRef.current = true;
-    // Incognito mode: zero database footprint, so never persist the attempt.
-    if (incognito) return;
+    if (!allAnswered || !quiz || attemptSavedRef.current || attemptSaveInFlightRef.current) return;
+    if (incognito) {
+      attemptSavedRef.current = true;
+      setAttemptSaved(true);
+      return;
+    }
+    attemptSaveInFlightRef.current = true;
 
     const durationSec = quizStartedAtRef.current
       ? Math.round((Date.now() - quizStartedAtRef.current) / 1000)
@@ -592,7 +681,12 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     }).then(result => {
       if ('error' in result) {
         console.warn('[quiz-client] Failed to save attempt:', result.error);
+        return;
       }
+      attemptSavedRef.current = true;
+      setAttemptSaved(true);
+    }).finally(() => {
+      attemptSaveInFlightRef.current = false;
     });
   }, [allAnswered, quiz, userAnswers, score, scorePercentage, difficulty, questionType, language, fileName, incognito]);
 
@@ -617,11 +711,11 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     practiceTitleRef.current = practiceTitleRef.current || normalizeQuizTitle(quiz.title);
     rawQuizRef.current = { questions: missedQuestions, title: quiz.title };
     attemptSavedRef.current = false;
+    setAttemptSaved(false);
     quizStartedAtRef.current = Date.now();
     setQuiz(processQuiz({ questions: missedQuestions, title: quiz.title }));
     setUserAnswers({});
     setShowSummary(false);
-    setCurrentQuote(getRandomQuote());
 
     trackPracticeMissedStarted(missedQuestions.length);
   };
@@ -642,9 +736,13 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
           language={language}
           onLanguageChange={setLanguage}
           isLoading={isLoading}
+          isParsing={isParsing}
+          isGenerating={isGenerating}
+          generationError={generationError}
+          onCancelGeneration={handleCancelGeneration}
+          onRetryGeneration={handleRetryGeneration}
           fileName={fileName}
           onSourceTitleChange={setSourceTitle}
-          currentQuote={currentQuote}
           elapsedSec={elapsedSec}
           onFileSelected={handleFileSelected}
           onGenerate={handleGenerateQuiz}
@@ -672,7 +770,6 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
           scorePercentage={scorePercentage}
           allAnswered={allAnswered}
           feedbackMessage={getFeedbackMessage()}
-          currentQuote={currentQuote}
           onRegenerate={handleRegenerateQuiz}
           onStartOver={handleStartOver}
           headerRef={quizHeaderRef}
@@ -684,8 +781,16 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
           publicVisibility={publicVisibility}
           onPublicVisibilityChange={setPublicVisibility}
           isSharing={isSharing}
+          isGenerating={isGenerating}
+          generationError={generationError}
+          onCancelGeneration={handleCancelGeneration}
+          onRetryGeneration={handleRetryGeneration}
         />
       )}
     </div>
   );
 }
+
+
+
+

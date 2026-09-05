@@ -8,7 +8,7 @@
 //     the nonce to framework-injected scripts and <Script> components.
 //   - x-nonce is set on the REQUEST headers so layout.tsx can read it back
 //     via headers() and apply it to manually rendered scripts (JSON-LD,
-//     next-themes init, service-worker registration, Umami).
+//     service-worker registration, Umami).
 //   - Content-Security-Policy is also set on the RESPONSE for the browser.
 import { NextRequest, NextResponse } from 'next/server';
 

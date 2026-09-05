@@ -46,6 +46,7 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
   const [attempts, setAttempts] = useState<QuizAttempt[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [sharedUrl, setSharedUrl] = useState<string | null>(null);
   const [publicVisibility, setPublicVisibility] = useState(false);
@@ -108,7 +109,12 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
     if (active) void load();
   }, [active, load]);
 
-  const handleDelete = async (id: string) => {
+  const requestDelete = (id: string) => {
+    setPendingDeleteId(id);
+  };
+
+  const handleDeleteConfirmed = async (id: string) => {
+    setPendingDeleteId(null);
     setDeletingId(id);
     const result = await deleteAttempt(id, getDeviceId());
     setDeletingId(null);
@@ -443,6 +449,29 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
                 </p>
               </div>
 
+              {pendingDeleteId === attempt.id ? (
+                <div className="flex flex-wrap items-center justify-end gap-2 text-xs" role="alert">
+                  <span className="text-muted-foreground">Delete this attempt?</span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="h-8 px-2.5 text-xs"
+                    onClick={() => void handleDeleteConfirmed(attempt.id)}
+                    disabled={deletingId === attempt.id}
+                  >
+                    Delete
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2.5 border-border/80 text-xs"
+                    onClick={() => setPendingDeleteId(null)}
+                    disabled={deletingId === attempt.id}
+                  >
+                    Keep
+                  </Button>
+                </div>
+              ) : (
               <div className="flex items-center gap-2 shrink-0">
                 <Button
                   variant="outline"
@@ -498,13 +527,15 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
-                  onClick={() => handleDelete(attempt.id)}
+                  onClick={() => requestDelete(attempt.id)}
                   disabled={deletingId === attempt.id}
                   title="Delete this attempt"
+                  aria-label={`Delete ${normalizeQuizTitle(attempt.title)}`}
                 >
                   {deletingId === attempt.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                 </Button>
               </div>
+              )}
             </Card>
           );
         })}
@@ -680,7 +711,7 @@ function DailyGoalCard({ attempts }: { attempts: QuizAttempt[] }) {
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
             {goal > 0
-              ? `${dayProgress.todayCount} of ${goal} questions today${goal > 0 && dayProgress.percent >= 100 ? ' (goal met! 🎉)' : ''}`
+              ? `${dayProgress.todayCount} of ${goal} questions today${goal > 0 && dayProgress.percent >= 100 ? ' (goal met)' : ''}`
               : `${dayProgress.todayCount} questions answered today`}
           </p>
         </div>

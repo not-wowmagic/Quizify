@@ -6,6 +6,7 @@ import { test, expect } from '@playwright/test';
 import {
   LECTURE, gotoHome, goPasteTab, setCustomCount, generateQuiz,
   answerAllQuestions, completeQuiz, questionCards, correctAnswerForCard,
+  isServerActionRequest,
 } from './helpers';
 
 test.describe('generation', () => {
@@ -29,16 +30,93 @@ test.describe('generation', () => {
     await expect(page.getByRole('heading', { name: 'Photosynthesis Review' })).toBeVisible();
   });
 
-  test('focus returns to the quiz header after Regenerate', async ({ page }) => {
+  test('keeps the completed quiz visible while Regenerate is in flight', async ({ page }) => {
+    let generationActionId: string | undefined;
+    page.on('request', request => {
+      if (!generationActionId && isServerActionRequest(request)) {
+        generationActionId = request.headers()['next-action'];
+      }
+    });
+
     await gotoHome(page);
     const textarea = await goPasteTab(page);
     await textarea.fill(LECTURE);
     await generateQuiz(page, 3);
     // Regenerate lives on the scorecard, so the round must be completed first.
     await completeQuiz(page, true);
+
+    if (!generationActionId) throw new Error('The generation server action was not observed.');
+    const questionTitles = page.locator('.quizify-question-card h3:visible');
+    const questionTitlesBeforeRegenerate = await questionTitles.allInnerTexts();
+    await page.route('**/*', async route => {
+      const request = route.request();
+      if (isServerActionRequest(request) && request.headers()['next-action'] === generationActionId) {
+        await new Promise(resolve => setTimeout(resolve, 900));
+      }
+      await route.continue();
+    });
+
+    const regenerationResponse = page.waitForResponse(response => {
+      const request = response.request();
+      return isServerActionRequest(request) && request.headers()['next-action'] === generationActionId;
+    });
     await page.getByRole('button', { name: /Regenerate/ }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Regenerating this quiz' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Quiz Completed!' })).toBeVisible();
+    await expect(page.locator('.quizify-question-list')).toHaveAttribute('aria-busy', 'true');
+    await expect(questionTitles).toHaveText(questionTitlesBeforeRegenerate);
+
+    await regenerationResponse;
     await expect(page.getByRole('heading', { name: /Questions/ })).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole('heading', { name: /Questions/ })).toBeFocused();
+  });
+
+  test('cancels an in-flight initial generation and ignores its late response', async ({ page }) => {
+    await gotoHome(page);
+    const textarea = await goPasteTab(page);
+    await textarea.fill(LECTURE);
+    await page.route('**/*', async route => {
+      if (isServerActionRequest(route.request())) {
+        await new Promise(resolve => setTimeout(resolve, 900));
+      }
+      await route.continue();
+    });
+
+    const generationResponse = page.waitForResponse(response => isServerActionRequest(response.request()));
+    await page.getByRole('button', { name: /Generate Quiz/ }).click();
+    await expect(page.getByRole('button', { name: 'Cancel generation' })).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel generation' }).click();
+    await expect(page.getByRole('heading', { name: 'Configure Quiz' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Retry', exact: true })).toBeVisible();
+
+    await generationResponse;
+    await expect(page.getByRole('heading', { name: /Questions/ })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Configure Quiz' })).toBeVisible();
+  });
+
+  test('shows Retry after a generation failure and succeeds on retry', async ({ page }) => {
+    let serverActionCount = 0;
+    await page.route('**/*', async route => {
+      if (isServerActionRequest(route.request())) {
+        serverActionCount += 1;
+        if (serverActionCount === 1) {
+          await route.abort('failed');
+          return;
+        }
+      }
+      await route.continue();
+    });
+
+    await gotoHome(page);
+    const textarea = await goPasteTab(page);
+    await textarea.fill(LECTURE);
+    await page.getByRole('button', { name: /Generate Quiz/ }).click();
+    await expect(page.getByRole('alert').filter({ hasText: /generate|fetch/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Retry', exact: true })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+    await expect(page.getByRole('heading', { name: /Questions/ })).toBeVisible({ timeout: 20_000 });
+    expect(serverActionCount).toBe(2);
   });
 
   test('Start Over returns to a clean setup screen', async ({ page }) => {

@@ -22,8 +22,6 @@ export type LLMProvider = 'opencode' | 'gemini';
 
 export interface LLMOptions {
   systemInstruction?: string;
-  /** Optional per-request OpenCode model override. */
-  model?: string;
   /** Optional per-call provider override used by bounded fallback flows. */
   provider?: LLMProvider;
   /** Per-attempt timeout in milliseconds. Defaults to 30s. */
@@ -299,7 +297,7 @@ async function callOpenCodeChat(prompt: string, options: LLMOptions = {}): Promi
     throw new Error('OPENCODE_API_KEY environment variable is not set. Add it in the Netlify dashboard (or local .env.local for development).');
   }
 
-  const model = options.model || process.env.OPENCODE_MODEL || 'muse-spark-1.2-contributor';
+  const model = process.env.OPENCODE_MODEL || 'muse-spark-1.2-contributor';
   const usesResponsesAPI = model === 'muse-spark-1.2-contributor';
   // Muse is served through Responses; most other Go models use chat completions.
   const url = process.env.OPENCODE_BASE_URL || `https://opencode.ai/zen/go/v1/${usesResponsesAPI ? 'responses' : 'chat/completions'}`;
@@ -616,7 +614,7 @@ export function mockLLM(prompt: string): string {
 
   const isMatching = prompt.includes('"premise"') || prompt.includes('"pairs"');
   const requested = parseInt(prompt.match(/Generate (\d+)/)?.[1] ?? '3', 10);
-  const count = Number.isFinite(requested) ? Math.min(Math.max(1, requested), 8) : 3;
+  const count = Number.isFinite(requested) ? Math.min(Math.max(1, requested), 50) : 3;
 
   if (isMatching) {
     return JSON.stringify({

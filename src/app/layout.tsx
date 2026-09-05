@@ -1,19 +1,16 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import { headers } from 'next/headers';
 import Script from 'next/script';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
-import { ThemeProvider } from '@/components/theme-provider';
-import { ThemeToggle } from '@/components/theme-toggle';
-
-const inter = Inter({ subsets: ['latin'] });
-
-// Bound Server Actions below Netlify's function ceiling.
-export const maxDuration = 55;
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://quizifyyyy.netlify.app';
 const siteDescription = 'Turn lecture notes, textbook excerpts, and study documents into interactive quizzes in seconds.';
+
+// Keep Server Actions below Netlify's 60-second function ceiling. The quiz
+// generator uses a smaller 50-second internal budget to leave serialization
+// and response time for the action itself.
+export const maxDuration = 55;
 
 // Privacy-first analytics (Umami). The script is only injected when a website
 // id is configured; the origin is already whitelisted in the CSP.
@@ -71,7 +68,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary`}>
+      <body className="min-h-screen bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary">
         {/* JSON-LD structured data (static, developer-authored content only) */}
         <script
           type="application/ld+json"
@@ -88,25 +85,12 @@ export default async function RootLayout({
             nonce={nonce}
           />
         )}
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-          nonce={nonce}
-        >
-          {/* Floating Theme Toggle */}
-          <div className="fixed top-4 right-4 z-50">
-            <ThemeToggle />
-          </div>
+        {/* Main Content Body */}
+        <div className="relative flex min-h-screen flex-col">
+          {children}
+        </div>
 
-          {/* Main Content Body */}
-          <div className="relative flex min-h-screen flex-col">
-            {children}
-          </div>
-
-          <Toaster />
-        </ThemeProvider>
+        <Toaster />
 
         {/* PWA: register the offline service worker once the page has loaded */}
         <script

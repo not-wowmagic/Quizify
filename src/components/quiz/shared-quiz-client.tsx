@@ -3,7 +3,7 @@
 // src/components/quiz/shared-quiz-client.tsx
 // Renders a shared quiz (/q/<slug>) with a fresh shuffle per visitor.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import type { Quiz } from '@/types/quiz';
 import type { SharedQuizData } from '@/app/actions';
 import { processQuiz } from '@/lib/quiz-processors';
@@ -19,21 +19,6 @@ import { Loader2, Home, QrCode, X } from 'lucide-react';
 import type { MatchingAnswer, QuizAnswer } from '@/components/quiz/types';
 import type { AttemptAnswer } from '@/types/history';
 
-const motivationalQuotes = [
-  'Believe you can and you\'re halfway there.',
-  'The secret of getting ahead is getting started.',
-  'Don\'t watch the clock; do what it does. Keep going.',
-  'The expert in anything was once a beginner.',
-  'The only way to do great work is to love what you do.',
-  'Success is not final, failure is not fatal: it is the courage to continue that counts.',
-  'The future belongs to those who believe in the beauty of their dreams.',
-  'Well done is better than well said.',
-  'You are capable of more than you know.',
-  'Push yourself, because no one else is going to do it for you.',
-];
-
-const getRandomQuote = () => motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
-
 /** Applies the per-visitor shuffle and attaches any published summary. */
 function buildQuiz(sharedQuiz: SharedQuizData): Quiz {
   const processed = processQuiz({ questions: sharedQuiz.questions, title: normalizeQuizTitle(sharedQuiz.title) });
@@ -44,7 +29,6 @@ function buildQuiz(sharedQuiz: SharedQuizData): Quiz {
 }
 
 export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData }) {
-  const router = useRouter();
   const headerRef = useRef<HTMLHeadingElement>(null);
 
   // The shuffle in processQuiz uses Math.random(), which would produce
@@ -53,7 +37,6 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
   const [isMounted, setIsMounted] = useState(false);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [userAnswers, setUserAnswers] = useState<Record<number, QuizAnswer>>({});
-  const [currentQuote, setCurrentQuote] = useState('');
   const [showSummary, setShowSummary] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const attemptSavedRef = useRef(false);
@@ -75,11 +58,6 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
   }, [isMounted, quiz, sharedQuiz]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Random quote is picked after mount so SSR and first client render match
-    setCurrentQuote(getRandomQuote());
-  }, []);
-
-  useEffect(() => {
     headerRef.current?.focus();
   }, [quiz]);
 
@@ -95,7 +73,6 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
     attemptSavedRef.current = false;
     quizStartedAtRef.current = Date.now();
     setShowSummary(false);
-    setCurrentQuote(getRandomQuote());
   };
 
   const { score, answeredQuestions, scorePercentage } = useMemo(() => {
@@ -201,8 +178,10 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
             {showQr ? <X className="mr-1.5 h-3.5 w-3.5" /> : <QrCode className="mr-1.5 h-3.5 w-3.5" />}
             {showQr ? 'Hide QR' : 'Share QR'}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => router.push('/')} className="h-9 px-3 border-border/80 text-xs font-medium">
-            <Home className="mr-1.5 h-3.5 w-3.5" /> Back to Quizify
+          <Button asChild variant="outline" size="sm" className="h-9 px-3 border-border/80 text-xs font-medium">
+            <Link href="/">
+              <Home className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" /> Back to Quizify
+            </Link>
           </Button>
         </div>
       </div>
@@ -240,9 +219,8 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
         scorePercentage={scorePercentage}
         allAnswered={allAnswered}
         feedbackMessage={getFeedbackMessage()}
-        currentQuote={currentQuote}
         onRegenerate={reshuffle}
-        onStartOver={() => router.push('/')}
+        startOverHref="/"
         headerRef={headerRef}
       />
     </div>

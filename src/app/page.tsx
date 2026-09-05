@@ -7,7 +7,7 @@ import { HistoryPanel } from '@/components/quiz/history-panel';
 import { PublicQuizzesPanel } from '@/components/quiz/public-quizzes-panel';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { cn } from '@/lib/utils';
-import { Globe2, History, Sparkles, WifiOff } from 'lucide-react';
+import { Sparkles, WifiOff } from 'lucide-react';
 
 type View = 'setup' | 'history' | 'public';
 
@@ -65,21 +65,21 @@ export default function Home() {
                 aria-pressed={view === 'setup'}
                 className={cn('quizify-view-tab', view === 'setup' && 'is-active')}
               >
-                <Sparkles className="h-3.5 w-3.5" /> New Quiz
+                New Quiz
               </button>
               <button
                 onClick={() => setView('history')}
                 aria-pressed={view === 'history'}
                 className={cn('quizify-view-tab', view === 'history' && 'is-active')}
               >
-                <History className="h-3.5 w-3.5" /> History &amp; Insights
+                History &amp; Insights
               </button>
               <button
                 onClick={() => setView('public')}
                 aria-pressed={view === 'public'}
                 className={cn('quizify-view-tab', view === 'public' && 'is-active')}
               >
-                <Globe2 className="h-3.5 w-3.5" /> Public Quizzes
+                Public Quizzes
               </button>
             </div>
           </nav>

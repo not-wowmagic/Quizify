@@ -36,7 +36,7 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
               question.difficultyTier === 'medium' && "border-amber-500/30 bg-amber-500/10 text-amber-500",
               question.difficultyTier === 'hard' && "border-red-500/30 bg-red-500/10 text-red-500",
             )}>
-              {question.difficultyTier === 'easy' ? '🟢 Easy' : question.difficultyTier === 'medium' ? '🟡 Medium' : '🔴 Hard'}
+              {question.difficultyTier === 'easy' ? 'Easy' : question.difficultyTier === 'medium' ? 'Medium' : 'Hard'}
             </span>
           )}
         </div>
@@ -75,7 +75,7 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
               data-answered={isAnswered ? 'true' : 'false'}
               data-answer-state={isAnswered ? (isCorrectAnswer ? 'correct' : isSelected ? 'incorrect' : 'unrevealed') : 'idle'}
               className={cn(
-                "quizify-answer-option w-full text-left p-3.5 rounded-xl border flex items-center justify-between gap-3 text-sm transition-all duration-200",
+                "quizify-answer-option w-full text-left p-3.5 rounded-xl border flex items-center justify-between gap-3 text-sm transition-colors duration-200",
                 optionStyle
               )}
             >

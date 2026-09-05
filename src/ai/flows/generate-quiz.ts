@@ -185,7 +185,7 @@ export function splitTextIntoChunks(text: string, maxLength = 8000): string[] {
 
 /**
  * Maps an array with a bounded concurrency pool instead of unbounded
- * Promise.all to prevent slamming the Gemini rate limit.
+ * Promise.all to prevent slamming the provider rate limit.
  */
 async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
   const results: R[] = Array.from({ length: items.length });
@@ -325,42 +325,61 @@ export function validateQuestions(raw: QuestionRaw[], context: string): Question
 /**
  * Processes a single chunk of text to generate standard quiz questions
  */
-export function buildStandardQuizPrompt(chunk: string, params: {
-  questionsPerChunk: number;
-  questionType: QuestionType;
-  difficulty: string;
-  language: string;
-  topUpInstruction?: string;
-}): string {
-  const adaptiveField = params.difficulty === 'adaptive'
-    ? ',"difficultyTier":"easy|medium|hard"'
-    : '';
-  return `Create exactly ${params.questionsPerChunk} concise ${params.questionType} questions in ${params.language} at ${params.difficulty} difficulty.
-Format guidance: ${QUESTION_TYPE_GUIDANCE[params.questionType]}
-Use only the document. Give exactly four distinct options and one correct index. Avoid duplicate questions.
-Return ONLY minified JSON: {"title":"3-10 words","questions":[{"question":"...","options":["A","B","C","D"],"correctAnswerIndex":0,"topic":"1-4 words"${adaptiveField}}]}
-${params.topUpInstruction ? `\n${params.topUpInstruction}` : ''}
-<document>${chunk}</document>`;
-}
-
 async function processStandardChunk(chunk: string, params: {
   questionsPerChunk: number;
   questionType: QuestionType;
   difficulty: string;
   language: string;
   deadlineMs: number;
-  model?: string;
   provider: LLMProvider;
   topUpInstruction?: string;
 }): Promise<ChunkResult> {
-  const prompt = buildStandardQuizPrompt(chunk, params);
+  const typeGuidance = QUESTION_TYPE_GUIDANCE[params.questionType];
+
+  const difficultyGuidance = params.difficulty === 'adaptive'
+    ? 'Generate a balanced mix of difficulty tiers: roughly one-third easy, one-third medium, one-third hard. Assign each question a "difficultyTier" field of "easy", "medium", or "hard".'
+    : `Match the difficulty level: ${
+        params.difficulty === 'easy' ? 'basic recall and understanding' :
+        params.difficulty === 'medium' ? 'application of concepts and relationships' :
+        'complex analysis and evaluation'
+      }`;
+
+  const prompt = `Generate ${params.questionsPerChunk} ${params.questionType} question(s) at '${params.difficulty}' difficulty level from the study material below, strictly in ${params.language}.
+
+For each question:
+- The question must be answerable from the document
+- All options must be relevant to the question
+- The correct answer must be supported by a specific phrase from the document
+- Incorrect options should be plausible but clearly wrong based on the document
+- Include a "topic" field with a short (1-4 word) topic label for the question, e.g. "Cellular Respiration" or "The French Revolution"
+- ${difficultyGuidance}
+- Question type guidance: ${typeGuidance}
+${params.topUpInstruction ? `
+${params.topUpInstruction}` : ''}
+
+<document>
+${chunk}
+</document>
+
+Return one concise plain-text title (3-10 words) plus questions in this exact JSON format:
+{
+  "title": "Specific topic title",
+  "questions": [
+    {
+      "question": "Question text here?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctAnswerIndex": 0,
+      "topic": "Short topic label",
+      "supportingText": "Exact quote from the text that supports the correct answer"
+    }
+  ]
+}`;
 
   try {
     const response = await callLLM(prompt, {
       systemInstruction: QUIZ_SYSTEM_INSTRUCTION,
       timeoutMs: 90000,
       deadlineMs: params.deadlineMs,
-      model: params.model,
       provider: params.provider,
     });
 
@@ -386,7 +405,6 @@ async function processMatchingChunk(chunk: string, params: {
   difficulty: string;
   language: string;
   deadlineMs: number;
-  model?: string;
   provider: LLMProvider;
   topUpInstruction?: string;
 }): Promise<ChunkResult> {
@@ -407,7 +425,8 @@ Rules:
 - Each pair must be clearly and unambiguously connected based on the document.
 - Include a "topic" field with a short (1-4 word) topic label for the question, e.g. "Cellular Respiration" or "The French Revolution"
 - ${difficultyGuidance}
-${params.topUpInstruction ? `\n${params.topUpInstruction}` : ''}
+${params.topUpInstruction ? `
+${params.topUpInstruction}` : ''}
 
 <document>
 ${chunk}
@@ -435,7 +454,6 @@ Return one concise plain-text title (3-10 words) plus questions in this exact JS
       systemInstruction: QUIZ_SYSTEM_INSTRUCTION,
       timeoutMs: 90000,
       deadlineMs: params.deadlineMs,
-      model: params.model,
       provider: params.provider,
     });
 
@@ -455,14 +473,13 @@ Return one concise plain-text title (3-10 words) plus questions in this exact JS
 
 /**
  * Processes a chunk for mixed mode and generates both standard and matching questions.
- * Uses 2 dedicated sub-calls in parallel (one for standard types, one for matching).
+ * Uses 2 dedicated sub-calls (one for standard types, one for matching).
  */
 async function processMixedChunk(chunk: string, params: {
   questionsPerChunk: number;
   difficulty: string;
   language: string;
   deadlineMs: number;
-  model?: string;
   provider: LLMProvider;
   topUpInstruction?: string;
 }): Promise<ChunkResult> {
@@ -470,32 +487,30 @@ async function processMixedChunk(chunk: string, params: {
   const matchingCount = Math.max(1, Math.floor(params.questionsPerChunk / 4));
   const standardCount = params.questionsPerChunk - matchingCount;
 
-  const emptyChunkResult: ChunkResult = { questions: [] };
-  const [standardResults, matchingResult] = await Promise.all([
-    standardCount > 0
-      ? processStandardChunk(chunk, {
-          questionsPerChunk: standardCount,
-          questionType: 'mixed',
-          difficulty: params.difficulty,
-          language: params.language,
-          deadlineMs: params.deadlineMs,
-          model: params.model,
-          provider: params.provider,
-          topUpInstruction: params.topUpInstruction,
-        })
-      : Promise.resolve(emptyChunkResult),
-    matchingCount > 0
-      ? processMatchingChunk(chunk, {
-          questionsPerChunk: matchingCount,
-          difficulty: params.difficulty,
-          language: params.language,
-          deadlineMs: params.deadlineMs,
-          model: params.model,
-          provider: params.provider,
-          topUpInstruction: params.topUpInstruction,
-        })
-      : Promise.resolve(emptyChunkResult),
-  ]);
+  // Keep the standard and matching calls sequential within a batch. The
+  // outer generation pool already runs up to three batches at once; running
+  // both calls here in parallel would silently double provider concurrency.
+  const standardResults: ChunkResult = standardCount > 0
+    ? await processStandardChunk(chunk, {
+        questionsPerChunk: standardCount,
+        questionType: 'mixed',
+        difficulty: params.difficulty,
+        language: params.language,
+        deadlineMs: params.deadlineMs,
+        provider: params.provider,
+        topUpInstruction: params.topUpInstruction,
+      })
+    : { questions: [] };
+  const matchingResult: ChunkResult = matchingCount > 0
+    ? await processMatchingChunk(chunk, {
+        questionsPerChunk: matchingCount,
+        difficulty: params.difficulty,
+        language: params.language,
+        deadlineMs: params.deadlineMs,
+        provider: params.provider,
+        topUpInstruction: params.topUpInstruction,
+      })
+    : { questions: [] };
 
   // Shuffle to interleave different question types
   const allQuestions: QuestionRaw[] = [...standardResults.questions, ...matchingResult.questions];
@@ -516,9 +531,14 @@ async function processMixedChunk(chunk: string, params: {
 
 /**
  * Global budget for the entire quiz generation, including all retries.
- * Keep margin below Netlify's 60s ceiling so Next.js can serialize the action response.
+ *
+ * Netlify request functions can run for at most 60 seconds. Leave enough room
+ * below that ceiling for the Server Action to serialize and return its result;
+ * otherwise the platform closes the request and React reports a generic
+ * "unexpected response" error to the user.
  */
 export const QUIZ_GENERATION_DEADLINE_MS = 50_000;
+const MAX_PARALLEL_GENERATION_CALLS = 3;
 
 /**
  * Adaptive chunk size: distributes text across batches.
@@ -526,26 +546,13 @@ export const QUIZ_GENERATION_DEADLINE_MS = 50_000;
  * larger counts get proportional chunks for variety.
  */
 export const MAX_GENERATION_CHUNK_SIZE = 16_000;
-export const SMALL_QUIZ_QUESTIONS_PER_CALL = 10;
-export const LARGE_QUIZ_QUESTIONS_PER_CALL = 10;
+export const QUESTIONS_PER_GENERATION_CALL = 10;
 export const GENERATION_OVERSAMPLE_RATIO = 0.15;
 const TOP_UP_MARGIN = 2;
 
 /** Requests a small safety margin so validation can discard bad questions. */
 export function getGenerationQuestionCount(requestedCount: number): number {
   return requestedCount + Math.max(1, Math.ceil(requestedCount * GENERATION_OVERSAMPLE_RATIO));
-}
-
-/** Keep each request large enough to avoid provider fan-out throttling. */
-export function questionsPerGenerationCall(numQuestions: number): number {
-  return numQuestions <= 20
-    ? SMALL_QUIZ_QUESTIONS_PER_CALL
-    : LARGE_QUIZ_QUESTIONS_PER_CALL;
-}
-
-/** Muse is best for normal quizzes; MiMo handles large batch fan-out better. */
-export function generationModelOverride(numQuestions: number): string {
-  return numQuestions > 20 ? 'mimo-v2.5' : 'muse-spark-1.2-contributor';
 }
 
 export function computeChunkSize(
@@ -567,7 +574,7 @@ export interface GenerationTask {
 export function createGenerationTasks(
   text: string,
   numQuestions: number,
-  questionsPerCall = questionsPerGenerationCall(numQuestions),
+  questionsPerCall = QUESTIONS_PER_GENERATION_CALL,
 ): GenerationTask[] {
   const questionBatchCount = Math.ceil(numQuestions / questionsPerCall);
   const coverageBatchCount = Math.ceil(text.length / 50_000);
@@ -600,10 +607,9 @@ async function runGenerationTasks(
   input: GenerateQuizInput,
   deadlineMs: number,
   provider: LLMProvider,
-  model: string,
   topUpInstruction?: string,
 ): Promise<GenerationRun> {
-  const results = await mapWithConcurrency(tasks, 5, async task => {
+  const results = await mapWithConcurrency(tasks, MAX_PARALLEL_GENERATION_CALLS, async task => {
     try {
       if (input.questionType === 'matching') {
         return await processMatchingChunk(task.chunk, {
@@ -611,7 +617,6 @@ async function runGenerationTasks(
           difficulty: input.difficulty,
           language: input.language,
           deadlineMs,
-          model,
           provider,
           topUpInstruction,
         });
@@ -622,7 +627,6 @@ async function runGenerationTasks(
           difficulty: input.difficulty,
           language: input.language,
           deadlineMs,
-          model,
           provider,
           topUpInstruction,
         });
@@ -633,7 +637,6 @@ async function runGenerationTasks(
         difficulty: input.difficulty,
         language: input.language,
         deadlineMs,
-        model,
         provider,
         topUpInstruction,
       });
@@ -675,15 +678,13 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
   const validatedInput = GenerateQuizInputSchema.parse(input);
 
   const numQuestions = validatedInput.numQuestions;
-
   const deadlineMs = Date.now() + QUIZ_GENERATION_DEADLINE_MS;
   const provider = resolveProvider();
   const generationCount = getGenerationQuestionCount(numQuestions);
   const tasks = createGenerationTasks(validatedInput.lectureText, generationCount);
-  const model = generationModelOverride(numQuestions);
   const runs: GenerationRun[] = [];
 
-  const primaryRun = await runGenerationTasks(tasks, validatedInput, deadlineMs, provider, model);
+  const primaryRun = await runGenerationTasks(tasks, validatedInput, deadlineMs, provider);
   runs.push(primaryRun);
 
   // Validate and bounds-check every AI-generated question.
@@ -693,13 +694,12 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
   // questions. This preserves exact requested counts without rerunning all work.
   if (provider === 'gemini' && validated.length > 0 && validated.length < numQuestions) {
     const missing = numQuestions - validated.length;
-    const topUpCount = Math.min(SMALL_QUIZ_QUESTIONS_PER_CALL, missing + TOP_UP_MARGIN);
+    const topUpCount = Math.min(QUESTIONS_PER_GENERATION_CALL, missing + TOP_UP_MARGIN);
     const topUpRun = await runGenerationTasks(
       createGenerationTasks(validatedInput.lectureText, topUpCount),
       validatedInput,
       deadlineMs,
       provider,
-      model,
       buildTopUpInstruction(validated),
     );
     runs.push(topUpRun);
@@ -709,16 +709,10 @@ export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQu
     ];
   }
 
-  // If Gemini produced no usable questions at all, use the cheap Muse model
-  // through OpenCode as a last-resort provider fallback.
+  // If Gemini produced no usable questions at all, use the configured cheap
+  // OpenCode model as a last-resort provider fallback.
   if (provider === 'gemini' && validated.length === 0) {
-    const fallbackRun = await runGenerationTasks(
-      tasks,
-      validatedInput,
-      deadlineMs,
-      'opencode',
-      'muse-spark-1.2-contributor',
-    );
+    const fallbackRun = await runGenerationTasks(tasks, validatedInput, deadlineMs, 'opencode');
     runs.push(fallbackRun);
     validated = validateQuestions(fallbackRun.rawQuestions, 'OpenCode fallback');
   }

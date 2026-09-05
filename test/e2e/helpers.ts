@@ -3,7 +3,7 @@
 // The dev server runs with E2E_MOCK_AI=1, so generation is instant and every
 // "AI" response is canned (see src/ai/llm.ts mockLLM). These fixtures mirror
 // that mock so tests can answer deterministically.
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page, type Request } from '@playwright/test';
 
 export const LECTURE = `Photosynthesis is the process by which green plants, algae, and some bacteria convert light energy into chemical energy. This process takes place in the chloroplast, an organelle that contains the pigment chlorophyll. Chlorophyll absorbs light, mainly in the blue and red wavelengths, and reflects green light, which is why plants look green. The light-dependent reactions occur on the thylakoid membrane and produce ATP and NADPH. These energy carriers then drive the Calvin cycle, which fixes carbon dioxide into glucose in the stroma. Oxygen is released as a byproduct of water splitting during the light reactions. Photosynthesis is the foundation of nearly every food chain on Earth because it produces both food and oxygen for other organisms to use.`;
 
@@ -52,6 +52,11 @@ export async function generateQuiz(page: Page, count?: number): Promise<void> {
   }
   await page.getByRole('button', { name: /Generate Quiz/ }).click();
   await expect(page.getByRole('heading', { name: /Questions/ })).toBeVisible({ timeout: 20_000 });
+}
+
+/** Identifies a Next.js server action request without depending on its build hash. */
+export function isServerActionRequest(request: Request): boolean {
+  return request.method() === 'POST' && Object.prototype.hasOwnProperty.call(request.headers(), 'next-action');
 }
 
 /** Returns the visible question cards (standard + matching) in the active quiz. */

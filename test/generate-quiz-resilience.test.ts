@@ -1,9 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  dedupeQuestionOptions,
-  generateQuiz,
-  getGenerationQuestionCount,
-} from '@/ai/flows/generate-quiz';
+import { generateQuiz, getGenerationQuestionCount } from '@/ai/flows/generate-quiz';
 
 function standardQuestions(count: number, prefix: string) {
   return Array.from({ length: count }, (_, index) => ({
@@ -27,20 +23,9 @@ afterEach(() => {
 });
 
 describe('generateQuiz provider resilience', () => {
-  it('oversamples provider requests to absorb validation drops', () => {
+  it('oversamples the provider request to absorb validation drops', () => {
     expect(getGenerationQuestionCount(20)).toBe(23);
     expect(getGenerationQuestionCount(50)).toBe(58);
-  });
-
-  it('keeps distinct labels that share a suffix', () => {
-    const question = {
-      type: 'standard' as const,
-      question: 'Which nursing specialty applies?',
-      options: ['Pediatric Nursing', 'Geriatric Nursing', 'Emergency Medicine', 'Public Health'],
-      correctAnswerIndex: 0,
-    };
-
-    expect(dedupeQuestionOptions([question])).toHaveLength(1);
   });
 
   it('tops up a short Gemini response to the requested count', async () => {
@@ -70,6 +55,7 @@ describe('generateQuiz provider resilience', () => {
     vi.stubEnv('AI_PROVIDER', 'gemini');
     vi.stubEnv('GEMINI_API_KEY', 'test-key');
     vi.stubEnv('OPENCODE_API_KEY', 'fallback-key');
+    vi.stubEnv('OPENCODE_MODEL', 'muse-spark-1.2-contributor');
     vi.stubGlobal('fetch', async (url: string) => {
       providers.push(url.includes('generativelanguage') ? 'gemini' : 'opencode');
       if (url.includes('generativelanguage')) {

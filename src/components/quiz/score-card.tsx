@@ -1,6 +1,7 @@
 'use client';
 
 // src/components/quiz/score-card.tsx
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -10,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  RefreshCw, RotateCcw, CheckCircle2, Download, Target, Share2, FileText, Link2, Loader2,
+  RefreshCw, RotateCcw, Download, Target, Share2, FileText, Link2, Loader2,
 } from 'lucide-react';
 import type { ExportFormat } from '@/components/quiz/quiz-runner';
 
@@ -19,7 +20,6 @@ interface ScoreCardProps {
   totalQuestions: number;
   scorePercentage: number;
   feedbackMessage: string;
-  currentQuote: string;
   /** Number of questions answered incorrectly; shows the practice action when > 0. */
   missedCount: number;
   onPracticeMissed?: () => void;
@@ -27,7 +27,8 @@ interface ScoreCardProps {
   masteryPercentage?: number;
   onRegenerate: () => void;
   regenerateLabel?: string;
-  onStartOver: () => void;
+  onStartOver?: () => void;
+  startOverHref?: string;
   onExport?: (format: ExportFormat) => void;
   onShare?: () => void;
   isSharing?: boolean;
@@ -38,41 +39,37 @@ export function ScoreCard({
   totalQuestions,
   scorePercentage,
   feedbackMessage,
-  currentQuote,
   missedCount,
   onPracticeMissed,
   masteryPercentage,
   onRegenerate,
   regenerateLabel = 'Regenerate Quiz',
   onStartOver,
+  startOverHref,
   onExport,
   onShare,
   isSharing,
 }: ScoreCardProps) {
   return (
     <Card
-      className="quizify-score-card surface-card border-emerald-500/30 bg-emerald-500/5 p-8 text-center animate-in fade-in duration-500"
+      className="quizify-score-card surface-card border-border/80 bg-card p-8 text-center animate-in fade-in duration-500"
       role="status"
       aria-live="polite"
     >
       <div className="quizify-score-content mx-auto max-w-xl space-y-4">
-        <div className="quizify-score-icon inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 font-bold">
-          <CheckCircle2 className="h-6 w-6" />
-        </div>
-
         <div>
           <h3 className="text-2xl font-bold text-foreground">Quiz Completed!</h3>
           <p className="text-sm text-muted-foreground mt-1">{feedbackMessage}</p>
         </div>
 
-        <div className="quizify-score-metrics flex items-center justify-around rounded-xl border border-emerald-500/20 bg-background/80 p-4">
+        <div className="quizify-score-metrics flex items-center justify-around rounded-xl border border-border/60 bg-background/80 p-4">
           <div>
             <div className="text-3xl font-extrabold text-foreground">{score} / {totalQuestions}</div>
             <div className="text-xs text-muted-foreground font-medium mt-0.5">Correct Answers</div>
           </div>
           <div className="h-8 w-px bg-border/60" />
           <div>
-            <div className="text-3xl font-extrabold text-emerald-500">
+            <div className="text-3xl font-extrabold text-primary">
               {masteryPercentage !== undefined ? Math.round(masteryPercentage) : Math.round(scorePercentage)}%
             </div>
             <div className="text-xs text-muted-foreground font-medium mt-0.5">
@@ -135,13 +132,20 @@ export function ScoreCard({
             <Button onClick={onRegenerate} variant="outline" className="h-10 px-5 border-border">
               <RefreshCw className="mr-2 h-4 w-4" /> {regenerateLabel}
             </Button>
-            <Button onClick={onStartOver} className="h-10 px-5 bg-primary text-primary-foreground font-medium">
-              <RotateCcw className="mr-2 h-4 w-4" /> Start Over
-            </Button>
+            {startOverHref ? (
+              <Button asChild className="h-10 px-5 bg-primary text-primary-foreground font-medium">
+                <Link href={startOverHref}>
+                  <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" /> Start Over
+                </Link>
+              </Button>
+            ) : (
+              <Button onClick={onStartOver} className="h-10 px-5 bg-primary text-primary-foreground font-medium">
+                <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" /> Start Over
+              </Button>
+            )}
           </div>
         </div>
 
-        <p className="quizify-score-quote border-t border-foreground/15 pt-4 text-xs italic text-muted-foreground">&ldquo;{currentQuote}&rdquo;</p>
       </div>
     </Card>
   );
