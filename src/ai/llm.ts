@@ -297,7 +297,7 @@ async function callOpenCodeChat(prompt: string, options: LLMOptions = {}): Promi
     throw new Error('OPENCODE_API_KEY environment variable is not set. Add it in the Netlify dashboard (or local .env.local for development).');
   }
 
-  const model = process.env.OPENCODE_MODEL || 'muse-spark-1.2-contributor';
+  const model = process.env.OPENCODE_MODEL || 'deepseek-v4.1-flash';
   const usesResponsesAPI = model === 'muse-spark-1.2-contributor';
   // Muse is served through Responses; most other Go models use chat completions.
   const url = process.env.OPENCODE_BASE_URL || `https://opencode.ai/zen/go/v1/${usesResponsesAPI ? 'responses' : 'chat/completions'}`;
@@ -457,8 +457,7 @@ export async function callLLM(prompt: string, options: LLMOptions = {}): Promise
 /**
  * Calls a vision-capable model through the opencode gateway using
  * OpenAI-compatible image parts. The model is configurable via
- * OPENCODE_VISION_MODEL (defaults to "mimo-v2.5", which is vision-capable
- * and included in the opencode subscription with zero-retention).
+ * OPENCODE_VISION_MODEL (defaults to "mimo-v2.6-flash").
  */
 export async function callLLMVision(
   prompt: string,
@@ -473,7 +472,7 @@ export async function callLLMVision(
     throw new Error('OPENCODE_API_KEY environment variable is not set. Add it in the Netlify dashboard (or local .env.local for development).');
   }
 
-  const model = process.env.OPENCODE_VISION_MODEL || 'mimo-v2.5';
+  const model = process.env.OPENCODE_VISION_MODEL || 'mimo-v2.6-flash';
   const url = process.env.OPENCODE_BASE_URL || 'https://opencode.ai/zen/go/v1/chat/completions';
   const timeoutMs = options.timeoutMs ?? 45000;
 
@@ -511,7 +510,7 @@ export async function callLLMVision(
     if (err instanceof LLMAPIError) {
       // Models without image support commonly reject with 400, so surface it.
       throw new LLMAPIError(
-        `Vision request failed: ${err.message}. If the model rejects image input, set OPENCODE_VISION_MODEL to a vision-capable model (e.g. mimo-v2.5).`,
+        `Vision request failed: ${err.message}. If the model rejects image input, set OPENCODE_VISION_MODEL to a vision-capable model (e.g. mimo-v2.6-flash).`,
         err.status,
       );
     }
