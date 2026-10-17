@@ -113,13 +113,15 @@ describe('callLLM provider defaults', () => {
     vi.unstubAllEnvs();
   });
 
-  it('uses the Muse Spark OpenCode model when no model is configured', async () => {
+  it('uses DeepSeek V4.1 Flash with chat completions when no model is configured', async () => {
     let requestedModel = '';
-    vi.stubGlobal('fetch', async (_url: string, init: { body?: BodyInit }) => {
+    let requestUrl = '';
+    vi.stubGlobal('fetch', async (url: string, init: { body?: BodyInit }) => {
+      requestUrl = url;
       // SAFETY: this test supplies the JSON request body and only reads its model field.
       const requestBody = JSON.parse(String(init.body)) as { model?: string };
       requestedModel = requestBody.model ?? '';
-      return new Response(JSON.stringify({ output_text: '{"ok":true}' }), {
+      return new Response(JSON.stringify({ choices: [{ message: { content: '{"ok":true}' }, finish_reason: 'stop' }] }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -130,7 +132,30 @@ describe('callLLM provider defaults', () => {
 
     const { callLLM } = await import('@/ai/llm');
     await expect(callLLM('hello')).resolves.toBe('{"ok":true}');
-    expect(requestedModel).toBe('muse-spark-1.2-contributor');
+    expect(requestedModel).toBe('deepseek-v4.1-flash');
+    expect(requestUrl).toBe('https://opencode.ai/zen/go/v1/chat/completions');
+  });
+
+  it('uses MiMo V2.6 Flash for image reading when no vision model is configured', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      choices: [{ message: { content: 'Image text' }, finish_reason: 'stop' }],
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubEnv('OPENCODE_API_KEY', 'test-key');
+    vi.stubEnv('OPENCODE_VISION_MODEL', '');
+
+    const { callLLMVision } = await import('@/ai/llm');
+    await expect(callLLMVision('Read this image', 'data:image/png;base64,AAAA')).resolves.toBe('Image text');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://opencode.ai/zen/go/v1/chat/completions',
+      expect.objectContaining({ body: JSON.stringify({
+        model: 'mimo-v2.6-flash',
+        messages: [{ role: 'user', content: [
+          { type: 'text', text: 'Read this image' },
+          { type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } },
+        ] }],
+      }) }),
+    );
   });
 
   it('uses the Responses API for Muse Spark', async () => {
