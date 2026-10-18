@@ -51,13 +51,6 @@ export default function Home() {
         </header>
 
         <div id="top" className="quizify-content">
-          <section className="quizify-hero" aria-labelledby="quizify-heading">
-            <h2 id="quizify-heading">
-              <span className="quizify-hero-line quizify-hero-line--lead">Turn study material into</span>
-              <span className="quizify-hero-line quizify-hero-accent">momentum.</span>
-            </h2>
-          </section>
-
           <nav className="quizify-view-nav" aria-label="Sections">
             <div className="quizify-view-tabs">
               <button
