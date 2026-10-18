@@ -14,7 +14,7 @@
  */
 
 import { z } from 'zod';
-import { callLLM, extractJSON, resolveProvider, type LLMProvider } from '@/ai/llm';
+import { callLLM, extractJSON, resolveProvider, withLLMSession, type LLMProvider } from '@/ai/llm';
 
 // =========================================
 // Type Definitions and Validation Schemas
@@ -674,6 +674,10 @@ ${existingStems}
  * Generates quiz questions from text based on given parameters
  */
 export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQuizOutput> {
+  return withLLMSession(() => generateQuizInSession(input));
+}
+
+async function generateQuizInSession(input: GenerateQuizInput): Promise<GenerateQuizOutput> {
   // Validate input (defense in depth; the server action also parses)
   const validatedInput = GenerateQuizInputSchema.parse(input);
 

@@ -148,7 +148,12 @@ describe('callLLM provider defaults', () => {
     await expect(callLLMVision('Read this image', 'data:image/png;base64,AAAA')).resolves.toBe('Image text');
     expect(fetchMock).toHaveBeenCalledWith(
       'https://opencode.ai/zen/go/v1/chat/completions',
-      expect.objectContaining({ body: JSON.stringify({
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'User-Agent': 'Quizify/0.1.0',
+          'x-opencode-session': expect.any(String),
+        }),
+        body: JSON.stringify({
         model: 'mimo-v2.6-flash',
         messages: [{ role: 'user', content: [
           { type: 'text', text: 'Read this image' },

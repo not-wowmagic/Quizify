@@ -16,7 +16,13 @@ describe('generateQuiz provider concurrency', () => {
 
     let activeRequests = 0;
     let maxActiveRequests = 0;
-    vi.stubGlobal('fetch', async () => {
+    const sessionIds: string[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      const headers = new Headers(init.headers);
+      expect(headers.get('user-agent')).toBe('Quizify/0.1.0');
+      const sessionId = headers.get('x-opencode-session');
+      expect(sessionId).toBeTruthy();
+      sessionIds.push(sessionId ?? '');
       activeRequests++;
       maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -42,5 +48,17 @@ describe('generateQuiz provider concurrency', () => {
 
     expect(result.questions).toHaveLength(20);
     expect(maxActiveRequests).toBeLessThanOrEqual(3);
+    expect(sessionIds.length).toBeGreaterThan(1);
+    expect(new Set(sessionIds).size).toBe(1);
+    const firstSession = sessionIds[0];
+    sessionIds.length = 0;
+    await generateQuiz({
+      lectureText: 'This is enough study material to generate a quiz about photosynthesis and how plants convert light energy into chemical energy in chloroplasts.',
+      numQuestions: 5,
+      difficulty: 'medium',
+      questionType: 'multiple_choice',
+      language: 'English',
+    });
+    expect(sessionIds[0]).not.toBe(firstSession);
   });
 });

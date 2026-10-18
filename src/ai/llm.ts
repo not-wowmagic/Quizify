@@ -1,4 +1,6 @@
 import 'server-only';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { randomUUID } from 'node:crypto';
 
 /**
  * Unified LLM client for Quizify.
@@ -19,6 +21,22 @@ import 'server-only';
  */
 
 export type LLMProvider = 'opencode' | 'gemini';
+
+const llmSession = new AsyncLocalStorage<string>();
+
+/** Keeps related calls in one session without sharing it across quiz requests. */
+export function withLLMSession<T>(operation: () => T): T {
+  return llmSession.run(randomUUID(), operation);
+}
+
+function openCodeHeaders(apiKey: string) {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${apiKey}`,
+    'User-Agent': 'Quizify/0.1.0',
+    'x-opencode-session': llmSession.getStore() ?? randomUUID(),
+  };
+}
 
 export interface LLMOptions {
   systemInstruction?: string;
@@ -311,11 +329,7 @@ async function callOpenCodeChat(prompt: string, options: LLMOptions = {}): Promi
   try {
     const data = await fetchWithRetry(
       url,
-      {
-        'Content-Type': 'application/json',
-        // API key sent as a header so it never lands in URL logs
-        Authorization: `Bearer ${apiKey}`,
-      },
+      openCodeHeaders(apiKey),
       body,
       timeoutMs,
       'opencode AI API',
@@ -494,10 +508,7 @@ export async function callLLMVision(
   try {
     const data = await fetchWithRetry(
       url,
-      {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
+      openCodeHeaders(apiKey),
       { model, messages },
       timeoutMs,
       'opencode Vision API',
