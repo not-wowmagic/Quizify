@@ -115,12 +115,14 @@ describe('callLLM provider defaults', () => {
 
   it('uses DeepSeek V4.1 Flash with chat completions when no model is configured', async () => {
     let requestedModel = '';
+    let requestedThinking = '';
     let requestUrl = '';
     vi.stubGlobal('fetch', async (url: string, init: { body?: BodyInit }) => {
       requestUrl = url;
       // SAFETY: this test supplies the JSON request body and only reads its model field.
-      const requestBody = JSON.parse(String(init.body)) as { model?: string };
+      const requestBody = JSON.parse(String(init.body)) as { model?: string; thinking?: { type?: string } };
       requestedModel = requestBody.model ?? '';
+      requestedThinking = requestBody.thinking?.type ?? '';
       return new Response(JSON.stringify({ choices: [{ message: { content: '{"ok":true}' }, finish_reason: 'stop' }] }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -133,6 +135,7 @@ describe('callLLM provider defaults', () => {
     const { callLLM } = await import('@/ai/llm');
     await expect(callLLM('hello')).resolves.toBe('{"ok":true}');
     expect(requestedModel).toBe('deepseek-v4.1-flash');
+    expect(requestedThinking).toBe('disabled');
     expect(requestUrl).toBe('https://opencode.ai/zen/go/v1/chat/completions');
   });
 

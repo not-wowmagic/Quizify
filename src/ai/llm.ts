@@ -324,7 +324,9 @@ async function callOpenCodeChat(prompt: string, options: LLMOptions = {}): Promi
   const messages = buildChatMessages(prompt, options.systemInstruction);
   const body = usesResponsesAPI
     ? { model, input: messages }
-    : { model, messages };
+    : model === 'deepseek-v4.1-flash'
+      ? { model, messages, thinking: { type: 'disabled' } }
+      : { model, messages };
 
   try {
     const data = await fetchWithRetry(
