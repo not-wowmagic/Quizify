@@ -333,6 +333,16 @@ export async function getSharedQuiz(slug: string): Promise<SharedQuizData | null
 // =========================================
 
 const ATTEMPTS_PER_DEVICE = 200;
+const ATTEMPT_LIMIT = 30;
+// Keep this in sync with the trigger in 20261111000000_attempt_limits.sql.
+const MAX_ATTEMPT_PAYLOAD_BYTES = 512 * 1024;
+
+function attemptPayloadBytes(questions: unknown[], answers: unknown[]): number {
+  return (
+    Buffer.byteLength(JSON.stringify(questions), 'utf8') +
+    Buffer.byteLength(JSON.stringify(answers), 'utf8')
+  );
+}
 
 const SaveAttemptInputSchema = z.object({
   deviceId: z.string().regex(DEVICE_ID_PATTERN, 'Invalid device id'),
@@ -357,11 +367,23 @@ export type SaveAttemptInput = z.infer<typeof SaveAttemptInputSchema>;
 
 /** Records a completed quiz attempt for the anonymous device id. */
 export async function saveAttempt(input: SaveAttemptInput): Promise<{ id: string } | { error: string }> {
+  // This path is public and writes through the service-role client, so enforce
+  // the same IP budget as the paid actions before doing any work.
+  const ip = await getClientIp();
+  const limit = await checkRateLimit(`attempt:${ip}`, ATTEMPT_LIMIT, HOUR_MS);
+  if (!limit.allowed) {
+    return { error: 'Too many saved attempts. Please try again later.' };
+  }
+
   const parsed = SaveAttemptInputSchema.safeParse(input);
   if (!parsed.success) {
     return { error: 'Invalid attempt data.' };
   }
   const { deviceId, quizId, title, score, total, questions, answers, difficulty, questionType, language, durationSec } = parsed.data;
+
+  if (attemptPayloadBytes(questions, answers) > MAX_ATTEMPT_PAYLOAD_BYTES) {
+    return { error: 'Attempt data is too large to save.' };
+  }
 
   const supabase = getSupabase();
   if (!supabase) {
