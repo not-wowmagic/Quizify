@@ -3,6 +3,7 @@ import 'server-only';
 
 import { headers } from 'next/headers';
 import { createHash } from 'node:crypto';
+import { isIP } from 'node:net';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
@@ -27,6 +28,13 @@ interface WindowEntry {
 
 const buckets = new Map<string, WindowEntry>();
 const MAX_BUCKETS = 5000;
+
+/**
+ * Bucket used when the request has no trustworthy client address. A single
+ * shared bucket is intentional: an absent IP must not let a caller mint
+ * unlimited fresh buckets.
+ */
+export const SHARED_IP_BUCKET = 'unknown';
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -66,6 +74,16 @@ function checkRateLimitInMemory(key: string, limit: number, windowMs: number): R
 // One Ratelimit instance per (limit, window) combination; the Upstash
 // sliding-window config is fixed at construction time.
 const upstashLimiters = new Map<string, Ratelimit>();
+let warnedMissingUpstash = false;
+
+function warnMissingUpstash(): void {
+  if (process.env.NODE_ENV !== 'production' || warnedMissingUpstash) return;
+  warnedMissingUpstash = true;
+  console.warn(
+    '[rate-limit] UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN are not configured; ' +
+      'using the per-instance in-memory limiter. This is not a global limit on serverless.',
+  );
+}
 
 function getUpstashLimiter(limit: number, windowSec: number): Ratelimit | null {
   const url = process.env.UPSTASH_REDIS_REST_URL;
@@ -98,6 +116,7 @@ export async function checkRateLimit(key: string, limit: number, windowMs: numbe
   const limiter = getUpstashLimiter(limit, windowSec);
 
   if (!limiter) {
+    warnMissingUpstash();
     return checkRateLimitInMemory(key, limit, windowMs);
   }
 
@@ -116,14 +135,40 @@ export async function checkRateLimit(key: string, limit: number, windowMs: numbe
   }
 }
 
-/** Resolves the caller IP from proxy headers inside a server action. */
+/** Returns a valid IP without brackets, or null for a malformed/missing value. */
+function normalizeIp(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const candidate = value.trim().replace(/^\[|\]$/g, '');
+  return isIP(candidate) ? candidate : null;
+}
+
+/**
+ * Resolves the caller IP from proxy headers inside a server action.
+ *
+ * Netlify sets x-nf-client-connection-ip from the actual connection. That is
+ * the only value preferred here. A plain X-Forwarded-For is read from the
+ * right, because an untrusted client can prepend forged entries while the
+ * trusted proxy appends the real hop. If neither yields a valid IP, all such
+ * requests share one bucket.
+ */
 export async function getClientIp(): Promise<string> {
   const h = await headers();
+
+  const netlifyIp = normalizeIp(h.get('x-nf-client-connection-ip'));
+  if (netlifyIp) return netlifyIp;
+
   const forwarded = h.get('x-forwarded-for');
   if (forwarded) {
-    return forwarded.split(',')[0].trim();
+    const rightmost = forwarded
+      .split(',')
+      .map(part => part.trim())
+      .filter(Boolean)
+      .at(-1);
+    const forwardedIp = normalizeIp(rightmost);
+    if (forwardedIp) return forwardedIp;
   }
-  return h.get('x-real-ip') ?? 'unknown';
+
+  return SHARED_IP_BUCKET;
 }
 
 // =========================================
