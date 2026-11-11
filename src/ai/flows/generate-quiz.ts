@@ -28,7 +28,7 @@ import { callLLM, extractJSON, resolveProvider, withLLMSession, type LLMProvider
 export const GenerateQuizInputSchema = z.object({
   lectureText: z.string().trim().min(100, 'Text must be at least 100 characters.').max(100000, 'Text must be at most 100,000 characters.')
     .describe('The text to generate questions from'),
-  numQuestions: z.number().int().min(1).max(50).describe('Number of questions to generate'),
+  numQuestions: z.int().min(1).max(50).describe('Number of questions to generate'),
   difficulty: z.enum(['easy', 'medium', 'hard', 'adaptive']).describe('Quiz difficulty level'),
   questionType: z.enum(['multiple_choice', 'situational', 'fill_in_the_blank', 'true_false', 'matching', 'mixed'])
     .describe('Type of questions to generate'),
@@ -88,12 +88,12 @@ const StandardQuestionSchema = z.object({
   type: z.literal('standard'),
   question: z.string().min(1).max(2000),
   options: z.array(z.string().min(1).max(500)).min(2).max(6),
-  correctAnswerIndex: z.number().int().min(0),
+  correctAnswerIndex: z.int().min(0),
   topic: z.string().min(1).max(200).optional(),
   supportingText: z.string().min(1).max(500).optional(),
   difficultyTier: z.enum(['easy', 'medium', 'hard']).optional(),
 }).refine(q => q.correctAnswerIndex < q.options.length, {
-  message: 'correctAnswerIndex out of bounds',
+  error: 'correctAnswerIndex out of bounds',
 });
 
 const MatchingQuestionSchema = z.object({

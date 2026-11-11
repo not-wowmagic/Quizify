@@ -338,11 +338,11 @@ const SaveAttemptInputSchema = z.object({
   deviceId: z.string().regex(DEVICE_ID_PATTERN, 'Invalid device id'),
   quizId: z.string().trim().min(1).max(128).nullable().optional(),
   title: z.string().trim().min(1).max(200).default('Study Quiz'),
-  score: z.number().int().min(0).max(1000),
-  total: z.number().int().min(1).max(100),
+  score: z.int().min(0).max(1000),
+  total: z.int().min(1).max(100),
   questions: z.array(QuizQuestionSchema).min(1).max(50),
   answers: z.array(z.object({
-    index: z.number().int().min(0).max(999),
+    index: z.int().min(0).max(999),
     type: z.enum(['standard', 'matching']),
     correct: z.boolean(),
     topic: z.string().min(1).max(200).optional(),
@@ -350,7 +350,7 @@ const SaveAttemptInputSchema = z.object({
   difficulty: z.string().trim().min(1).max(50).optional(),
   questionType: z.string().trim().min(1).max(50).optional(),
   language: z.string().trim().min(1).max(50).default('English'),
-  durationSec: z.number().int().min(0).max(86_400),
+  durationSec: z.int().min(0).max(86_400),
 });
 
 export type SaveAttemptInput = z.infer<typeof SaveAttemptInputSchema>;
