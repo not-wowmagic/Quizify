@@ -30,9 +30,11 @@ const buckets = new Map<string, WindowEntry>();
 const MAX_BUCKETS = 5000;
 
 /**
- * Bucket used when the request has no trustworthy client address. A single
- * shared bucket is intentional: an absent IP must not let a caller mint
- * unlimited fresh buckets.
+ * Bucket used when the request has no trustworthy client address.
+ *
+ * Headerless callers are collectively throttled in this one bucket. That is a
+ * deliberate availability trade: a missing header must not take the whole app
+ * down, and it must not let a caller mint unlimited fresh buckets.
  */
 export const SHARED_IP_BUCKET = 'unknown';
 
@@ -75,6 +77,8 @@ function checkRateLimitInMemory(key: string, limit: number, windowMs: number): R
 // sliding-window config is fixed at construction time.
 const upstashLimiters = new Map<string, Ratelimit>();
 let warnedMissingUpstash = false;
+let warnedMissingNetlifyHeader = false;
+let warnedSharedClientBucket = false;
 
 function warnMissingUpstash(): void {
   if (process.env.NODE_ENV !== 'production' || warnedMissingUpstash) return;
@@ -142,14 +146,35 @@ function normalizeIp(value: string | null | undefined): string | null {
   return isIP(candidate) ? candidate : null;
 }
 
+function warnMissingNetlifyHeader(): void {
+  if (warnedMissingNetlifyHeader) return;
+  warnedMissingNetlifyHeader = true;
+  console.warn(
+    '[rate-limit] Missing x-nf-client-connection-ip; using x-real-ip for a non-Netlify proxy.',
+  );
+}
+
+function warnSharedClientBucket(): void {
+  if (warnedSharedClientBucket) return;
+  warnedSharedClientBucket = true;
+  console.warn(
+    '[rate-limit] Missing x-nf-client-connection-ip and no usable x-real-ip; ' +
+      'using the shared client bucket. Headerless callers are collectively throttled by design.',
+  );
+}
+
 /**
  * Resolves the caller IP from proxy headers inside a server action.
  *
  * Netlify sets x-nf-client-connection-ip from the actual connection. That is
- * the only value preferred here. A plain X-Forwarded-For is read from the
- * right, because an untrusted client can prepend forged entries while the
- * trusted proxy appends the real hop. If neither yields a valid IP, all such
- * requests share one bucket.
+ * the only authoritative value here. X-Forwarded-For is deliberately never
+ * consulted: Netlify's XFF lists can contain internal 100.64/10 hops, and
+ * neither the left-most nor the right-most entry is reliably the client.
+ *
+ * x-real-ip is supported only for non-Netlify deployments behind a proxy that
+ * sets it, and is validated exactly like the Netlify header. If neither header
+ * is present, all such requests share one bucket and are collectively
+ * throttled; this is intentional and must not fail the whole app closed.
  */
 export async function getClientIp(): Promise<string> {
   const h = await headers();
@@ -157,17 +182,13 @@ export async function getClientIp(): Promise<string> {
   const netlifyIp = normalizeIp(h.get('x-nf-client-connection-ip'));
   if (netlifyIp) return netlifyIp;
 
-  const forwarded = h.get('x-forwarded-for');
-  if (forwarded) {
-    const rightmost = forwarded
-      .split(',')
-      .map(part => part.trim())
-      .filter(Boolean)
-      .at(-1);
-    const forwardedIp = normalizeIp(rightmost);
-    if (forwardedIp) return forwardedIp;
+  const realIp = normalizeIp(h.get('x-real-ip'));
+  if (realIp) {
+    warnMissingNetlifyHeader();
+    return realIp;
   }
 
+  warnSharedClientBucket();
   return SHARED_IP_BUCKET;
 }
 
