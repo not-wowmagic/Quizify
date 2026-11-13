@@ -11,7 +11,7 @@ language plpgsql
 as $$
 declare
   existing_count integer;
-  payload_bytes integer;
+  row_bytes integer;
 begin
   perform pg_advisory_xact_lock(hashtextextended(new.device_id, 0));
 
@@ -24,10 +24,12 @@ begin
       using errcode = 'check_violation';
   end if;
 
-  payload_bytes :=
-    octet_length(new.questions::text) + octet_length(new.answers::text);
+  -- The cap covers the entire stored row, not just the jsonb text output.
+  -- jsonb text undercounts binary/TOASTed storage badly (a 400 KB text array
+  -- can be 800 KB on disk), so pg_column_size(new) is authoritative.
+  row_bytes := pg_column_size(new);
 
-  if payload_bytes > 524288 then
+  if row_bytes > 524288 then
     raise exception 'attempt payload too large'
       using errcode = 'check_violation';
   end if;

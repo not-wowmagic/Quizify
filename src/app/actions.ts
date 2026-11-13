@@ -337,6 +337,9 @@ const ATTEMPT_LIMIT = 30;
 // Keep this in sync with the trigger in 20261111000000_attempt_limits.sql.
 const MAX_ATTEMPT_PAYLOAD_BYTES = 512 * 1024;
 
+// Cheap JSON pre-check only. The database trigger is authoritative and measures
+// the stored row with pg_column_size(new); this is intentionally conservative
+// but cannot prove the binary jsonb/TOAST size.
 function attemptPayloadBytes(questions: unknown[], answers: unknown[]): number {
   return (
     Buffer.byteLength(JSON.stringify(questions), 'utf8') +

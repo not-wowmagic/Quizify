@@ -16,6 +16,7 @@ do $$
 declare
   quota_device constant text := '33333333-3333-4333-8333-333333333333';
   payload_device constant text := '44444444-4444-4444-8444-444444444444';
+  disk_device constant text := '55555555-5555-4555-8555-555555555555';
   question constant jsonb := '[{"type":"standard","question":"Q","options":["A","B"],"correctAnswerIndex":0}]'::jsonb;
   row_count integer;
 begin
@@ -66,6 +67,31 @@ begin
 
   if row_count <> 0 then
     raise exception 'expected zero stored rows for the oversized attempt, got %', row_count;
+  end if;
+
+  -- This is the case the old text-size check missed: ~400 KB as text, ~800 KB
+  -- as binary jsonb. pg_column_size(new) must reject it.
+  begin
+    insert into public.quiz_attempts (device_id, title, score, total, questions, answers)
+    select
+      disk_device,
+      'Disk-heavy',
+      1,
+      1,
+      jsonb_agg('{}'::jsonb),
+      '[]'::jsonb
+    from generate_series(1, 100000);
+    raise exception 'expected the disk-heavy attempt to be rejected';
+  exception
+    when check_violation then null;
+  end;
+
+  select count(*) into row_count
+  from public.quiz_attempts
+  where device_id = disk_device;
+
+  if row_count <> 0 then
+    raise exception 'expected zero stored rows for the disk-heavy attempt, got %', row_count;
   end if;
 end;
 $$;
