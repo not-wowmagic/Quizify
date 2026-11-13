@@ -107,7 +107,12 @@ describe('GenerateQuizInputSchema (strict input validation)', () => {
 
   it('rejects unknown fields when strict (field tampering)', () => {
     const tampered = { ...validInput, admin: true, model: 'gemini-pro' };
-    expect(GenerateQuizInputSchema.strict().safeParse(tampered).success).toBe(false);
+    const result = GenerateQuizInputSchema.strict().safeParse(tampered);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some(issue => issue.code === 'unrecognized_keys')).toBe(true);
+    }
   });
 
   it('defaults language to English when omitted', () => {
