@@ -55,7 +55,7 @@ Remaining work:
 The file is `supabase/migrations/20261111000000_attempt_limits.sql`. It:
 
 - caps `quiz_attempts` at 200 rows per device, using a per-device advisory lock so concurrent inserts cannot race past the cap;
-- rejects a row whose serialized `questions` + `answers` payload exceeds 512 KiB.
+- rejects a row whose stored size (`pg_column_size(new)`, covering the whole row including `questions`/`answers`) exceeds 512 KiB.
 
 It is **not applied** to the remote project. Do not run `supabase db push` against a linked production project without reviewing the migration-history state first: the repository migration versions (`20260815000000`, `20260822000000`) differ from the versions recorded remotely (`20260815054310`, `20260831051013`). Applying only the new migration avoids replaying the older ones.
 
