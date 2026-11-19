@@ -106,12 +106,22 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
     const answers: AttemptAnswer[] = quiz.questions.map((q, qIndex) => {
       const answer = userAnswers[qIndex];
       if (q.type === 'standard' && answer?.type === 'standard') {
-        const entry: AttemptAnswer = { index: qIndex, type: 'standard', correct: q.correctAnswerIndex === answer.selectedIndex };
+        const entry: AttemptAnswer = {
+          index: qIndex,
+          type: 'standard',
+          correct: q.correctAnswerIndex === answer.selectedIndex,
+          selectedIndex: answer.selectedIndex,
+        };
         if (q.topic) entry.topic = q.topic;
         return entry;
       }
       if (q.type === 'matching' && answer?.type === 'matching' && answer.checked) {
-        const entry: AttemptAnswer = { index: qIndex, type: 'matching', correct: q.pairs.every((_, pairIdx) => answer.matches[pairIdx] === pairIdx) };
+        const entry: AttemptAnswer = {
+          index: qIndex,
+          type: 'matching',
+          correct: q.pairs.every((_, pairIdx) => answer.matches[pairIdx] === pairIdx),
+          matches: q.pairs.map((_, pairIdx) => answer.matches[pairIdx] ?? 0),
+        };
         if (q.topic) entry.topic = q.topic;
         return entry;
       }
@@ -125,7 +135,7 @@ export function SharedQuizClient({ quiz: sharedQuiz }: { quiz: SharedQuizData })
       title: normalizeQuizTitle(sharedQuiz.title),
       score,
       total: quiz.questions.length,
-      questions: sharedQuiz.questions,
+      questions: quiz.questions,
       answers,
       difficulty: sharedQuiz.difficulty,
       questionType: sharedQuiz.questionType,

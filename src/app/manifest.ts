@@ -1,5 +1,8 @@
 import type { MetadataRoute } from 'next';
 
+/** Single canonical site URL shared by metadata, robots, sitemap and manifest. */
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://quizify.netlify.app';
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Quizify - AI-Powered Quiz Generator',
@@ -10,7 +13,7 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: 'portrait-primary',
     categories: ['education'],
     background_color: '#0a0a0b',
-    theme_color: '#0a0a0b',
+    theme_color: '#ffffff',
     icons: [
       {
         src: '/icon.svg',

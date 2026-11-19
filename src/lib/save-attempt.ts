@@ -24,7 +24,11 @@ const SaveAttemptInputSchema = z.object({
   answers: z.array(z.object({
     index: z.int().min(0).max(999),
     type: z.enum(['standard', 'matching']),
-    correct: z.boolean(),
+    // Retained for backwards compatibility with older clients. Correctness is
+    // recomputed from the learner's selection before anything is stored.
+    correct: z.boolean().optional(),
+    selectedIndex: z.int().min(0).max(999).optional(),
+    matches: z.array(z.int().min(0).max(999)).max(50).optional(),
     topic: z.string().min(1).max(200).optional(),
   })).min(0).max(100),
   difficulty: z.string().trim().min(1).max(50).optional(),
@@ -34,6 +38,42 @@ const SaveAttemptInputSchema = z.object({
 });
 
 export type SaveAttemptInput = z.infer<typeof SaveAttemptInputSchema>;
+type ParsedAnswer = SaveAttemptInput['answers'][number];
+
+/**
+ * Correctness is derived only from the learner's selection and the submitted
+ * question set. Client-supplied `correct` and `score` never reach storage.
+ * Duplicate answer indices are ignored here; the caller rejects them so a
+ * repeated correct answer cannot inflate the score.
+ */
+export function recomputeAttemptScore(
+  questions: SaveAttemptInput['questions'],
+  answers: ParsedAnswer[],
+) {
+  const seen = new Set<number>();
+  const uniqueAnswers = answers.filter(answer => {
+    if (seen.has(answer.index)) return false;
+    seen.add(answer.index);
+    return true;
+  });
+
+  const recomputed = uniqueAnswers.map(answer => {
+    const question = questions[answer.index];
+    let correct = false;
+    if (question && answer.type === 'standard' && question.type === 'standard') {
+      correct = answer.selectedIndex === question.correctAnswerIndex;
+    } else if (question && answer.type === 'matching' && question.type === 'matching') {
+      correct =
+        answer.matches !== undefined &&
+        answer.matches.length === question.pairs.length &&
+        question.pairs.every((_, pairIndex) => answer.matches?.[pairIndex] === pairIndex);
+    }
+    const entry: AttemptAnswer = { index: answer.index, type: answer.type, correct };
+    if (answer.topic) entry.topic = answer.topic;
+    return entry;
+  });
+  return { score: recomputed.filter(answer => answer.correct).length, answers: recomputed };
+}
 
 // Cheap JSON pre-check only. The database trigger is authoritative and measures
 // the stored row with pg_column_size(new); this is intentionally conservative
@@ -67,8 +107,28 @@ export async function saveAttemptForClient(
   }
   const { deviceId, quizId, title, score, total, questions, answers, difficulty, questionType, language, durationSec } = parsed.data;
 
+  if (score > total) {
+    return { error: 'Invalid attempt data.' };
+  }
+
+  // The stored attempt must be internally consistent. Without these checks a
+  // client could send duplicate answer rows or a smaller total and still make
+  // the recomputed score exceed the number of questions.
+  if (total !== questions.length) {
+    return { error: 'Invalid attempt data.' };
+  }
+  const answerIndices = new Set(answers.map(answer => answer.index));
+  if (answerIndices.size !== answers.length || answers.some(answer => answer.index >= questions.length)) {
+    return { error: 'Invalid attempt data.' };
+  }
+
   if (attemptPayloadBytes(questions, answers) > MAX_ATTEMPT_PAYLOAD_BYTES) {
     return { error: 'Attempt data is too large to save.' };
+  }
+
+  const { score: recomputedScore, answers: recomputed } = recomputeAttemptScore(questions, answers);
+  if (recomputedScore > total) {
+    return { error: 'Invalid attempt data.' };
   }
 
   const supabase = getSupabase();
@@ -82,11 +142,10 @@ export async function saveAttemptForClient(
       device_id: deviceId,
       quiz_id: quizId ?? null,
       title,
-      score,
+      score: recomputedScore,
       total,
       questions,
-      // SAFETY: answers was validated above as AttemptAnswer[] by SaveAttemptInputSchema
-      answers: answers as AttemptAnswer[],
+      answers: recomputed,
       difficulty: difficulty ?? null,
       question_type: questionType ?? null,
       language,

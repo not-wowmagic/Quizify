@@ -4,7 +4,7 @@
 // dynamically imported only when a user actually uploads a document.
 import type { Quiz, QuizQuestion, StandardQuestion, MatchingQuestion } from '@/types/quiz';
 
-// Helper function to shuffle arrays
+// Fisher-Yates shuffle in place; callers rely on per-visitor ordering.
 const shuffleArray = <T,>(array: T[]): T[] => {
   const newArray = [...array];
   for (let i = newArray.length - 1; i > 0; i--) {

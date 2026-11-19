@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Loader2, FileText, Sparkles, RotateCcw, Share2, Download, Link2, Pencil, Check, X, Globe2, MoreHorizontal } from 'lucide-react';
+import { Loader2, FileText, RotateCcw, Share2, Download, Link2, Pencil, Check, X, Globe2, MoreHorizontal } from 'lucide-react';
 import { StandardQuestionCard } from '@/components/quiz/standard-question-card';
 import { MatchingQuestionCard } from '@/components/quiz/matching-question-card';
 import { ScoreCard } from '@/components/quiz/score-card';
@@ -122,9 +122,6 @@ export function QuizRunner({
       {/* Header Info Banner */}
       <div className="quizify-runner-header flex flex-col sm:flex-row items-start justify-between gap-5 p-4 rounded-xl border border-border/80 bg-card">
         <div className="quizify-runner-title-block min-w-0">
-          <div className="quizify-runner-kicker inline-flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" /> Quiz Active
-          </div>
           {title && (isEditingTitle && onTitleChange ? (
             <form onSubmit={saveTitle} className="mt-1 flex max-w-full items-center gap-1.5">
               <label htmlFor="quiz-title-input" className="sr-only">Quiz title</label>
@@ -135,7 +132,7 @@ export function QuizRunner({
                 onKeyDown={event => { if (event.key === 'Escape') cancelEditingTitle(); }}
                 maxLength={80}
                 autoFocus
-                className="min-h-11 min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1 text-base font-bold text-foreground outline-none focus:ring-2 focus:ring-primary/30"
+                className="min-h-11 min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1 text-base font-bold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
               />
               <Button type="submit" variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label="Save quiz title" title="Save quiz title">
                 <Check className="h-4 w-4" />
@@ -146,7 +143,7 @@ export function QuizRunner({
             </form>
           ) : (
             <div className="quizify-runner-title-row mt-0.5 flex max-w-full items-start gap-1.5">
-              <h1 className="min-w-0 break-words text-xl font-extrabold tracking-tight text-foreground">{title}</h1>
+              <h2 className="min-w-0 break-words text-xl font-extrabold tracking-tight text-foreground">{title}</h2>
               {onTitleChange && (
                 <Button type="button" variant="ghost" size="icon" className="quizify-title-edit mt-0.5 h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground" onClick={startEditingTitle} aria-label="Edit quiz title" title="Edit quiz title">
                   <Pencil className="h-3.5 w-3.5" />

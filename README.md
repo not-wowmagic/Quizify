@@ -30,7 +30,7 @@ With built-in AI summaries, an on-demand tutor, and customizable difficulty sett
 | **Study Insights** | Daily goal + heatmap, topic accuracy breakdown, and score trends in the History tab |
 | **Export & Share** | Export to Anki or CSV, share a quiz via link, and let others take it with a QR code |
 | **Incognito Mode** | Generate and take quizzes with zero database footprint |
-| **Offline PWA** | Installable and shell-cached so the app loads even without a connection |
+| **Offline PWA** | Installable with a cached app shell so the interface opens without a connection. Generating, history, retakes, and sharing need a network connection |
 | **Privacy-first Analytics** | Cookie-free, self-hostable analytics (Umami) |
 | **Dark & Light Mode** | Seamless theme switching for comfortable day or night study sessions |
 
@@ -91,7 +91,7 @@ With built-in AI summaries, an on-demand tutor, and customizable difficulty sett
 
 ## Tech Stack
 
-Built with [Next.js](https://nextjs.org/), [TypeScript](https://www.typescriptlang.org/), [Tailwind CSS](https://tailwindcss.com/), [PDF.js](https://mozilla.github.io/pdf.js/), and [Mammoth.js](https://github.com/mwilliamson/mammoth.js). Quiz generation runs server-side via the opencode AI gateway (with an optional direct [Gemini](https://ai.google.dev/) provider). Charts use [Recharts](https://recharts.org/), web pages are extracted with jsdom + Mozilla Readability, sharing uses [Supabase](https://supabase.com/), global rate limits use [Upstash](https://upstash.com/), and QR codes use [qrcode.react](https://github.com/zpao/qrcode.react).
+Built with [Next.js](https://nextjs.org/), [TypeScript](https://www.typescriptlang.org/), [Tailwind CSS](https://tailwindcss.com/), [PDF.js](https://mozilla.github.io/pdf.js/), and [Mammoth.js](https://github.com/mwilliamson/mammoth.js). Quiz generation runs server-side via the opencode AI gateway (with an optional direct [Gemini](https://ai.google.dev/) provider). Charts use [Recharts](https://recharts.org/), web articles are extracted client-side with Mozilla Readability and DOMParser, sharing uses [Supabase](https://supabase.com/), global rate limits use [Upstash](https://upstash.com/), and QR codes use [qrcode.react](https://github.com/zpao/qrcode.react).
 
 ---
 

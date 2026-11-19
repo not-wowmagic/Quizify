@@ -19,7 +19,7 @@ function attempt(
     deviceId,
     title: 'Attempt',
     score: 1,
-    total: 1,
+    total: questions.length,
     questions,
     answers,
     language: 'English',
@@ -39,7 +39,7 @@ describe('saveAttempt payload guard', () => {
       topic: 'T'.repeat(200),
     };
     const questions = Array.from({ length: 50 }, () => question);
-    const answers = Array.from({ length: 100 }, (_, index) => ({
+    const answers = Array.from({ length: 50 }, (_, index) => ({
       index,
       type: 'standard' as const,
       correct: true,

@@ -1,15 +1,30 @@
 // test/e2e/setup.spec.ts
-// Home + setup: single-theme presentation, overflow/console hygiene, view toggling, input
+// Home + setup: light/dark theme presentation, overflow/console hygiene, view toggling, input
 // tabs, validation, custom counts, upload/web/camera flows, incognito mode.
 import { test, expect } from '@playwright/test';
 import { LECTURE, gotoHome, goPasteTab, setCustomCount, generateQuiz, attachErrorTracking } from './helpers';
 
 test.describe('home page', () => {
-  test('loads without a dark theme, no horizontal overflow, and no console errors', async ({ page }) => {
+  test('theme toggle changes computed colors, with no overflow or console errors', async ({ page }) => {
     const errors = attachErrorTracking(page);
     await gotoHome(page);
     const html = page.locator('html');
-    await expect(html).not.toHaveClass(/dark/);
+    const body = page.locator('body');
+    const readColors = async () => body.evaluate(el => {
+      const style = getComputedStyle(el);
+      return { background: style.backgroundColor, foreground: style.color };
+    });
+    const before = await readColors();
+    const initial = await html.getAttribute('data-theme');
+    const toggle = page.getByRole('button', { name: /toggle color theme/i });
+    await toggle.click();
+    await expect(html).toHaveAttribute('data-theme', initial === 'dark' ? 'light' : 'dark');
+    const after = await readColors();
+    expect(after.background).not.toBe(before.background);
+    expect(after.foreground).not.toBe(before.foreground);
+    await toggle.click();
+    await expect(html).toHaveAttribute('data-theme', initial ?? 'light');
+
     await expect(page.locator('div.fixed.top-4.right-4')).toHaveCount(0);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);

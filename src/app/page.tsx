@@ -8,7 +8,7 @@ import { PublicQuizzesPanel } from '@/components/quiz/public-quizzes-panel';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { cn } from '@/lib/utils';
-import { Sparkles, WifiOff } from 'lucide-react';
+import { WifiOff } from 'lucide-react';
 
 type View = 'setup' | 'history' | 'public';
 
@@ -45,7 +45,7 @@ export default function Home() {
         <header className="quizify-topbar">
           <h1 className="quizify-brand-heading">
             <a className="quizify-brand" href="#top" aria-label="Quizify home">
-              <span className="quizify-brand-mark" aria-hidden="true"><Sparkles className="h-4 w-4" /></span>
+              <span className="quizify-brand-mark" aria-hidden="true"><span className="quizify-brand-mark-inner" /></span>
               <span>Quizify</span>
             </a>
           </h1>

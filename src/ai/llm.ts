@@ -50,6 +50,10 @@ export interface LLMOptions {
    * once the deadline has passed. Used to bound total quiz wall time.
    */
   deadlineMs?: number;
+  /** Caps output length when the provider supports it. */
+  maxOutputTokens?: number;
+  /** Requests JSON-only output where the provider supports a response format. */
+  structuredOutput?: boolean;
 }
 
 export class LLMAPIError extends Error {
@@ -309,6 +313,23 @@ export function parseOpenAIResponsesResponse(data: OpenAIResponsesResponse): str
   return content;
 }
 
+const OPENCODE_DEFAULT_BASE = 'https://opencode.ai/zen/go/v1';
+const ALLOWED_OPENCODE_HOSTS = new Set(['opencode.ai', 'www.opencode.ai']);
+
+export function resolveOpencodeBaseUrl(usesResponsesAPI: boolean): string {
+  const fallback = `${OPENCODE_DEFAULT_BASE}/${usesResponsesAPI ? 'responses' : 'chat/completions'}`;
+  const configured = process.env.OPENCODE_BASE_URL;
+  if (!configured) return fallback;
+  try {
+    const url = new URL(configured);
+    if (url.protocol !== 'https:' || url.username || url.password) return fallback;
+    if (!ALLOWED_OPENCODE_HOSTS.has(url.hostname)) return fallback;
+    return configured.replace(/\/$/, '');
+  } catch {
+    return fallback;
+  }
+}
+
 async function callOpenCodeChat(prompt: string, options: LLMOptions = {}): Promise<string> {
   const apiKey = process.env.OPENCODE_API_KEY;
   if (!apiKey) {
@@ -318,15 +339,17 @@ async function callOpenCodeChat(prompt: string, options: LLMOptions = {}): Promi
   const model = process.env.OPENCODE_MODEL || 'deepseek-v4.1-flash';
   const usesResponsesAPI = model === 'muse-spark-1.2-contributor';
   // Muse is served through Responses; most other Go models use chat completions.
-  const url = process.env.OPENCODE_BASE_URL || `https://opencode.ai/zen/go/v1/${usesResponsesAPI ? 'responses' : 'chat/completions'}`;
+  const url = resolveOpencodeBaseUrl(usesResponsesAPI);
   const timeoutMs = options.timeoutMs ?? 30000;
 
   const messages = buildChatMessages(prompt, options.systemInstruction);
+  const tokenLimit = options.maxOutputTokens;
+  const jsonFormat = options.structuredOutput && !usesResponsesAPI ? { type: 'json_object' } : undefined;
   const body = usesResponsesAPI
     ? { model, input: messages }
     : model === 'deepseek-v4.1-flash'
-      ? { model, messages, thinking: { type: 'disabled' } }
-      : { model, messages };
+      ? { model, messages, thinking: { type: 'disabled' }, max_tokens: tokenLimit, response_format: jsonFormat }
+      : { model, messages, max_tokens: tokenLimit, response_format: jsonFormat };
 
   try {
     const data = await fetchWithRetry(
@@ -386,6 +409,7 @@ function getGeminiResponseText(data: GeminiResponse): string {
 interface GeminiRequestBody {
   contents: Array<{ parts: Array<{ text: string }> }>;
   systemInstruction?: { parts: Array<{ text: string }> };
+  generationConfig?: { maxOutputTokens?: number; responseMimeType?: string };
 }
 
 async function callGeminiDirect(prompt: string, options: LLMOptions = {}): Promise<string> {
@@ -417,6 +441,13 @@ async function callGeminiDirect(prompt: string, options: LLMOptions = {}): Promi
           text: options.systemInstruction,
         },
       ],
+    };
+  }
+
+  if (options.maxOutputTokens || options.structuredOutput) {
+    body.generationConfig = {
+      maxOutputTokens: options.maxOutputTokens,
+      responseMimeType: options.structuredOutput ? 'application/json' : undefined,
     };
   }
 
@@ -489,7 +520,7 @@ export async function callLLMVision(
   }
 
   const model = process.env.OPENCODE_VISION_MODEL || 'mimo-v2.6-flash';
-  const url = process.env.OPENCODE_BASE_URL || 'https://opencode.ai/zen/go/v1/chat/completions';
+  const url = resolveOpencodeBaseUrl(false);
   const timeoutMs = options.timeoutMs ?? 45000;
 
   // OpenAI-compatible content parts; text and image_url are the documented
@@ -511,7 +542,12 @@ export async function callLLMVision(
     const data = await fetchWithRetry(
       url,
       openCodeHeaders(apiKey),
-      { model, messages },
+      {
+        model,
+        messages,
+        max_tokens: options.maxOutputTokens,
+        response_format: options.structuredOutput ? { type: 'json_object' } : undefined,
+      },
       timeoutMs,
       'opencode Vision API',
       options.deadlineMs
@@ -609,7 +645,9 @@ const MOCK_MATCHING = {
 /** Builds a deterministic mock response matching what the real provider returns. */
 export function mockLLM(prompt: string): string {
   if (prompt.includes('Summarize the following study material')) {
-    return 'Photosynthesis is the process by which plants convert light energy into chemical energy. It occurs in the chloroplast, where chlorophyll captures light, driving the light-dependent reactions on the thylakoid membrane. The energy from these reactions powers the Calvin cycle in the stroma, which fixes carbon dioxide into glucose, releasing oxygen as a byproduct.';
+    return JSON.stringify({
+      summary: 'Photosynthesis is the process by which plants convert light energy into chemical energy. It occurs in the chloroplast, where chlorophyll captures light, driving the light-dependent reactions on the thylakoid membrane. The energy from these reactions powers the Calvin cycle in the stroma, which fixes carbon dioxide into glucose, releasing oxygen as a byproduct.',
+    });
   }
 
   if (prompt.includes('"guidance"')) {

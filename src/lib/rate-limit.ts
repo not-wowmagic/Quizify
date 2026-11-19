@@ -17,10 +17,6 @@ import { Redis } from '@upstash/redis';
  * platforms, which still stops naive abuse).
  */
 
-// =========================================
-// In-memory fixed-window rate limiter
-// =========================================
-
 interface WindowEntry {
   count: number;
   resetAt: number;
@@ -69,13 +65,14 @@ function checkRateLimitInMemory(key: string, limit: number, windowMs: number): R
   return { allowed: true, retryAfterSec: 0 };
 }
 
-// =========================================
-// Upstash Redis global limiter (optional)
-// =========================================
+// One limiter per (limit, window) combination; the sliding-window config is
+// fixed at construction time. The minimal interface keeps the dependency
+// replaceable without mocking the module.
+export interface RateLimiterLike {
+  limit(key: string): Promise<{ success: boolean; reset: number }>;
+}
 
-// One Ratelimit instance per (limit, window) combination; the Upstash
-// sliding-window config is fixed at construction time.
-const upstashLimiters = new Map<string, Ratelimit>();
+const upstashLimiters = new Map<string, RateLimiterLike>();
 let warnedMissingUpstash = false;
 let warnedMissingNetlifyHeader = false;
 let warnedSharedClientBucket = false;
@@ -85,11 +82,11 @@ function warnMissingUpstash(): void {
   warnedMissingUpstash = true;
   console.warn(
     '[rate-limit] UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN are not configured; ' +
-      'using the per-instance in-memory limiter. This is not a global limit on serverless.',
+      'paid endpoints deny requests in production, and local/E2E use the in-memory limiter.',
   );
 }
 
-function getUpstashLimiter(limit: number, windowSec: number): Ratelimit | null {
+function createUpstashLimiter(limit: number, windowSec: number): RateLimiterLike | null {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) return null;
@@ -106,22 +103,39 @@ function getUpstashLimiter(limit: number, windowSec: number): Ratelimit | null {
   return limiter;
 }
 
+/** Swap only the limiter factory; tests exercise the real decision logic. */
+export const rateLimitDeps = {
+  createLimiter: createUpstashLimiter,
+  defaultCreateLimiter: createUpstashLimiter,
+};
+
+function deny(): RateLimitResult {
+  return { allowed: false, retryAfterSec: 60 };
+}
+
 /**
- * Checks the rate limit for a key. Uses the global Upstash sliding-window
- * limiter when configured, otherwise falls back to the in-memory fixed-window
- * limiter (local development, tests, or deployments without Upstash).
+ * Paid endpoints pass `strict` so a deployment without a working global
+ * limiter denies the request instead of granting an unlimited per-instance
+ * budget. Local development and the E2E mock keep the in-memory fallback.
  */
-export async function checkRateLimit(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {
+export async function checkRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+  strict = false,
+): Promise<RateLimitResult> {
   // e2e suite: never rate-limit the mock server (many quizzes from one IP).
   if (process.env.E2E_MOCK_AI === '1') {
     return { allowed: true, retryAfterSec: 0 };
   }
+
+  const failClosed = strict && process.env.NODE_ENV === 'production';
   const windowSec = Math.max(1, Math.ceil(windowMs / 1000));
-  const limiter = getUpstashLimiter(limit, windowSec);
+  const limiter = rateLimitDeps.createLimiter(limit, windowSec);
 
   if (!limiter) {
     warnMissingUpstash();
-    return checkRateLimitInMemory(key, limit, windowMs);
+    return failClosed ? deny() : checkRateLimitInMemory(key, limit, windowMs);
   }
 
   try {
@@ -132,10 +146,8 @@ export async function checkRateLimit(key: string, limit: number, windowMs: numbe
       retryAfterSec: Math.max(0, Math.ceil((result.reset - Date.now()) / 1000)),
     };
   } catch (err) {
-    // Fail open to the in-memory limiter rather than breaking generation
-    // when Redis is unreachable.
-    console.error('[rate-limit] Upstash request failed, using in-memory fallback:', err);
-    return checkRateLimitInMemory(key, limit, windowMs);
+    console.error('[rate-limit] Upstash request failed:', err);
+    return failClosed ? deny() : checkRateLimitInMemory(key, limit, windowMs);
   }
 }
 
@@ -195,7 +207,6 @@ export function resolveClientIp(h: HeaderReader): string {
   return SHARED_IP_BUCKET;
 }
 
-/** Reads the current request headers and resolves the caller IP. */
 export async function getClientIp(): Promise<string> {
   return resolveClientIp(await headers());
 }
@@ -242,35 +253,49 @@ export function hashPayload<T>(payload: T): string {
   return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
 
-// =========================================
-// Cloudflare Turnstile (optional bot protection)
-// =========================================
+export type SiteverifyFetch = (url: string, init: RequestInit) => Promise<Response>;
+
+let warnedMissingTurnstile = false;
 
 /**
- * Verifies a Turnstile token server-side. When TURNSTILE_SECRET_KEY is not
- * configured, verification is skipped (returns true) so local development and
- * deployments without bot protection keep working.
+ * Bot protection is opt-in: verification is skipped while TURNSTILE_SECRET_KEY
+ * is unset. Once configured, the token must succeed for the expected hostname
+ * and action, and an unreachable siteverify endpoint denies the request.
  */
-export async function verifyTurnstile(token: string | undefined): Promise<boolean> {
+export async function verifyTurnstile(
+  token: string | undefined,
+  action?: string,
+  siteverifyFetch: SiteverifyFetch = fetch,
+): Promise<boolean> {
   // e2e suite: skip the bot check entirely.
   if (process.env.E2E_MOCK_AI === '1') return true;
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  if (!secret) return true;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production' && !warnedMissingTurnstile) {
+      warnedMissingTurnstile = true;
+      console.warn('[turnstile] TURNSTILE_SECRET_KEY is not configured; bot verification is disabled.');
+    }
+    return true;
+  }
   if (!token) return false;
 
   try {
-    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+    const res = await siteverifyFetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ secret, response: token }),
     });
-    // SAFETY: Turnstile siteverify returns a documented JSON shape;
-    // `success` is the only field consumed and is boolean-checked below.
-    const data = (await res.json()) as { success?: boolean };
-    return data.success === true;
+    if (!res.ok) return false;
+    // SAFETY: siteverify documents this JSON shape; each field is validated
+    // before it affects the decision.
+    const data = (await res.json()) as { success?: boolean; hostname?: string; action?: string };
+    if (data.success !== true) return false;
+    const expectedHostname = process.env.TURNSTILE_EXPECTED_HOSTNAME;
+    if (expectedHostname && data.hostname !== expectedHostname) return false;
+    if (action && data.action !== action) return false;
+    return true;
   } catch (err) {
     console.error('[turnstile] Verification request failed:', err);
-    // Fail closed when configured but unreachable
     return false;
   }
 }

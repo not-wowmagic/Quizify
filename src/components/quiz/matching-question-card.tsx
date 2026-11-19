@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { CheckCircle2, Link2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AskTutor } from '@/components/quiz/ask-tutor';
+import { tierBadge } from '@/components/quiz/standard-question-card';
 
 interface MatchingQuestionCardProps {
   question: MatchingQuestion;
@@ -24,7 +25,10 @@ const matchBadgeColors = [
   'border-transparent bg-palette-green text-on-green',
   'border-transparent bg-palette-red text-on-red',
   'border-transparent bg-palette-cyan text-on-cyan',
-];
+] as const;
+
+const matchColorIdx = (matchLabel: number | null): number =>
+  matchLabel === null ? 0 : (matchLabel - 1) % matchBadgeColors.length;
 
 /** Non-color result cue so the monochrome theme stays readable. */
 function MatchResultIcon({ result }: { result: 'correct' | 'incorrect' | null }) {
@@ -132,11 +136,9 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
           {question.difficultyTier && (
             <span className={cn(
               "shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em]",
-              question.difficultyTier === 'easy' && "border-palette-green bg-palette-green text-on-green",
-              question.difficultyTier === 'medium' && "border-palette-warning bg-palette-warning text-on-warning",
-              question.difficultyTier === 'hard' && "border-palette-red bg-palette-red text-on-red",
+              tierBadge(question.difficultyTier).classes,
             )}>
-              {question.difficultyTier === 'easy' ? 'Easy' : question.difficultyTier === 'medium' ? 'Medium' : 'Hard'}
+              {tierBadge(question.difficultyTier).label}
             </span>
           )}
         </div>
@@ -156,7 +158,7 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
               const isMatched = matches[pIdx] !== undefined;
               const matchResult = getMatchResult(pIdx);
               const matchLabel = getMatchLabel(pIdx);
-              const colorIdx = matchLabel !== null ? (matchLabel - 1) % matchBadgeColors.length : 0;
+              const colorIdx = matchColorIdx(matchLabel);
 
               return (
                 <button
@@ -199,13 +201,15 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
               const matchedPremiseIdx = responseToMatchedPremise[responseOriginalIdx];
               const matchResult = matchedPremiseIdx !== undefined ? getMatchResult(matchedPremiseIdx) : null;
               const matchLabel = getResponseMatchLabel(responseOriginalIdx);
-              const colorIdx = matchLabel !== null ? (matchLabel - 1) % matchBadgeColors.length : 0;
+              const colorIdx = matchColorIdx(matchLabel);
 
               return (
                 <button
                   key={`response-${rDisplayIdx}`}
                   onClick={() => handleResponseClick(responseOriginalIdx)}
                   disabled={checked}
+                  aria-pressed={isMatched}
+                  aria-label={`${responseText}${isMatched ? ', matched to a term' : ', not matched'}`}
                   data-match-state={checked ? matchResult ?? 'checked' : isMatched ? 'matched' : 'idle'}
                   className={cn(
                     'quizify-match-option w-full text-left p-3 rounded-lg border text-sm transition-colors duration-200 flex items-center justify-between gap-2',

@@ -1,11 +1,11 @@
 'use client';
-/* oxlint-disable */
 
 // src/components/quiz-client.tsx
 // Orchestrator for the quiz flow. Presentation lives in src/components/quiz/*.
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { z } from 'zod';
 import type { Quiz } from '@/types/quiz';
-import { createQuiz, createSummary, publishQuiz, saveAttempt } from '@/app/actions';
+import { cancelGeneration, createQuiz, createSummary, publishQuiz, saveAttempt } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { processQuiz, quizHelpers } from '@/lib/quiz-processors';
 import { normalizeQuizTitle } from '@/lib/quiz-title';
@@ -47,11 +47,51 @@ interface PersistedQuizSession {
   quizStartedAt: number | null;
 }
 
-const isQuizData = (value: unknown): value is Quiz => {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as Partial<Quiz>;
-  return Array.isArray(candidate.questions);
-};
+const StoredQuestionSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('standard'),
+    question: z.string(),
+    options: z.array(z.string()),
+    correctAnswerIndex: z.number().int(),
+    topic: z.string().optional(),
+    supportingText: z.string().optional(),
+    difficultyTier: z.enum(['easy', 'medium', 'hard']).optional(),
+  }),
+  z.object({
+    type: z.literal('matching'),
+    question: z.string(),
+    pairs: z.array(z.object({ premise: z.string(), response: z.string() })),
+    topic: z.string().optional(),
+    difficultyTier: z.enum(['easy', 'medium', 'hard']).optional(),
+    shuffledResponseIndices: z.array(z.number()).optional(),
+  }),
+]);
+
+const StoredQuizSchema = z.object({
+  questions: z.array(StoredQuestionSchema),
+  title: z.string().optional(),
+  summary: z.string().optional(),
+});
+
+const StoredSessionSchema = z.object({
+  version: z.number(),
+  lectureText: z.string().optional(),
+  fileName: z.string().optional(),
+  sourceTitle: z.string().optional(),
+  numQuestions: z.union([z.number(), z.literal('')]).optional(),
+  difficulty: z.enum(['easy', 'medium', 'hard', 'adaptive']).optional(),
+  questionType: z.enum([
+    'multiple_choice', 'true_false', 'fill_in_the_blank', 'matching', 'situational', 'mixed',
+  ]).optional(),
+  language: z.string().optional(),
+  quiz: StoredQuizSchema.nullable().optional(),
+  rawQuiz: StoredQuizSchema.nullable().optional(),
+  userAnswers: z.record(z.string(), z.unknown()).optional(),
+  showSummary: z.boolean().optional(),
+  publicVisibility: z.boolean().optional(),
+  attemptSaved: z.boolean().optional(),
+  quizStartedAt: z.number().nullable().optional(),
+});
 
 interface QuizClientProps {
   onQuizStateChange?: (hasQuiz: boolean) => void;
@@ -93,6 +133,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
   const attemptSavedRef = useRef(false);
   const quizStartedAtRef = useRef<number | null>(null);
   const generationRunRef = useRef(0);
+  const generationIdRef = useRef<string | null>(null);
   // Original title when running a "Practice Missed Questions" session
   const practiceTitleRef = useRef<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
@@ -119,33 +160,32 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
           setIsSessionRestored(true);
           return;
         }
-        const session = JSON.parse(stored) as Partial<PersistedQuizSession>;
-        if (session.version !== SESSION_VERSION) {
+        const parsed = StoredSessionSchema.safeParse(JSON.parse(stored));
+        if (!parsed.success || parsed.data.version !== SESSION_VERSION) {
           setIsSessionRestored(true);
           return;
         }
+        const session = parsed.data;
 
-        if (typeof session.lectureText === 'string') setLectureText(session.lectureText);
-        if (typeof session.fileName === 'string') setFileName(session.fileName);
-        if (typeof session.sourceTitle === 'string') setSourceTitle(session.sourceTitle);
-        if (typeof session.numQuestions === 'number' || session.numQuestions === '') setNumQuestions(session.numQuestions);
-        if (session.difficulty === 'easy' || session.difficulty === 'medium' || session.difficulty === 'hard' || session.difficulty === 'adaptive') {
-          setDifficulty(session.difficulty);
-        }
-        if (session.questionType === 'multiple_choice' || session.questionType === 'true_false' || session.questionType === 'fill_in_the_blank' || session.questionType === 'matching' || session.questionType === 'situational' || session.questionType === 'mixed') {
-          setQuestionType(session.questionType);
-        }
-        if (typeof session.language === 'string') setLanguage(session.language);
+        if (session.lectureText !== undefined) setLectureText(session.lectureText);
+        if (session.fileName !== undefined) setFileName(session.fileName);
+        if (session.sourceTitle !== undefined) setSourceTitle(session.sourceTitle);
+        if (session.numQuestions !== undefined) setNumQuestions(session.numQuestions);
+        if (session.difficulty !== undefined) setDifficulty(session.difficulty);
+        if (session.questionType !== undefined) setQuestionType(session.questionType);
+        if (session.language !== undefined) setLanguage(session.language);
 
-        if (isQuizData(session.quiz)) {
+        if (session.quiz) {
           setQuiz(session.quiz);
-          rawQuizRef.current = isQuizData(session.rawQuiz) ? session.rawQuiz : session.quiz;
-          setUserAnswers(session.userAnswers ?? {});
+          rawQuizRef.current = session.rawQuiz ?? session.quiz;
+          // SAFETY: userAnswers is an index-to-answer map restored from the
+          // same versioned session envelope and consumed only by the runner.
+          setUserAnswers((session.userAnswers ?? {}) as Record<number, QuizAnswer>);
           setShowSummary(session.showSummary === true);
           setPublicVisibility(session.publicVisibility === true);
           attemptSavedRef.current = session.attemptSaved === true;
           setAttemptSaved(session.attemptSaved === true);
-          quizStartedAtRef.current = typeof session.quizStartedAt === 'number' ? session.quizStartedAt : null;
+          quizStartedAtRef.current = session.quizStartedAt ?? null;
         }
       } catch (error) {
         console.warn('[quiz-client] Could not restore saved session:', error);
@@ -255,6 +295,8 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
   /** Shared generation core that validates nothing and uses current inputs as-is. */
   const runQuizGeneration = async (preserveCurrentQuiz = false) => {
     const runId = ++generationRunRef.current;
+    const generationId = crypto.randomUUID();
+    generationIdRef.current = generationId;
     setIsGenerating(true);
     setGenerationError(null);
 
@@ -271,6 +313,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
         questionType,
         language,
         turnstileToken: turnstileToken ?? undefined,
+        generationId,
         bypassCache: incognito,
         fallbackTitle: fileName || undefined,
         fallbackWebTitle: sourceTitle || undefined,
@@ -327,6 +370,8 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
   const handleCancelGeneration = () => {
     if (!isGenerating) return;
     generationRunRef.current += 1;
+    if (generationIdRef.current) void cancelGeneration(generationIdRef.current);
+    generationIdRef.current = null;
     setIsGenerating(false);
     setGenerationError(quiz ? 'Generation cancelled. Your current quiz is still available.' : 'Generation cancelled.');
   };
@@ -381,7 +426,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
 
     try {
       setIsSummaryLoading(true);
-      const result = await createSummary({ lectureText });
+      const result = await createSummary({ lectureText, turnstileToken: turnstileToken ?? undefined });
 
       if ('error' in result) {
         toast({
@@ -648,13 +693,19 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
           index: qIndex,
           type: 'standard',
           correct: q.correctAnswerIndex === answer.selectedIndex,
+          selectedIndex: answer.selectedIndex,
         };
         if (q.topic) entry.topic = q.topic;
         return entry;
       }
       if (q.type === 'matching' && answer.type === 'matching' && answer.checked) {
         const correct = q.pairs.every((_, pairIdx) => answer.matches[pairIdx] === pairIdx);
-        const entry: AttemptAnswer = { index: qIndex, type: 'matching', correct };
+        const entry: AttemptAnswer = {
+          index: qIndex,
+          type: 'matching',
+          correct,
+          matches: q.pairs.map((_, pairIndex) => answer.matches[pairIndex] ?? 0),
+        };
         if (q.topic) entry.topic = q.topic;
         return entry;
       }
@@ -670,7 +721,10 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
       title,
       score,
       total: quiz.questions.length,
-      questions: rawQuizRef.current?.questions ?? quiz.questions,
+      turnstileToken: turnstileToken ?? undefined,
+      // The learner answered the processed (shuffled) options, so send those
+      // questions: the server recomputes correctness from this exact ordering.
+      questions: quiz.questions,
       answers,
       difficulty,
       questionType,
@@ -687,7 +741,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
     }).finally(() => {
       attemptSaveInFlightRef.current = false;
     });
-  }, [allAnswered, quiz, userAnswers, score, scorePercentage, difficulty, questionType, language, fileName, incognito]);
+  }, [allAnswered, quiz, userAnswers, score, scorePercentage, difficulty, questionType, language, fileName, incognito, turnstileToken]);
 
   // =========================================
   // Practice missed questions (spaced repetition)
@@ -698,7 +752,7 @@ export function QuizClient({ onQuizStateChange, retakeQuiz, onRetakeHandled }: Q
 
     // missedIndices are positions in the PROCESSED quiz the user just saw
     // (processQuiz shuffles question order), so select from that array rather
-    // than the raw one — mapping shuffled indices onto the raw array picked
+    // than the raw one, mapping shuffled indices onto the raw array picked
     // the wrong questions whenever the shuffle reordered them.
     const missedQuestions = missedIndices
       .map(i => quiz.questions[i])

@@ -7,6 +7,8 @@ export type AttemptAnswer = {
   type: 'standard' | 'matching';
   correct: boolean;
   topic?: string;
+  selectedIndex?: number;
+  matches?: number[];
 };
 
 export interface QuizAttempt {
