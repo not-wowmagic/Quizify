@@ -6,7 +6,7 @@ import type { MatchingQuestion } from '@/types/quiz';
 import type { MatchingAnswer } from '@/components/quiz/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { CheckCircle2, Link2 } from 'lucide-react';
+import { CheckCircle2, Link2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AskTutor } from '@/components/quiz/ask-tutor';
 
@@ -18,13 +18,25 @@ interface MatchingQuestionCardProps {
 }
 
 const matchColors = [
-  'border-blue-500/50 bg-blue-500/10 text-blue-700',
-  'border-purple-500/50 bg-purple-500/10 text-purple-700',
-  'border-amber-500/50 bg-amber-500/10 text-amber-700',
-  'border-cyan-500/50 bg-cyan-500/10 text-cyan-700',
-  'border-pink-500/50 bg-pink-500/10 text-pink-700',
-  'border-emerald-500/50 bg-emerald-500/10 text-emerald-700',
+  'border-foreground/40 bg-foreground/5 text-foreground',
+  'border-foreground/35 bg-foreground/10 text-foreground',
+  'border-foreground/30 bg-foreground/5 text-foreground',
+  'border-foreground/25 bg-foreground/10 text-foreground',
+  'border-foreground/20 bg-foreground/5 text-foreground',
+  'border-foreground/15 bg-foreground/10 text-foreground',
 ];
+
+/** Non-color result cue so the monochrome theme stays readable. */
+function MatchResultIcon({ result }: { result: 'correct' | 'incorrect' | null }) {
+  if (!result) return null;
+  const Icon = result === 'correct' ? CheckCircle2 : XCircle;
+  return (
+    <span className="flex items-center" title={result === 'correct' ? 'Correct' : 'Incorrect'}>
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span className="sr-only">{result === 'correct' ? 'Correct' : 'Incorrect'}</span>
+    </span>
+  );
+}
 
 export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUpdate }: MatchingQuestionCardProps) {
   const pairs = question.pairs;
@@ -110,19 +122,19 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
     <Card className="quizify-question-card quizify-matching-question surface-card p-6 border-border/80 bg-card space-y-4">
       <CardHeader className="p-0 pb-2">
         <div className="flex items-center gap-2">
-          <div className="p-1 rounded bg-primary/10 text-primary">
+          <div className="p-1 rounded-sm border border-foreground bg-background text-foreground">
             <Link2 className="w-4 h-4" />
           </div>
           <CardTitle className="text-base sm:text-lg font-semibold text-foreground">
-            <span className="text-primary font-bold mr-2">{questionIndex + 1}.</span>
+            <span className="quizify-question-index">{questionIndex + 1}</span>
             {question.question}
           </CardTitle>
           {question.difficultyTier && (
             <span className={cn(
-              "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-              question.difficultyTier === 'easy' && "border-emerald-500/30 bg-emerald-500/10 text-emerald-500",
-              question.difficultyTier === 'medium' && "border-amber-500/30 bg-amber-500/10 text-amber-500",
-              question.difficultyTier === 'hard' && "border-red-500/30 bg-red-500/10 text-red-500",
+              "shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em]",
+              question.difficultyTier === 'easy' && "border-foreground/20 bg-background text-foreground/60",
+              question.difficultyTier === 'medium' && "border-foreground/40 bg-foreground/10 text-foreground",
+              question.difficultyTier === 'hard' && "border-foreground bg-foreground text-background",
             )}>
               {question.difficultyTier === 'easy' ? 'Easy' : question.difficultyTier === 'medium' ? 'Medium' : 'Hard'}
             </span>
@@ -154,23 +166,26 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
                   aria-pressed={isSelected}
                   data-match-state={checked ? matchResult ?? 'checked' : isSelected ? 'selected' : isMatched ? 'matched' : 'idle'}
                   className={cn(
-                    'quizify-match-option w-full text-left p-3 rounded-xl border text-sm transition-colors duration-200 flex items-center justify-between gap-2',
+                    'quizify-match-option w-full text-left p-3 rounded-lg border text-sm transition-colors duration-200 flex items-center justify-between gap-2',
                     {
                       'border-primary bg-primary/15 text-primary ring-2 ring-primary/30 font-medium': isSelected && !checked,
                       [matchColors[colorIdx]]: isMatched && !checked,
                       'border-border/60 bg-muted/20 hover:border-border hover:bg-muted/50': !isSelected && !isMatched && !checked,
-                      'bg-emerald-500/10 border-emerald-500/50 text-emerald-700': matchResult === 'correct',
-                      'bg-destructive/10 border-destructive/50 text-destructive': matchResult === 'incorrect',
-                      'opacity-60 cursor-not-allowed': checked,
+                      'bg-foreground/10 border-foreground/50 text-foreground': matchResult === 'correct',
+                      'bg-foreground/5 border-foreground/30 text-foreground': matchResult === 'incorrect',
+                      'opacity-90 cursor-not-allowed': checked,
                     }
                   )}
                 >
                   <span className="font-medium">{pair.premise}</span>
-                  {matchLabel !== null && (
-                    <span className="h-5 w-5 rounded-full border border-current text-[11px] font-bold flex items-center justify-center shrink-0">
-                      {matchLabel}
-                    </span>
-                  )}
+                  <span className="flex items-center gap-1.5">
+                    <MatchResultIcon result={matchResult} />
+                    {matchLabel !== null && (
+                      <span className="h-5 w-5 rounded-md border border-current text-[11px] font-bold flex items-center justify-center shrink-0">
+                        {matchLabel}
+                      </span>
+                    )}
+                  </span>
                 </button>
               );
             })}
@@ -194,22 +209,25 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
                   disabled={checked}
                   data-match-state={checked ? matchResult ?? 'checked' : isMatched ? 'matched' : 'idle'}
                   className={cn(
-                    'quizify-match-option w-full text-left p-3 rounded-xl border text-sm transition-colors duration-200 flex items-center justify-between gap-2',
+                    'quizify-match-option w-full text-left p-3 rounded-lg border text-sm transition-colors duration-200 flex items-center justify-between gap-2',
                     {
                       [matchColors[colorIdx]]: isMatched && !checked,
                       'border-border/60 bg-muted/20 hover:border-border hover:bg-muted/50': !isMatched && !checked,
-                      'bg-emerald-500/10 border-emerald-500/50 text-emerald-700': matchResult === 'correct',
-                      'bg-destructive/10 border-destructive/50 text-destructive': matchResult === 'incorrect',
-                      'opacity-60 cursor-not-allowed': checked,
+                      'bg-foreground/10 border-foreground/50 text-foreground': matchResult === 'correct',
+                      'bg-foreground/5 border-foreground/30 text-foreground': matchResult === 'incorrect',
+                      'opacity-90 cursor-not-allowed': checked,
                     }
                   )}
                 >
                   <span>{responseText}</span>
-                  {matchLabel !== null && (
-                    <span className="h-5 w-5 rounded-full border border-current text-[11px] font-bold flex items-center justify-center shrink-0">
-                      {matchLabel}
-                    </span>
-                  )}
+                  <span className="flex items-center gap-1.5">
+                    <MatchResultIcon result={matchResult} />
+                    {matchLabel !== null && (
+                      <span className="h-5 w-5 rounded-md border border-current text-[11px] font-bold flex items-center justify-center shrink-0">
+                        {matchLabel}
+                      </span>
+                    )}
+                  </span>
                 </button>
               );
             })}

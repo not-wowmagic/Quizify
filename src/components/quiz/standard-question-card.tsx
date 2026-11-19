@@ -26,15 +26,15 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
       <CardHeader className="p-0 pb-4">
         <div className="flex items-start justify-between gap-4">
           <CardTitle className="text-base sm:text-lg font-semibold leading-snug text-foreground">
-            <span className="text-primary font-bold mr-2">{questionIndex + 1}.</span>
+            <span className="quizify-question-index">{questionIndex + 1}</span>
             {question.question}
           </CardTitle>
           {question.difficultyTier && (
             <span className={cn(
-              "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-              question.difficultyTier === 'easy' && "border-emerald-500/30 bg-emerald-500/10 text-emerald-500",
-              question.difficultyTier === 'medium' && "border-amber-500/30 bg-amber-500/10 text-amber-500",
-              question.difficultyTier === 'hard' && "border-red-500/30 bg-red-500/10 text-red-500",
+              "shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em]",
+              question.difficultyTier === 'easy' && "border-foreground/20 bg-background text-foreground/60",
+              question.difficultyTier === 'medium' && "border-foreground/40 bg-foreground/10 text-foreground",
+              question.difficultyTier === 'hard' && "border-foreground bg-foreground text-background",
             )}>
               {question.difficultyTier === 'easy' ? 'Easy' : question.difficultyTier === 'medium' ? 'Medium' : 'Hard'}
             </span>
@@ -75,13 +75,13 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
               data-answered={isAnswered ? 'true' : 'false'}
               data-answer-state={isAnswered ? (isCorrectAnswer ? 'correct' : isSelected ? 'incorrect' : 'unrevealed') : 'idle'}
               className={cn(
-                "quizify-answer-option w-full text-left p-3.5 rounded-xl border flex items-center justify-between gap-3 text-sm transition-colors duration-200",
+                "quizify-answer-option w-full text-left p-3.5 rounded-lg border flex items-center justify-between gap-3 text-sm transition-colors duration-200",
                 optionStyle
               )}
             >
               <div className="flex items-center gap-3">
                 <span className={cn(
-                  "quizify-answer-key flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold",
+                  "quizify-answer-key flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-xs font-bold",
                   isAnswered && isCorrectAnswer ? "border-primary bg-primary text-primary-foreground" :
                   isAnswered && isSelected ? "border-accent bg-accent text-accent-foreground" :
                   "border-border bg-background text-muted-foreground"

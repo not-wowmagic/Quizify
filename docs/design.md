@@ -7,10 +7,10 @@ not compete for attention.
 
 ## North star
 
-Quizify should feel like a well-made study instrument: blue field notes, paper
-cards, clear marks, and small moments of feedback. The interface can be warm and
-encouraging, but it should never perform “AI magic” through purple gradients,
-glowing controls, decorative motion, or a wall of rounded containers.
+Quizify should feel like a well-made study instrument: monochrome field notes,
+paper cards, clear marks, and small moments of feedback. The interface can be
+warm and encouraging, but it should never perform “AI magic” through purple
+gradients, glowing controls, decorative motion, or a wall of rounded containers.
 
 The product has one presentation mode. There is no dark-theme switch or dark
 theme-specific control styling in the interface.
@@ -18,31 +18,31 @@ theme-specific control styling in the interface.
 ## Visual language
 
 The active Meadow palette is the product identity. It is intentionally limited
-to a deep blue workspace, pale blue paper surfaces, dark ink, and a saffron
-accent.
+to a light gray workspace, white paper surfaces, near-black ink, and grayscale
+signals.
 
 | Role | Value | Use |
 | --- | --- | --- |
-| Field blue | `#2E5D8A` | Page background and quiet depth |
-| Paper blue | `#C6DFEF` | Setup, runner, summary, and score surfaces |
-| Ink | `#142639` | Headings, question text, and primary contrast |
-| Water | `#7298B9` | Secondary text, inactive controls, and dividers |
-| Saffron | `#F6C649` | Attention, selected state, and key calls to action |
-| Focus teal | `#0B6E8E` | Keyboard focus and links |
+| Paper gray | `#F5F5F5` | Page background and quiet depth |
+| Card white | `#FFFFFF` | Setup, runner, summary, and score surfaces |
+| Ink | `#0A0A0A` | Headings, question text, primary contrast, borders, and hard shadows |
+| Graphite | `#5C5C5C` | Secondary text, inactive labels, and dividers |
+| Wash | `#F0F0F0` | Secondary fills, disabled controls, and quiet buttons |
+| Focus ink | `#0A0A0A` | Keyboard focus and links |
 
-Use color to explain state, not to decorate every surface. Success and error
-states should remain distinguishable through text and borders as well as hue.
-Do not introduce a new accent without a concrete interaction that needs it.
+Use contrast, icons, and text to explain state, not hue. Success and error
+states must remain distinguishable through label, icon, and border as well as
+tone. Do not introduce a new accent without a concrete interaction that needs it.
 
 ### Surfaces and shape
 
-- Treat the blue workspace as the canvas and pale cards as paper placed on it.
-- Cards use a modest radius and a quiet border. One restrained shadow is enough.
-- Glass effects are optional and subordinate: a little translucency can help a
-  surface sit in the field, but blur must not reduce text contrast or turn every
-  element into frosted glass.
+- Treat the light gray workspace as the canvas and white cards as paper placed on it.
+- Give primary sheets an ink border and a hard offset shadow; keep secondary
+  cards lighter so the hierarchy stays obvious at a glance.
+- The active theme uses opaque paper surfaces. Reserve translucency for overlays
+  and transient states; blur must never reduce text contrast.
 - Do not use large decorative gradients, gradient text, neon glows, or mesh
-  backgrounds.
+  backgrounds. A restrained dot screen or rule pattern is enough texture.
 - Buttons are compact rectangles with readable labels. Reserve pill shapes for
   status badges and compact filters, never for every action.
 - Icons are supporting marks, not labels. Keep them close to their text,
@@ -134,7 +134,7 @@ design—not a final polish pass.
 
 Before shipping a screen, ask:
 
-1. Does it look recognizably like Quizify’s blue-paper study instrument?
+1. Does it look recognizably like Quizify’s black-and-white study instrument?
 2. Is the learner’s next action obvious without decorative explanation?
 3. Are icons earning their space and aligned with the text they support?
 4. Does the mobile layout remain compact and usable at narrow widths?
