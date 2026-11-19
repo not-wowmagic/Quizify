@@ -1,10 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-
-vi.mock('next/headers', () => ({
-  headers: async () => ({ get: () => null }),
-}));
-
-import { saveAttempt, type SaveAttemptInput } from '@/app/actions';
+import { saveAttemptForClient, type SaveAttemptInput } from '@/lib/save-attempt';
+import { SHARED_IP_BUCKET } from '@/lib/rate-limit';
 
 beforeAll(() => {
   vi.stubEnv('E2E_MOCK_AI', '1');
@@ -50,20 +46,22 @@ describe('saveAttempt payload guard', () => {
       topic: 'T'.repeat(200),
     }));
 
-    const result = await saveAttempt(
+    const result = await saveAttemptForClient(
       attempt('11111111-1111-4111-8111-111111111111', questions, answers),
+      SHARED_IP_BUCKET,
     );
 
     expect(result).toEqual({ error: 'Attempt data is too large to save.' });
   });
 
   it('still accepts a small valid attempt', async () => {
-    const result = await saveAttempt(
+    const result = await saveAttemptForClient(
       attempt(
         '22222222-2222-4222-8222-222222222222',
         [{ type: 'standard' as const, question: 'Q', options: ['A', 'B'], correctAnswerIndex: 0 }],
         [{ index: 0, type: 'standard' as const, correct: true }],
       ),
+      SHARED_IP_BUCKET,
     );
 
     expect('id' in result).toBe(true);

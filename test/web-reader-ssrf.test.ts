@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { fetchPublicPage, isBlockedAddress } from '@/lib/web-reader';
 
 beforeAll(() => {
@@ -88,7 +89,10 @@ describe('local server reachability', () => {
     });
     await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
     const address = server.address();
-    if (address && typeof address === 'object') port = address.port;
+    if (address !== null) {
+      // SAFETY: listen() bound this server to a TCP socket, so address() is AddressInfo.
+      port = (address as AddressInfo).port;
+    }
   });
 
   afterAll(async () => {
