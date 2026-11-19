@@ -21,6 +21,33 @@ const ALLOWED_PORTS = new Set(['', '80', '443']);
 type ValidatedAddress = { address: string; family: 4 | 6 };
 
 /**
+ * DNS lookup accepted by the reader. The narrower signature keeps tests from
+ * reaching into module internals while production still uses node:dns/promises.
+ */
+export interface DnsLookup {
+  (
+    hostname: string,
+    options: { all: true; verbatim: true },
+  ): Promise<Array<{ address: string; family: number }>>;
+}
+
+/**
+ * Dependencies the reader needs to reach the network. They are explicit so
+ * tests can drive real code paths with a deterministic lookup and fetch.
+ */
+export interface WebReaderDeps {
+  lookup: DnsLookup;
+  fetch: typeof fetch;
+  createAgent: (lookup: LookupFunction) => Agent;
+}
+
+const defaultDeps: WebReaderDeps = {
+  lookup,
+  fetch,
+  createAgent: pinnedLookup => new Agent({ connect: { lookup: pinnedLookup } }),
+};
+
+/**
  * True when the address is NOT global unicast. IPv4-mapped IPv6 is unwrapped
  * and re-tested as IPv4, so ::ffff:127.0.0.1 and ::ffff:7f00:1 are both
  * rejected. This blocks loopback, private, CGNAT, link-local, ULA, multicast,
@@ -44,20 +71,29 @@ export function isBlockedAddress(address: string): boolean {
   return parsed.range() !== 'unicast';
 }
 
+/** Decodes Node's numeric address family at the boundary. */
+function decodeIpFamily(family: number): 4 | 6 {
+  if (family === 4 || family === 6) return family;
+  throw new Error('Unexpected IP address family.');
+}
+
 /** Resolves a hostname once and returns only addresses that passed the check. */
-async function resolvePublicHost(hostname: string): Promise<ValidatedAddress[]> {
+async function resolvePublicHost(
+  hostname: string,
+  lookupHost: DnsLookup,
+): Promise<ValidatedAddress[]> {
   const bare = hostname.replace(/^\[|\]$/g, '');
   const literalFamily = isIP(bare);
   if (literalFamily !== 0) {
     if (isBlockedAddress(bare)) {
       throw new Error('This address is not publicly reachable.');
     }
-    return [{ address: bare, family: literalFamily as 4 | 6 }];
+    return [{ address: bare, family: decodeIpFamily(literalFamily) }];
   }
 
   let records;
   try {
-    records = await lookup(hostname, { all: true, verbatim: true });
+    records = await lookupHost(hostname, { all: true, verbatim: true });
   } catch {
     throw new Error('Could not resolve this host.');
   }
@@ -70,7 +106,10 @@ async function resolvePublicHost(hostname: string): Promise<ValidatedAddress[]> 
     }
   }
 
-  return records.map(record => ({ address: record.address, family: record.family as 4 | 6 }));
+  return records.map(record => ({
+    address: record.address,
+    family: decodeIpFamily(record.family),
+  }));
 }
 
 /**
@@ -78,7 +117,10 @@ async function resolvePublicHost(hostname: string): Promise<ValidatedAddress[]> 
  * lookup never performs DNS: it returns only an address that resolvePublicHost
  * validated, so a second DNS answer cannot point the connection at a private IP.
  */
-function createPinnedAgent(addresses: ValidatedAddress[]): Agent {
+function createPinnedAgent(
+  addresses: ValidatedAddress[],
+  createAgent: WebReaderDeps['createAgent'],
+): Agent {
   const pinnedLookup: LookupFunction = (_hostname, options, callback) => {
     const wantedFamily = options.family === 4 || options.family === 6 ? options.family : undefined;
     const candidates = wantedFamily
@@ -102,11 +144,14 @@ function createPinnedAgent(addresses: ValidatedAddress[]): Agent {
     callback(null, chosen.address, chosen.family);
   };
 
-  return new Agent({ connect: { lookup: pinnedLookup } });
+  return createAgent(pinnedLookup);
 }
 
 /** Fetches HTML with manual redirect handling so every hop is SSRF-checked. */
-export async function fetchPublicPage(urlStr: string): Promise<{ html: string; finalUrl: string }> {
+export async function fetchPublicPage(
+  urlStr: string,
+  deps: WebReaderDeps = defaultDeps,
+): Promise<{ html: string; finalUrl: string }> {
   if (process.env.E2E_MOCK_AI === '1') {
     // Deterministic canned page for the e2e suite (no network).
     if (urlStr.includes('nonexistent.invalid')) {
@@ -141,13 +186,13 @@ export async function fetchPublicPage(urlStr: string): Promise<{ html: string; f
       throw new Error('Only ports 80 and 443 are supported.');
     }
 
-    const addresses = await resolvePublicHost(u.hostname);
-    const agent = createPinnedAgent(addresses);
+    const addresses = await resolvePublicHost(u.hostname, deps.lookup);
+    const agent = createPinnedAgent(addresses, deps.createAgent);
 
     try {
       let res: Awaited<ReturnType<typeof fetch>>;
       try {
-        res = await fetch(current, {
+        res = await deps.fetch(current, {
           redirect: 'manual',
           signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
           dispatcher: agent,

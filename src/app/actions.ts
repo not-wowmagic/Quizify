@@ -1,9 +1,8 @@
 // src/app/actions.ts
 'use server';
 
-import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
-import { generateQuiz, GenerateQuizInputSchema, QuizPayloadSchema, QuizQuestionSchema, type GenerateQuizInput } from '@/ai/flows/generate-quiz';
+import { generateQuiz, GenerateQuizInputSchema, QuizPayloadSchema, type GenerateQuizInput } from '@/ai/flows/generate-quiz';
 import { generateSummary, type GenerateSummaryInput, type GenerateSummaryOutput } from '@/ai/flows/generate-summary';
 import { generateTutorGuidance, TutorInputSchema, type TutorInput, type TutorOutput } from '@/ai/flows/tutor';
 import { extractTextFromImage, ImageOcrInputSchema, type ImageOcrInput, type ImageOcrOutput } from '@/ai/flows/image-ocr';
@@ -11,9 +10,10 @@ import { checkRateLimit, getClientIp, hashPayload, TtlCache, verifyTurnstile } f
 import { getSupabase, DEVICE_ID_PATTERN } from '@/lib/supabase-server';
 import { sanitizeText } from '@/lib/sanitize';
 import { normalizeQuizTitle, titleFromFilename, titleFromQuestions } from '@/lib/quiz-title';
+import { saveAttemptForClient, type SaveAttemptInput } from '@/lib/save-attempt';
 import { fetchPublicPage } from '@/lib/web-reader';
 import type { Quiz } from '@/types/quiz';
-import type { AttemptAnswer, QuizAttempt } from '@/types/history';
+import type { QuizAttempt } from '@/types/history';
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -333,91 +333,14 @@ export async function getSharedQuiz(slug: string): Promise<SharedQuizData | null
 // =========================================
 
 const ATTEMPTS_PER_DEVICE = 200;
-const ATTEMPT_LIMIT = 30;
-// Keep this in sync with the trigger in 20261111000000_attempt_limits.sql.
-const MAX_ATTEMPT_PAYLOAD_BYTES = 512 * 1024;
 
-// Cheap JSON pre-check only. The database trigger is authoritative and measures
-// the stored row with pg_column_size(new); this is intentionally conservative
-// but cannot prove the binary jsonb/TOAST size.
-function attemptPayloadBytes(questions: unknown[], answers: unknown[]): number {
-  return (
-    Buffer.byteLength(JSON.stringify(questions), 'utf8') +
-    Buffer.byteLength(JSON.stringify(answers), 'utf8')
-  );
-}
-
-const SaveAttemptInputSchema = z.object({
-  deviceId: z.string().regex(DEVICE_ID_PATTERN, 'Invalid device id'),
-  quizId: z.string().trim().min(1).max(128).nullable().optional(),
-  title: z.string().trim().min(1).max(200).default('Study Quiz'),
-  score: z.int().min(0).max(1000),
-  total: z.int().min(1).max(100),
-  questions: z.array(QuizQuestionSchema).min(1).max(50),
-  answers: z.array(z.object({
-    index: z.int().min(0).max(999),
-    type: z.enum(['standard', 'matching']),
-    correct: z.boolean(),
-    topic: z.string().min(1).max(200).optional(),
-  })).min(0).max(100),
-  difficulty: z.string().trim().min(1).max(50).optional(),
-  questionType: z.string().trim().min(1).max(50).optional(),
-  language: z.string().trim().min(1).max(50).default('English'),
-  durationSec: z.int().min(0).max(86_400),
-});
-
-export type SaveAttemptInput = z.infer<typeof SaveAttemptInputSchema>;
+export type { SaveAttemptInput };
 
 /** Records a completed quiz attempt for the anonymous device id. */
 export async function saveAttempt(input: SaveAttemptInput): Promise<{ id: string } | { error: string }> {
-  // This path is public and writes through the service-role client, so enforce
-  // the same IP budget as the paid actions before doing any work.
-  const ip = await getClientIp();
-  const limit = await checkRateLimit(`attempt:${ip}`, ATTEMPT_LIMIT, HOUR_MS);
-  if (!limit.allowed) {
-    return { error: 'Too many saved attempts. Please try again later.' };
-  }
-
-  const parsed = SaveAttemptInputSchema.safeParse(input);
-  if (!parsed.success) {
-    return { error: 'Invalid attempt data.' };
-  }
-  const { deviceId, quizId, title, score, total, questions, answers, difficulty, questionType, language, durationSec } = parsed.data;
-
-  if (attemptPayloadBytes(questions, answers) > MAX_ATTEMPT_PAYLOAD_BYTES) {
-    return { error: 'Attempt data is too large to save.' };
-  }
-
-  const supabase = getSupabase();
-  if (!supabase) {
-    return { error: 'History is not configured yet (missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).' };
-  }
-
-  const { data, error } = await supabase
-    .from('quiz_attempts')
-    .insert({
-      device_id: deviceId,
-      quiz_id: quizId ?? null,
-      title,
-      score,
-      total,
-      questions,
-      // SAFETY: answers was validated above as AttemptAnswer[] by SaveAttemptInputSchema
-      answers: answers as AttemptAnswer[],
-      difficulty: difficulty ?? null,
-      question_type: questionType ?? null,
-      language,
-      duration_sec: durationSec,
-    })
-    .select('id')
-    .single();
-
-  if (error || !data) {
-    console.error('SaveAttempt Error:', error);
-    return { error: 'Failed to save the attempt.' };
-  }
-  // SAFETY: `.select('id').single()` guarantees a row with a string id
-  return { id: data.id as string };
+  // This path is public and writes through the service-role client, so the
+  // rate-limit and size guards run inside the service before any insert.
+  return saveAttemptForClient(input, await getClientIp());
 }
 
 export type PublicQuizSummary = {
