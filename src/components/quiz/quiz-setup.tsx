@@ -217,6 +217,10 @@ export function QuizSetup({
     <Card className="surface-card quizify-setup-card border-border/80 bg-card p-4 md:p-6 shadow-sm">
       <CardHeader className="quizify-setup-header p-0 pb-4">
         <div>
+          <p className="quizify-setup-kicker">
+            <span className="quizify-setup-kicker-index">01</span>
+            <span>New study session</span>
+          </p>
           <CardTitle className="text-xl font-bold tracking-tight text-foreground">Configure Quiz</CardTitle>
           <CardDescription className="text-sm text-muted-foreground mt-1">
             Import study material and select your desired question parameters.
@@ -257,7 +261,7 @@ export function QuizSetup({
                 className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border/80 rounded-xl cursor-pointer bg-muted/20 hover:bg-muted/40 transition-colors text-center px-4"
               >
                 <div className="flex flex-col items-center justify-center">
-                  <div className="p-2 rounded-full bg-primary/10 text-primary mb-2">
+                  <div className="p-2 rounded-full bg-primary text-primary-foreground mb-2">
                     <Upload className="w-5 h-5" />
                   </div>
                   <p className="text-sm font-semibold text-foreground">
@@ -265,7 +269,7 @@ export function QuizSetup({
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">Supports PDF or DOCX format</p>
                   {fileName && (
-                    <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary max-w-full min-w-0">
+                    <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-foreground max-w-full min-w-0">
                       <FileText className="h-3.5 w-3.5 shrink-0" />
                       <span className="truncate">{fileName}</span>
                     </div>
@@ -300,7 +304,7 @@ export function QuizSetup({
             />
             <div id="lecture-text-help" className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <span>{characterCount.toLocaleString()} characters · {wordCount.toLocaleString()} words</span>
-              <span className={characterCount >= minimumCharacters ? 'text-primary' : undefined}>
+              <span className={characterCount >= minimumCharacters ? 'text-foreground' : undefined}>
                 {characterCount >= minimumCharacters
                   ? '100 character minimum met'
                   : `${(minimumCharacters - characterCount).toLocaleString()} more ${minimumCharacters - characterCount === 1 ? 'character' : 'characters'} needed · 100 character minimum`}
@@ -339,9 +343,9 @@ export function QuizSetup({
               {webStatus && (
                 <p className={cn(
                   "flex items-center gap-1.5 text-xs font-medium",
-                  webStatus.ok ? "text-emerald-500" : "text-destructive"
+                  webStatus.ok ? "text-foreground" : "text-destructive"
                 )} role="status" aria-live="polite">
-                  {webStatus.ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                  {webStatus.ok ? <CheckCircle2 className="h-3.5 w-3.5 text-palette-green" /> : <XCircle className="h-3.5 w-3.5" />}
                   {webStatus.message}
                 </p>
               )}
@@ -355,7 +359,7 @@ export function QuizSetup({
                 className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border/80 rounded-xl cursor-pointer bg-muted/20 hover:bg-muted/40 transition-colors text-center px-4"
               >
                 <div className="flex flex-col items-center justify-center">
-                  <div className="p-2 rounded-full bg-amber-500/10 text-amber-500 mb-2">
+                  <div className="p-2 rounded-full bg-primary text-primary-foreground mb-2">
                     <Camera className="w-5 h-5" />
                   </div>
                   <p className="text-sm font-semibold text-foreground">
@@ -393,9 +397,9 @@ export function QuizSetup({
               {ocrStatus && (
                 <p className={cn(
                   "flex items-center gap-1.5 text-xs font-medium",
-                  ocrStatus.ok ? "text-emerald-500" : "text-destructive"
+                  ocrStatus.ok ? "text-foreground" : "text-destructive"
                 )} role="status" aria-live="polite">
-                  {ocrStatus.ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                  {ocrStatus.ok ? <CheckCircle2 className="h-3.5 w-3.5 text-palette-green" /> : <XCircle className="h-3.5 w-3.5" />}
                   {ocrStatus.message}
                 </p>
               )}
@@ -542,11 +546,11 @@ export function QuizSetup({
                 disabled={isLoading}
                 className={cn(
                   "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                  incognito ? "bg-[#66c9ed]" : "bg-[#507190]"
+                  incognito ? "bg-primary" : "bg-muted-foreground/40"
                 )}
               >
                 <span className={cn(
-                  "inline-block h-3.5 w-3.5 transform rounded-full bg-[#193f66] transition-transform",
+                  "inline-block h-3.5 w-3.5 transform rounded-full bg-card shadow-sm transition-transform",
                   incognito ? "translate-x-[18px]" : "translate-x-[3px]"
                 )} />
               </button>

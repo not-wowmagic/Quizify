@@ -187,10 +187,10 @@ test.describe('answer UX', () => {
     expect(wrongIndex).toBeGreaterThanOrEqual(0);
     await options.nth(wrongIndex).click();
     await expect(options.nth(wrongIndex)).toHaveAttribute('data-answer-state', 'incorrect');
-    await expect(options.nth(wrongIndex)).toHaveClass(/bg-accent\/15/);
+    await expect(options.nth(wrongIndex)).toHaveClass(/bg-destructive\/10/);
     const correctOption = card.locator('button', { hasText: rightText }).first();
     await expect(correctOption).toHaveAttribute('data-answer-state', 'correct');
-    await expect(correctOption).toHaveClass(/bg-primary\/20/);
+    await expect(correctOption).toHaveClass(/bg-success/);
   });
 });
 

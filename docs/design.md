@@ -7,40 +7,96 @@ not compete for attention.
 
 ## North star
 
-Quizify should feel like a well-made study instrument: blue field notes, paper
-cards, clear marks, and small moments of feedback. The interface can be warm and
-encouraging, but it should never perform “AI magic” through purple gradients,
-glowing controls, decorative motion, or a wall of rounded containers.
+Quizify should feel like a well-made study instrument: paper in light mode, ink
+in dark mode, clear marks, and small moments of feedback. The interface can be
+warm and encouraging, but it should never perform “AI magic” through purple
+gradients, glowing controls, decorative motion, or a wall of rounded containers.
 
-The product has one presentation mode. There is no dark-theme switch or dark
-theme-specific control styling in the interface.
+The product ships light and dark modes. A persistent toggle in the top bar
+applies the learner's choice across the app, and both modes must hold the same
+hierarchy.
+
+Dial: ENERGY 2 / RHYTHM 2 / MOTION 1
 
 ## Visual language
 
-The active Meadow palette is the product identity. It is intentionally limited
-to a deep blue workspace, pale blue paper surfaces, dark ink, and a saffron
-accent.
+Both modes share the same editorial structure: paper sheets, ink borders, hard
+offset shadows, and a dot-screen canvas. Color is reserved for action, state,
+and data.
+
+### Light
 
 | Role | Value | Use |
 | --- | --- | --- |
-| Field blue | `#2E5D8A` | Page background and quiet depth |
-| Paper blue | `#C6DFEF` | Setup, runner, summary, and score surfaces |
-| Ink | `#142639` | Headings, question text, and primary contrast |
-| Water | `#7298B9` | Secondary text, inactive controls, and dividers |
-| Saffron | `#F6C649` | Attention, selected state, and key calls to action |
-| Focus teal | `#0B6E8E` | Keyboard focus and links |
+| Background | `#ffffff` | Page canvas and card paper |
+| Text | `#1a1a1a` | Headings and body copy |
+| Muted | `#8a8a8a` | Soft muted tone: large text, icons, dividers |
+| Border | `#b8b8b8` | Card outlines and quiet dividers |
+| Primary | `#3b7dd8` | Primary actions, active tabs, focus |
+| Accent | `#d68c27` | Secondary signal and the session kicker |
+| Purple | `#7b5bb6` | Matching pair tags and text links |
+| Green | `#3d9a57` | Correct answers and positive data |
+| Red | `#d1383d` | Errors and incorrect answers |
+| Cyan | `#318795` | Matching pair tags and secondary data |
 
-Use color to explain state, not to decorate every surface. Success and error
-states should remain distinguishable through text and borders as well as hue.
-Do not introduce a new accent without a concrete interaction that needs it.
+Small muted text uses `#6b6b6b` (5.33:1 on white) because `#8a8a8a` is 3.45:1
+and fails AA at body size. Interactive control edges use `#8a8a8a` for 3.45:1
+against white; `#b8b8b8` is reserved for card outlines where the hard shadow
+carries the boundary. Primary buttons use `#0a0a0a` text on `#3b7dd8` for
+4.82:1. Text links use the purple (`#7b5bb6`, 5.23:1 on white) because the
+primary blue is not AA as small text; the blue is reserved for filled actions,
+active states, and focus, where it carries dark text.
+
+### Dark
+
+| Role | Value | Use |
+| --- | --- | --- |
+| Background | `#0a0a0a` | App canvas |
+| Panel | `#141414` | Cards and raised surfaces |
+| Element | `#1e1e1e` | Hover fills and raised controls |
+| Border | `#484848` | Card outlines |
+| Text | `#eeeeee` | Headings and body copy |
+| Muted | `#808080` | Secondary text and labels |
+| Primary | `#fab283` | Primary actions, active tabs, focus |
+| Accent | `#9d7cd8` | Secondary signal and the session kicker |
+| Blue | `#5c9cf5` | Matching pair tags and links |
+| Green | `#7fd88f` | Correct answers and positive data |
+| Red | `#e06c75` | Errors and incorrect answers |
+| Cyan | `#56b6c2` | Matching pair tags and secondary data |
+| Yellow | `#e5c07b` | Medium difficulty and data |
+| Warning | `#f5a742` | Warning states |
+
+Small muted text uses `#808080` on `#141414` (4.66:1). Interactive control edges
+use `#808080` for 5.01:1 against the canvas. Primary peach, purple, blue, green,
+cyan, yellow, and warning fills use `#0a0a0a` text, all above 4.5:1. Red fills
+also use `#0a0a0a` text at 6.2:1.
+
+### Chrome
+
+| Role | Value | Use |
+| --- | --- | --- |
+| Page background | `#0c0c0c` | Outermost dark canvas |
+| Primary text | `#fafafa` | Brand mark and strongest text |
+| Muted text | `#8f8f8f` | Chrome metadata and secondary labels |
+| Borders | `#2e2e2e` | Top bar rules and quiet separators |
+| Link | `#4f8bff` | Links in dark mode |
+| Favicon tile | `#131010` | Favicon and app icon tile |
+| Logo inner square | `#5a5858` | Logo inner shape |
+
+Use contrast, icons, and text to explain state. Success and error states must
+remain distinguishable through label, icon, and border as well as tone. Do not
+introduce a new accent without a concrete interaction that needs it.
 
 ### Surfaces and shape
 
-- Treat the blue workspace as the canvas and pale cards as paper placed on it.
-- Cards use a modest radius and a quiet border. One restrained shadow is enough.
-- Glass effects are optional and subordinate: a little translucency can help a
-  surface sit in the field, but blur must not reduce text contrast or turn every
-  element into frosted glass.
+- Treat the page canvas as the desk and the card color as paper placed on it.
+- Give primary sheets an ink border and a hard offset shadow; keep secondary
+  cards lighter so the hierarchy stays obvious at a glance.
+- The active theme uses opaque surfaces. Reserve translucency for overlays
+  and transient states; blur must never reduce text contrast.
+- The dot screen is the identity motif: a printed study-sheet texture that
+  separates the canvas from the paper. Keep it quiet; it must never compete with
+  question text.
 - Do not use large decorative gradients, gradient text, neon glows, or mesh
   backgrounds.
 - Buttons are compact rectangles with readable labels. Reserve pill shapes for
@@ -128,13 +184,13 @@ Interactive controls need visible labels or an accessible name. Form fields
 need labels and useful descriptions. Async status belongs in an announced
 `status` or `alert` region. Destructive actions need confirmation or undo.
 Keyboard order, touch targets, contrast, and text resizing are part of the
-design—not a final polish pass.
+design, not a final polish pass.
 
 ## Review checklist
 
 Before shipping a screen, ask:
 
-1. Does it look recognizably like Quizify’s blue-paper study instrument?
+1. Does it look recognizably like Quizify in both light and dark modes?
 2. Is the learner’s next action obvious without decorative explanation?
 3. Are icons earning their space and aligned with the text they support?
 4. Does the mobile layout remain compact and usable at narrow widths?

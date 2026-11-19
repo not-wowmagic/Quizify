@@ -26,15 +26,15 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
       <CardHeader className="p-0 pb-4">
         <div className="flex items-start justify-between gap-4">
           <CardTitle className="text-base sm:text-lg font-semibold leading-snug text-foreground">
-            <span className="text-primary font-bold mr-2">{questionIndex + 1}.</span>
+            <span className="quizify-question-index">{questionIndex + 1}</span>
             {question.question}
           </CardTitle>
           {question.difficultyTier && (
             <span className={cn(
-              "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-              question.difficultyTier === 'easy' && "border-emerald-500/30 bg-emerald-500/10 text-emerald-500",
-              question.difficultyTier === 'medium' && "border-amber-500/30 bg-amber-500/10 text-amber-500",
-              question.difficultyTier === 'hard' && "border-red-500/30 bg-red-500/10 text-red-500",
+              "shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em]",
+              question.difficultyTier === 'easy' && "border-palette-green bg-palette-green text-on-green",
+              question.difficultyTier === 'medium' && "border-palette-warning bg-palette-warning text-on-warning",
+              question.difficultyTier === 'hard' && "border-palette-red bg-palette-red text-on-red",
             )}>
               {question.difficultyTier === 'easy' ? 'Easy' : question.difficultyTier === 'medium' ? 'Medium' : 'Hard'}
             </span>
@@ -54,15 +54,15 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
           const isSelected = userAnswer !== undefined && oIndex === userAnswer.selectedIndex;
           const optionLetter = String.fromCharCode(65 + oIndex);
 
-          let optionStyle = "border-border/60 bg-muted/20 text-foreground hover:bg-muted/50 hover:border-border";
+          let optionStyle = "border-input bg-card text-foreground hover:bg-secondary hover:border-primary";
 
           if (isAnswered) {
             if (isCorrectAnswer) {
-              optionStyle = "border-primary/60 bg-primary/20 text-primary font-medium";
+              optionStyle = "border-success bg-success text-success-foreground font-medium";
             } else if (isSelected) {
-              optionStyle = "border-accent/50 bg-accent/15 text-accent-foreground font-medium";
+              optionStyle = "border-destructive bg-destructive/10 text-destructive font-medium";
             } else {
-              optionStyle = "border-border/30 bg-muted/10 text-foreground/80";
+              optionStyle = "border-border/40 bg-card text-muted-foreground";
             }
           }
 
@@ -75,24 +75,24 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
               data-answered={isAnswered ? 'true' : 'false'}
               data-answer-state={isAnswered ? (isCorrectAnswer ? 'correct' : isSelected ? 'incorrect' : 'unrevealed') : 'idle'}
               className={cn(
-                "quizify-answer-option w-full text-left p-3.5 rounded-xl border flex items-center justify-between gap-3 text-sm transition-colors duration-200",
+                "quizify-answer-option w-full text-left p-3.5 rounded-lg border flex items-center justify-between gap-3 text-sm transition-colors duration-200",
                 optionStyle
               )}
             >
               <div className="flex items-center gap-3">
                 <span className={cn(
-                  "quizify-answer-key flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold",
-                  isAnswered && isCorrectAnswer ? "border-primary bg-primary text-primary-foreground" :
-                  isAnswered && isSelected ? "border-accent bg-accent text-accent-foreground" :
-                  "border-border bg-background text-muted-foreground"
+                  "quizify-answer-key flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-xs font-bold",
+                  isAnswered && isCorrectAnswer ? "border-success bg-success-foreground text-success" :
+                  isAnswered && isSelected ? "border-destructive bg-card text-destructive" :
+                  "border-input bg-secondary text-foreground"
                 )}>
                   {optionLetter}
                 </span>
                 <span>{option}</span>
               </div>
 
-              {isAnswered && isCorrectAnswer && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary ml-2" />}
-              {isAnswered && isSelected && !isCorrectAnswer && <XCircle className="h-4 w-4 shrink-0 text-accent-foreground ml-2" />}
+              {isAnswered && isCorrectAnswer && <CheckCircle2 className="h-4 w-4 shrink-0 text-success-foreground ml-2" />}
+              {isAnswered && isSelected && !isCorrectAnswer && <XCircle className="h-4 w-4 shrink-0 text-destructive ml-2" />}
             </button>
           );
         })}

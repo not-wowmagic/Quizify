@@ -63,7 +63,7 @@ test.describe('light-mode contrast', () => {
     expect(foreground).not.toBe('rgb(255, 255, 255)');
 
     // Option order is shuffled, so pick a deterministically-wrong option;
-    // Wrong answers render the active Meadow sun-signal treatment.
+    // Wrong answers use the destructive signal.
     const cards = questionCards(page);
     const total = await cards.count();
     let cardIndex = -1;
@@ -83,7 +83,7 @@ test.describe('light-mode contrast', () => {
     expect(wrongIndex).toBeGreaterThanOrEqual(0);
     await options.nth(wrongIndex).click();
     await expect(options.nth(wrongIndex)).toHaveAttribute('data-answer-state', 'incorrect');
-    await expect(options.nth(wrongIndex)).toHaveClass(/bg-accent\/15/);
+    await expect(options.nth(wrongIndex)).toHaveClass(/bg-destructive\/10/);
   });
 });
 

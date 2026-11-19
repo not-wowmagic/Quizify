@@ -5,6 +5,7 @@ import type { Quiz } from '@/types/quiz';
 import { QuizClient } from '@/components/quiz-client';
 import { HistoryPanel } from '@/components/quiz/history-panel';
 import { PublicQuizzesPanel } from '@/components/quiz/public-quizzes-panel';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { cn } from '@/lib/utils';
 import { Sparkles, WifiOff } from 'lucide-react';
@@ -48,6 +49,7 @@ export default function Home() {
               <span>Quizify</span>
             </a>
           </h1>
+          <ThemeToggle />
         </header>
 
         <div id="top" className="quizify-content">
