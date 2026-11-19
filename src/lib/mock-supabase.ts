@@ -5,17 +5,30 @@
 // makes against quiz_attempts / quizzes so history + sharing work hermetically
 // without a real database or network access.
 //
-// oxlint-disable -- the loose row/dictionary types are intentional here; the
-// mock accepts arbitrary insert shapes by design and is never shipped.
 import { randomBytes } from 'node:crypto';
 
-type Row = Record<string, unknown> & { id: string; created_at: string };
+/** Concrete cell values accepted by the in-memory store. */
+type MockValue = string | number | boolean | null | readonly MockValue[] | MockObject;
+
+interface MockObject {
+  [column: string]: MockValue;
+}
+
+interface MockRow extends MockObject {
+  id: string;
+  created_at: string;
+}
+
+interface MockResult {
+  data: MockObject | MockObject[] | null;
+  error: null;
+}
 
 class MockTable {
-  rows: Row[] = [];
+  rows: MockRow[] = [];
 
-  insert(values: Record<string, unknown>): Row {
-    const row: Row = {
+  insert(values: MockObject): MockRow {
+    const row: MockRow = {
       ...values,
       id: randomBytes(6).toString('hex'),
       created_at: new Date().toISOString(),
@@ -27,7 +40,7 @@ class MockTable {
 
 const mockTables = new Map<string, MockTable>();
 
-function mockQuery(tableName: string, ...filters: Array<[string, unknown]>) {
+function mockQuery(tableName: string, ...filters: Array<[string, MockValue]>) {
   const table = mockTables.get(tableName) ?? new MockTable();
   mockTables.set(tableName, table);
   return table.rows.filter(row => filters.every(([col, val]) => row[col] === val));
@@ -35,10 +48,10 @@ function mockQuery(tableName: string, ...filters: Array<[string, unknown]>) {
 
 /** Minimal chainable builder covering the queries actions.ts actually makes. */
 export function createMockSupabase() {
-  const pick = (row: Row, columns?: string): Record<string, unknown> | null => {
+  const pick = (row: MockRow | undefined, columns?: string): MockObject | null => {
     if (!row) return null;
     if (!columns || columns === '*') return row;
-    const out: Record<string, unknown> = {};
+    const out: MockObject = {};
     for (const c of columns.split(',').map(c => c.trim())) {
       if (c in row) out[c] = row[c];
     }
@@ -47,16 +60,16 @@ export function createMockSupabase() {
 
   return {
     from(tableName: string) {
-      const filters: Array<[string, unknown]> = [];
+      const filters: Array<[string, MockValue]> = [];
       let selected = '*';
       let limitN: number | null = null;
       let orderCol: string | null = null;
       let orderAsc = true;
-      let insertData: Record<string, unknown> | null = null;
+      let insertData: MockObject | null = null;
       let isDelete = false;
 
       const builder = {
-        insert(values: Record<string, unknown>) {
+        insert(values: MockObject) {
           insertData = values;
           return builder;
         },
@@ -68,7 +81,7 @@ export function createMockSupabase() {
           isDelete = true;
           return builder;
         },
-        eq(col: string, val: unknown) {
+        eq(col: string, val: MockValue) {
           filters.push([col, val]);
           return builder;
         },
@@ -101,7 +114,8 @@ export function createMockSupabase() {
           const rows = mockQuery(tableName, ...filters);
           return { data: pick(rows[0], selected), error: null };
         },
-        async then(resolve: (v: unknown) => void) {
+        // oxlint-disable-next-line unicorn/no-thenable -- mirrors Supabase's awaitable query builder
+        async then(resolve: (value: MockResult) => void) {
           if (insertData) {
             const table = mockTables.get(tableName) ?? new MockTable();
             mockTables.set(tableName, table);
@@ -112,22 +126,21 @@ export function createMockSupabase() {
           if (isDelete) {
             const table = mockTables.get(tableName) ?? new MockTable();
             mockTables.set(tableName, table);
-            const keep = (r: Row) => !filters.every(([col, val]) => r[col] === val);
+            const keep = (r: MockRow) => !filters.every(([col, val]) => r[col] === val);
             table.rows = table.rows.filter(keep);
             resolve({ data: null, error: null });
             return;
           }
           const rows = mockQuery(tableName, ...filters);
           if (orderCol) {
+            const col = orderCol;
             rows.sort((a, b) => {
-              const av = a[orderCol!] as string | number;
-              const bv = b[orderCol!] as string | number;
-              const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+              const cmp = String(a[col]).localeCompare(String(b[col]), undefined, { numeric: true });
               return orderAsc ? cmp : -cmp;
             });
           }
           const sliced = limitN !== null ? rows.slice(0, limitN) : rows;
-          resolve({ data: sliced.map(r => pick(r, selected)), error: null });
+          resolve({ data: sliced.map(r => pick(r, selected) ?? {}), error: null });
         },
       };
       return builder;

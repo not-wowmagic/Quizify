@@ -8,6 +8,7 @@ import { getDeviceId } from '@/lib/device-id';
 import { buildAnkiTxt, buildQuizCsv, downloadTextFile, printQuiz, printCramSheet } from '@/lib/quiz-export';
 import { trackQuizShared, trackQuizExported } from '@/lib/analytics';
 import { ShareQrCard } from '@/components/quiz/share-qr';
+import { scoreBadgeClasses } from '@/components/quiz/standard-question-card';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -336,7 +337,7 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
             {filteredAttempts ? `${filteredAttempts.length} of ${attempts.length}` : ''}
           </span>
         </div>
-        <label className="inline-flex items-start gap-2 text-xs text-muted-foreground">
+        <label className="inline-flex min-h-11 items-center gap-2 text-xs text-muted-foreground">
           <input
             type="checkbox"
             checked={publicVisibility}
@@ -358,7 +359,7 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
               onChange={e => setQuery(e.target.value)}
               placeholder="Search by title or topic…"
               aria-label="Search history"
-              className="w-full rounded-lg border border-border/80 bg-background pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="min-h-11 w-full rounded-lg border border-border/80 bg-background pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             />
           </div>
           <select
@@ -372,7 +373,7 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
               }
             }}
             aria-label="Filter by score"
-            className="rounded-lg border border-border/80 bg-background px-2.5 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="min-h-11 rounded-lg border border-border/80 bg-background px-2.5 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <option value="all">Any score</option>
             <option value="mastered">Mastered (80–100%)</option>
@@ -383,7 +384,7 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
             value={formatFilter}
             onChange={e => setFormatFilter(e.target.value)}
             aria-label="Filter by format"
-            className="rounded-lg border border-border/80 bg-background px-2.5 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="min-h-11 rounded-lg border border-border/80 bg-background px-2.5 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <option value="all">Any format</option>
             <option value="multiple_choice">Multiple choice</option>
@@ -404,7 +405,7 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
               }
             }}
             aria-label="Sort attempts"
-            className="rounded-lg border border-border/80 bg-background px-2.5 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="min-h-11 rounded-lg border border-border/80 bg-background px-2.5 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
@@ -434,9 +435,7 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
                   {attempt.quiz_id && <span className="badge border-primary/30 bg-primary/10 text-foreground text-[10px]">Shared Quiz</span>}
                   <span className={cn(
                     "badge text-xs font-semibold",
-                    pct >= 80 ? "border-palette-green bg-palette-green text-on-green"
-                      : pct >= 60 ? "border-palette-warning bg-palette-warning text-on-warning"
-                        : "border-palette-red bg-palette-red text-on-red",
+                    scoreBadgeClasses(pct >= 80 ? 'high' : pct >= 60 ? 'mid' : 'low'),
                   )}>
                     {pct}%
                   </span>
@@ -663,7 +662,7 @@ function DailyGoalCard({ attempts }: { attempts: QuizAttempt[] }) {
               onKeyDown={e => { if (e.key === 'Enter') saveGoal(); }}
               autoFocus
               aria-label="Daily question goal"
-              className="w-24 h-8 rounded-lg border border-border/60 bg-background px-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-24 h-8 rounded-lg border border-border/60 bg-background px-2.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             />
             <Button size="sm" className="h-8 px-2.5 text-xs" onClick={saveGoal}>Save</Button>
             <Button size="sm" variant="ghost" className="h-8 px-2.5 text-xs" onClick={() => setEditing(false)}>Cancel</Button>

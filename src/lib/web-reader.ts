@@ -71,7 +71,6 @@ export function isBlockedAddress(address: string): boolean {
   return parsed.range() !== 'unicast';
 }
 
-/** Decodes Node's numeric address family at the boundary. */
 function decodeIpFamily(family: number): 4 | 6 {
   if (family === 4 || family === 6) return family;
   throw new Error('Unexpected IP address family.');
@@ -145,6 +144,34 @@ function createPinnedAgent(
   };
 
   return createAgent(pinnedLookup);
+}
+
+/** Reads a response body in chunks and stops as soon as the byte cap is exceeded. */
+export async function readBoundedText(
+  stream: ReadableStream<Uint8Array> | null,
+  cap: number,
+): Promise<string> {
+  if (!stream) throw new Error('The page returned an empty body.');
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let text = '';
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > cap) {
+        await reader.cancel().catch(() => undefined);
+        throw new Error('The page is too large (max 2 MB).');
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    return text + decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 /** Fetches HTML with manual redirect handling so every hop is SSRF-checked. */
@@ -223,10 +250,9 @@ export async function fetchPublicPage(
       if (contentLength && Number(contentLength) > MAX_PAGE_BYTES) {
         throw new Error('The page is too large (max 2 MB).');
       }
-      const html = await res.text();
-      if (html.length > MAX_PAGE_BYTES) {
-        throw new Error('The page is too large (max 2 MB).');
-      }
+      // SAFETY: undici types the response body stream as ReadableStream<any>;
+      // a fetch response body is always bytes.
+      const html = await readBoundedText(res.body as ReadableStream<Uint8Array> | null, MAX_PAGE_BYTES);
       return { html, finalUrl: current };
     } finally {
       await agent.close().catch(() => undefined);

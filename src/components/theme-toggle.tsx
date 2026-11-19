@@ -22,14 +22,15 @@ export function ThemeToggle() {
       type="button"
       className="quizify-theme-toggle"
       onClick={toggle}
-      aria-label="Toggle color theme"
+      title="Toggle color theme"
     >
       <Sun className="quizify-theme-icon quizify-theme-icon-sun" aria-hidden="true" />
       <Moon className="quizify-theme-icon quizify-theme-icon-moon" aria-hidden="true" />
-      <span className="quizify-theme-label" aria-hidden="true">
+      <span className="quizify-theme-label">
         <span className="quizify-theme-label-light">Light</span>
         <span className="quizify-theme-label-dark">Dark</span>
       </span>
+      <span className="sr-only">theme, toggle color theme</span>
     </button>
   );
 }

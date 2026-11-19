@@ -16,6 +16,24 @@ interface StandardQuestionCardProps {
   onAnswer: (questionIndex: number, optionIndex: number) => void;
 }
 
+export type Tier = 'easy' | 'medium' | 'hard';
+
+const TIER_BADGE = {
+  easy: { label: 'Easy', classes: 'border-palette-green bg-palette-green text-on-green' },
+  medium: { label: 'Medium', classes: 'border-palette-warning bg-palette-warning text-on-warning' },
+  hard: { label: 'Hard', classes: 'border-palette-red bg-palette-red text-on-red' },
+} satisfies Record<Tier, { label: string; classes: string }>;
+
+/** Shared tier-badge labels and color roles for question cards and history. */
+export function tierBadge(tier: Tier): { label: string; classes: string } {
+  return TIER_BADGE[tier];
+}
+
+/** Score-band badge colors, aligned with the tier palette. */
+export function scoreBadgeClasses(band: 'high' | 'mid' | 'low'): string {
+  return TIER_BADGE[band === 'high' ? 'easy' : band === 'mid' ? 'medium' : 'hard'].classes;
+}
+
 export function StandardQuestionCard({ question, questionIndex, userAnswer, onAnswer }: StandardQuestionCardProps) {
   const [askTutorOpen, setAskTutorOpen] = useState(false);
 
@@ -32,11 +50,9 @@ export function StandardQuestionCard({ question, questionIndex, userAnswer, onAn
           {question.difficultyTier && (
             <span className={cn(
               "shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em]",
-              question.difficultyTier === 'easy' && "border-palette-green bg-palette-green text-on-green",
-              question.difficultyTier === 'medium' && "border-palette-warning bg-palette-warning text-on-warning",
-              question.difficultyTier === 'hard' && "border-palette-red bg-palette-red text-on-red",
+              tierBadge(question.difficultyTier).classes,
             )}>
-              {question.difficultyTier === 'easy' ? 'Easy' : question.difficultyTier === 'medium' ? 'Medium' : 'Hard'}
+              {tierBadge(question.difficultyTier).label}
             </span>
           )}
         </div>

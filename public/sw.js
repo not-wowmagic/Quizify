@@ -1,11 +1,15 @@
 // public/sw.js
-// Quizify offline service worker that caches the app shell so the app loads
-// (and lets users retake quizzes already in their history page) when offline.
+// Quizify offline service worker that caches the app shell so the UI loads
+// when offline. History, retakes, and sharing are server actions (POST) and
+// need a connection; the cached shell only shows the interface and any state
+// already in the tab.
 //
 // Strategy:
 //   - Cache-first  for static shell assets (_next/static, fonts, icons).
 //   - Network-first for HTML navigations, falling back to a cached shell.
 //   - Server actions (POST) are never intercepted and stay online-only.
+//   - Manual check: load the app online, then reload offline; the shell opens
+//     but history/retake actions report they are unavailable.
 //
 // Bump CACHE_NAME to invalidate all previous caches on deploy.
 

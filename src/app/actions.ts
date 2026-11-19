@@ -2,15 +2,30 @@
 'use server';
 
 import { randomBytes } from 'node:crypto';
-import { generateQuiz, GenerateQuizInputSchema, QuizPayloadSchema, type GenerateQuizInput } from '@/ai/flows/generate-quiz';
+import { cookies } from 'next/headers';
+import { generateQuiz, GenerateQuizInputSchema, QuizPayloadSchema, markGenerationCancelled, type GenerateQuizInput } from '@/ai/flows/generate-quiz';
 import { generateSummary, type GenerateSummaryInput, type GenerateSummaryOutput } from '@/ai/flows/generate-summary';
 import { generateTutorGuidance, TutorInputSchema, type TutorInput, type TutorOutput } from '@/ai/flows/tutor';
 import { extractTextFromImage, ImageOcrInputSchema, type ImageOcrInput, type ImageOcrOutput } from '@/ai/flows/image-ocr';
 import { checkRateLimit, getClientIp, hashPayload, TtlCache, verifyTurnstile } from '@/lib/rate-limit';
-import { getSupabase, DEVICE_ID_PATTERN } from '@/lib/supabase-server';
+import { getSupabase } from '@/lib/supabase-server';
 import { sanitizeText } from '@/lib/sanitize';
 import { normalizeQuizTitle, titleFromFilename, titleFromQuestions } from '@/lib/quiz-title';
 import { saveAttemptForClient, type SaveAttemptInput } from '@/lib/save-attempt';
+import {
+  BOT_COOKIE_NAME,
+  BOT_TTL_MS,
+  DEVICE_COOKIE_NAME,
+  botCookieOptions,
+  deviceCookieOptions,
+  deviceCookieSecret,
+  readBotCheck,
+  readSignedDeviceId,
+  resolveAuthoritativeDeviceId,
+  signBotCheck,
+  signDeviceId,
+} from '@/lib/device-cookie';
+import { TURNSTILE_ACTION } from '@/lib/turnstile';
 import { fetchPublicPage } from '@/lib/web-reader';
 import type { Quiz } from '@/types/quiz';
 import type { QuizAttempt } from '@/types/history';
@@ -32,17 +47,67 @@ const quizCache = new TtlCache<Pick<Quiz, 'questions' | 'title'>>(50, HOUR_MS);
 // Fetched pages are cached by URL hash for 24h (per instance)
 const webCache = new TtlCache<{ html: string; finalUrl: string }>(100, 24 * HOUR_MS);
 
-export type CreateQuizInput = GenerateQuizInput & { turnstileToken?: string; bypassCache?: boolean; fallbackTitle?: string; fallbackWebTitle?: string };
+/**
+ * Single bot-check seam shared by every paid or state-changing action.
+ *
+ * Turnstile tokens are single-use, so one successful check sets a short-lived
+ * signed bot cookie. Later actions in the same study session use that proof
+ * instead of replaying a consumed token. The widget always requests the same
+ * action, which is the action checked here.
+ */
+async function enforceBotProtection(token: string | undefined, action: string): Promise<string | null> {
+  if (process.env.E2E_MOCK_AI === '1' || !process.env.TURNSTILE_SECRET_KEY) return null;
+
+  const secret = deviceCookieSecret();
+  const store = await cookies();
+
+  if (token && await verifyTurnstile(token, TURNSTILE_ACTION)) {
+    store.set(BOT_COOKIE_NAME, signBotCheck(Date.now() + BOT_TTL_MS, secret), botCookieOptions());
+    return null;
+  }
+
+  if (readBotCheck(store.get(BOT_COOKIE_NAME)?.value, Date.now(), secret)) return null;
+
+  console.warn(`[turnstile] Bot verification rejected ${action}.`);
+  return 'Bot verification failed. Please refresh the page and try again.';
+}
+
+/**
+ * The cookie is the only trusted device identity. A client may propose an id
+ * once, when the cookie is first set; afterwards its value is ignored.
+ */
+async function authoritativeDeviceId(clientDeviceId?: string): Promise<string | null> {
+  const secret = deviceCookieSecret();
+  const store = await cookies();
+  const bound = readSignedDeviceId(store.get(DEVICE_COOKIE_NAME)?.value, secret);
+  const resolved = resolveAuthoritativeDeviceId(bound, clientDeviceId);
+  if (resolved && !bound) {
+    store.set(DEVICE_COOKIE_NAME, signDeviceId(resolved, secret), deviceCookieOptions());
+  }
+  return resolved;
+}
+
+export type CreateQuizInput = GenerateQuizInput & {
+  turnstileToken?: string;
+  bypassCache?: boolean;
+  fallbackTitle?: string;
+  fallbackWebTitle?: string;
+  generationId?: string;
+};
+
+/** Marks a generation cancelled; the worker stops between chunk batches. */
+export async function cancelGeneration(generationId: string): Promise<{ ok: true }> {
+  if (/^[0-9a-f-]{36}$/i.test(generationId)) markGenerationCancelled(generationId);
+  return { ok: true };
+}
 
 export async function createQuiz(input: CreateQuizInput): Promise<Pick<Quiz, 'questions' | 'title'> | { error: string }> {
-  // Bot protection (no-op unless TURNSTILE_SECRET_KEY is configured)
-  if (!(await verifyTurnstile(input.turnstileToken))) {
-    return { error: 'Bot verification failed. Please refresh the page and try again.' };
-  }
+  const botError = await enforceBotProtection(input.turnstileToken, 'createQuiz');
+  if (botError) return { error: botError };
 
   // Rate limit the paid endpoint
   const ip = await getClientIp();
-  const limit = await checkRateLimit(`quiz:${ip}`, QUIZ_LIMIT, HOUR_MS);
+  const limit = await checkRateLimit(`quiz:${ip}`, QUIZ_LIMIT, HOUR_MS, true);
   if (!limit.allowed) {
     return { error: `Rate limit reached. You can generate ${QUIZ_LIMIT} quizzes per hour. Try again in ${Math.ceil(limit.retryAfterSec / 60)} minutes.` };
   }
@@ -56,6 +121,7 @@ export async function createQuiz(input: CreateQuizInput): Promise<Pick<Quiz, 'qu
   delete quizInput.bypassCache;
   delete quizInput.fallbackTitle;
   delete quizInput.fallbackWebTitle;
+  delete quizInput.generationId;
   let validated: GenerateQuizInput;
   try {
     validated = GenerateQuizInputSchema.strict().parse({
@@ -76,7 +142,7 @@ export async function createQuiz(input: CreateQuizInput): Promise<Pick<Quiz, 'qu
   }
 
   try {
-    const quizResult = await generateQuiz(validated);
+    const quizResult = await generateQuiz(validated, input.generationId);
 
     if (!quizResult.questions || quizResult.questions.length === 0) {
       return { error: 'The AI could not generate a quiz from the provided text. Please try refining your text.' };
@@ -104,15 +170,20 @@ export async function createQuiz(input: CreateQuizInput): Promise<Pick<Quiz, 'qu
 }
 
 
-export async function createSummary(input: GenerateSummaryInput): Promise<GenerateSummaryOutput | { error: string }> {
+export async function createSummary(input: GenerateSummaryInput & { turnstileToken?: string }): Promise<GenerateSummaryOutput | { error: string }> {
+    const botError = await enforceBotProtection(input.turnstileToken, 'createSummary');
+    if (botError) return { error: botError };
     const ip = await getClientIp();
-    const limit = await checkRateLimit(`summary:${ip}`, SUMMARY_LIMIT, HOUR_MS);
+    const limit = await checkRateLimit(`summary:${ip}`, SUMMARY_LIMIT, HOUR_MS, true);
     if (!limit.allowed) {
       return { error: 'Too many summary requests. Please try again later.' };
     }
 
+    const summaryInput = { ...input };
+    delete summaryInput.turnstileToken;
+
     try {
-        const summary = await generateSummary(input);
+        const summary = await generateSummary(summaryInput);
         return summary;
     } catch (e) {
         console.error('CreateSummary Error:', e);
@@ -121,9 +192,11 @@ export async function createSummary(input: GenerateSummaryInput): Promise<Genera
 }
 
 /** Socratic follow-up guidance for a quiz question ("Ask Tutor"). */
-export async function askTutorFollowUp(input: TutorInput): Promise<TutorOutput | { error: string }> {
+export async function askTutorFollowUp(input: TutorInput & { turnstileToken?: string }): Promise<TutorOutput | { error: string }> {
+    const botError = await enforceBotProtection(input.turnstileToken, 'askTutorFollowUp');
+    if (botError) return { error: botError };
     const ip = await getClientIp();
-    const limit = await checkRateLimit(`tutor:${ip}`, TUTOR_LIMIT, HOUR_MS);
+    const limit = await checkRateLimit(`tutor:${ip}`, TUTOR_LIMIT, HOUR_MS, true);
     if (!limit.allowed) {
       return { error: 'Too many tutor requests. Please try again later.' };
     }
@@ -142,14 +215,16 @@ export async function askTutorFollowUp(input: TutorInput): Promise<TutorOutput |
 }
 
 /** Fetches a public web URL (SSRF-hardened). Article extraction happens client-side. */
-export async function extractFromWebUrl(rawUrl: string): Promise<{ html: string; finalUrl: string } | { error: string }> {
+export async function extractFromWebUrl(rawUrl: string, turnstileToken?: string): Promise<{ html: string; finalUrl: string } | { error: string }> {
+    const botError = await enforceBotProtection(turnstileToken, 'extractFromWebUrl');
+    if (botError) return { error: botError };
     const url = rawUrl.trim();
     if (!/^https?:\/\//i.test(url)) {
       return { error: 'Enter a full URL starting with http:// or https://.' };
     }
 
     const ip = await getClientIp();
-    const limit = await checkRateLimit(`web:${ip}`, WEB_LIMIT, HOUR_MS);
+    const limit = await checkRateLimit(`web:${ip}`, WEB_LIMIT, HOUR_MS, true);
     if (!limit.allowed) {
       return { error: 'Too many URL fetches. Please try again later.' };
     }
@@ -164,18 +239,20 @@ export async function extractFromWebUrl(rawUrl: string): Promise<{ html: string;
       return result;
     } catch (e) {
       console.error('ExtractFromWebUrl Error:', e);
-      return { error: e instanceof Error ? e.message : 'Failed to read that page. Please try again.' };
+      return { error: 'Could not reach that page. It may be down or blocking automated requests.' };
     }
 }
 
 /** Extracts clean text from a photographed image via vision OCR. */
-export async function extractTextFromImageAction(input: ImageOcrInput): Promise<ImageOcrOutput | { error: string }> {
+export async function extractTextFromImageAction(input: ImageOcrInput & { turnstileToken?: string }): Promise<ImageOcrOutput | { error: string }> {
+    const botError = await enforceBotProtection(input.turnstileToken, 'extractTextFromImage');
+    if (botError) return { error: botError };
     if (!/^data:image\/(?:png|jpe?g|webp|heic);base64,/i.test(input.imageDataUrl)) {
       return { error: 'Unsupported image format. Use PNG, JPEG, or WebP.' };
     }
 
     const ip = await getClientIp();
-    const limit = await checkRateLimit(`ocr:${ip}`, OCR_LIMIT, HOUR_MS);
+    const limit = await checkRateLimit(`ocr:${ip}`, OCR_LIMIT, HOUR_MS, true);
     if (!limit.allowed) {
       return { error: 'Too many image scans. Please try again later.' };
     }
@@ -193,7 +270,7 @@ export async function extractTextFromImageAction(input: ImageOcrInput): Promise<
       return { text: sanitizeText(result.text) };
     } catch (e) {
       console.error('ExtractTextFromImage Error:', e);
-      return { error: e instanceof Error ? e.message : 'Failed to read the image. Please try again.' };
+      return { error: 'Failed to read the image. Please try again.' };
     }
 }
 
@@ -225,12 +302,11 @@ function generateSlug(): string {
 
 /** Persists a quiz and returns a short share link (/q/<slug>). */
 export async function publishQuiz(input: PublishQuizInput): Promise<PublishedQuiz | { error: string }> {
-  if (!(await verifyTurnstile(input?.turnstileToken))) {
-    return { error: 'Bot verification failed. Please refresh the page and try again.' };
-  }
+  const botError = await enforceBotProtection(input?.turnstileToken, 'publishQuiz');
+  if (botError) return { error: botError };
 
   const ip = await getClientIp();
-  const limit = await checkRateLimit(`share:${ip}`, SHARE_LIMIT, HOUR_MS);
+  const limit = await checkRateLimit(`share:${ip}`, SHARE_LIMIT, HOUR_MS, true);
   if (!limit.allowed) {
     return { error: `Too many shares. You can share ${SHARE_LIMIT} quizzes per hour. Try again in ${Math.ceil(limit.retryAfterSec / 60)} minutes.` };
   }
@@ -336,11 +412,16 @@ const ATTEMPTS_PER_DEVICE = 200;
 
 export type { SaveAttemptInput };
 
-/** Records a completed quiz attempt for the anonymous device id. */
-export async function saveAttempt(input: SaveAttemptInput): Promise<{ id: string } | { error: string }> {
+/** Records a completed quiz attempt for the cookie-bound anonymous device. */
+export async function saveAttempt(input: SaveAttemptInput & { turnstileToken?: string }): Promise<{ id: string } | { error: string }> {
+  const botError = await enforceBotProtection(input.turnstileToken, 'saveAttempt');
+  if (botError) return { error: botError };
+  const deviceId = await authoritativeDeviceId(input.deviceId);
+  if (!deviceId) return { error: 'Invalid device id.' };
+
   // This path is public and writes through the service-role client, so the
   // rate-limit and size guards run inside the service before any insert.
-  return saveAttemptForClient(input, await getClientIp());
+  return saveAttemptForClient({ ...input, deviceId }, await getClientIp());
 }
 
 export type PublicQuizSummary = {
@@ -393,11 +474,11 @@ export async function getPublicQuizzes(): Promise<PublicQuizSummary[] | { error:
   });
 }
 
-/** Lists the most recent attempts for an anonymous device id. */
-export async function getAttempts(deviceId: string): Promise<QuizAttempt[] | { error: string }> {
-  if (!DEVICE_ID_PATTERN.test(deviceId)) {
-    return { error: 'Invalid device id.' };
-  }
+/** Lists attempts for the cookie-bound device. Without a cookie there is no history. */
+export async function getAttempts(_clientDeviceId?: string): Promise<QuizAttempt[] | { error: string }> {
+  void _clientDeviceId; // Client-supplied ids are deliberately ignored; the cookie is authoritative.
+  const deviceId = await authoritativeDeviceId();
+  if (!deviceId) return [];
 
   const supabase = getSupabase();
   if (!supabase) {
@@ -419,11 +500,11 @@ export async function getAttempts(deviceId: string): Promise<QuizAttempt[] | { e
   return (data ?? []) as QuizAttempt[];
 }
 
-/** Deletes an attempt, scoped to the owning device id. */
-export async function deleteAttempt(id: string, deviceId: string): Promise<{ ok: true } | { error: string }> {
-  if (!DEVICE_ID_PATTERN.test(deviceId)) {
-    return { error: 'Invalid device id.' };
-  }
+/** Deletes an attempt scoped to the cookie-bound device id. */
+export async function deleteAttempt(id: string, _clientDeviceId?: string): Promise<{ ok: true } | { error: string }> {
+  void _clientDeviceId; // Client-supplied ids are deliberately ignored; the cookie is authoritative.
+  const deviceId = await authoritativeDeviceId();
+  if (!deviceId) return { ok: true };
 
   const supabase = getSupabase();
   if (!supabase) {

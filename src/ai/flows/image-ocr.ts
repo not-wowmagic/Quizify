@@ -39,6 +39,8 @@ Return JSON: { "text": "..." }`;
   const content = await callLLMVision(prompt, imageDataUrl, {
     systemInstruction: OCR_SYSTEM_INSTRUCTION,
     timeoutMs: 45000,
+    maxOutputTokens: 8000,
+    structuredOutput: true,
   });
   const parsed = extractJSON(content);
   return ImageOcrOutputSchema.parse(parsed);

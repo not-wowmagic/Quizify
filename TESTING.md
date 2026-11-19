@@ -20,8 +20,8 @@ npm install
 npx playwright install chromium
 
 # 2. Run everything
-npm run test:e2e        # browser suite (66 tests, ~30-60s warm at 4 workers; first run includes a next build)
-npm test                # unit suite (100 tests)
+npm run test:e2e        # browser suite (86 tests across 6 spec files; first run includes a next build)
+npm test                # unit suite (210 tests across 24 files)
 npm run typecheck
 npm run lint
 npm run lint:ox
@@ -43,21 +43,22 @@ npx playwright test --headed   # watch the browser
 
 ## 2. What the Suite Covers
 
-### 2.1 Browser e2e (`test/e2e/`) — 66 tests
+### 2.1 Browser e2e (`test/e2e/`) - 86 tests across 6 spec files
 
 | File | Area | What is verified |
 |------|------|------------------|
-| `test/e2e/setup.spec.ts` | Home + setup | dark theme, no overflow, console hygiene; New Quiz / History view toggle; Upload / Paste / Web / Camera tab switching (mouse **and** arrow keys); disabled Generate until text; short-text toast; custom count clamping (1–50); 1-question and 50-question generation; unsupported file upload; drag-and-drop; malformed / valid / unreachable web URLs; camera OCR success + non-image error; incognito (no Share, no history) |
+| `test/e2e/setup.spec.ts` | Home + setup | theme toggle changes computed background/foreground colors; no overflow, console hygiene; New Quiz / History view toggle; Upload / Paste / Web / Camera tab switching (mouse **and** arrow keys); disabled Generate until text; short-text toast; custom count clamping (1–50); 1-question and 50-question generation; unsupported file upload; drag-and-drop; malformed / valid / unreachable web URLs; camera OCR success + non-image error; incognito (no Share, no history) |
 | `test/e2e/generation.spec.ts` | Quiz flow | generation from pasted text; focus moves to quiz header; Regenerate + focus; Start Over resets; all 6 formats (Multiple Choice, True/False, Fill-in-Blank, Matching, Situational, Mixed); answer locking with `aria-pressed`/disabled; destructive + emerald correct/wrong styling; matching link/unlink/scoring; wrong-pairing scoring; scorecard; Practice Missed (exactly the missed questions); AI summary generate/toggle; Ask Tutor mock guidance |
 | `test/e2e/exports.spec.ts` | Exports | Anki `.txt` download (filename + TSV content); CSV download (header + topic column); **Print/PDF popup with no inline `<script>` (CSP regression guard) and `window.print()` actually invoked**; Cram Sheet popup grouped by topic; scorecard Export |
 | `test/e2e/share-history.spec.ts` | Share + History | publish → QR card → shared page renders; shared page canonical `/q/slug` + `noindex`; invalid slug → 404; Restart reshuffle; QR panel toggle; history empty state; attempt appears without reload; refresh on re-activation; search; score-band + format filters; delete; retake; 2-attempt score-trend chart with **no recharts 0×0 warnings**; daily-goal set + heatmap |
-| `test/e2e/accessibility.spec.ts` | A11y + layout + metadata | keyboard activation of view tabs; focus on quiz header after generation and on the shared page; dark-mode contrast (destructive `rgb(239,68,68)`, light foreground); no horizontal overflow at top/middle/bottom scroll and at 125% zoom; fixed theme toggle never overlaps the hero; home + shared + 404 metadata (title, canonical, robots); no console errors or failed requests across the whole flow |
+| `test/e2e/accessibility.spec.ts` | A11y + layout + metadata | keyboard activation of view tabs; focus on quiz header after generation and on the shared page; light/dark theme contrast comparison; AXE audit (zero critical/serious violations on home, runner, shared page); 44×44 touch targets; no horizontal overflow at top/middle/bottom scroll and at 125%/200% zoom; reduced-motion disables reveal animations; theme screenshot changes without changing footprint; theme toggle stays in the top bar without overlapping content; exactly one h1 per view; 44x44 visible actions on setup, runner, and history; 3px focus rings on raw answer and format buttons; home + shared + 404 metadata (title, canonical, robots); no console errors or failed requests across the whole flow |
+| `test/e2e/runner.mobile.spec.ts` | Mobile runner | mobile-only project that exercises the quiz runner at phone widths; only this spec runs in the `mobile-chromium` Playwright project, while `chromium` skips all `*.mobile.spec.ts` files |
 
 Shared helpers + deterministic fixtures live in `test/e2e/helpers.ts`
 (lecture text, standard-answer lookup, matching-pair lookup, deterministic
 correct/wrong answering, and browser error tracking).
 
-### 2.2 Unit tests (`test/`) — 100 tests
+### 2.2 Unit tests (`test/`) - 210 tests across 24 files
 
 | File | Covers |
 |------|--------|
@@ -65,8 +66,9 @@ correct/wrong answering, and browser error tracking).
 | `test/quiz-processors.test.ts` | `processQuiz` shuffling, and the **Practice Missed mapping regression** (raw-index vs processed-index) |
 | `test/utils.test.ts` | `formatTopicLabel` camelCase/acronym/whitespace edge cases |
 | `test/llm.test.ts` | chat-message building, response parsing, provider resolution |
-| `test/web-reader.test.ts` | **new**: SSRF hardening — non-http(s) protocols, malformed URLs, embedded credentials, private/loopback/link-local IPs (`127.0.0.1`, `10.x`, `192.168.x`, `169.254.169.254`, `[::1]`) |
+| `test/web-reader.test.ts` | **new**: SSRF hardening: non-http(s) protocols, malformed URLs, embedded credentials, private/loopback/link-local IPs (`127.0.0.1`, `10.x`, `192.168.x`, `169.254.169.254`, `[::1]`) |
 | `test/chunks-and-schemas.test.ts`, `test/extract-json.test.ts`, `test/quiz-validators.test.ts`, `test/rate-limit.test.ts` | chunking, JSON extraction, zod schemas, rate limiting |
+| `test/device-cookie.test.ts`, `test/security-hardening.test.ts`, `test/integration-boundaries.test.ts`, `test/generation-recovery.test.ts` | signed device and bot cookies, Turnstile and rate-limit boundaries, score invariants, bounded reads, CSV neutralization, base URL validation, cancellation, provider fallback |
 
 ---
 
@@ -168,6 +170,22 @@ fixed; the suite would catch them if they ever regressed:
   has real size; the suite asserts no `width(0)`/`height(0)` warnings.
 - **SSRF hardening** — `test/web-reader.test.ts` blocks private/loopback hosts.
 - **Topic-label humanization** — camelCase AI slugs are spaced out for display.
+- **CSV formula neutralization** — `buildQuizCsv` prefixes `'` to any answer or
+  term token that begins with `=`, `+`, `-`, or `@`, so spreadsheet imports treat
+  it as text instead of a formula.
+- **Theme and touch targets** — the e2e suite toggles the real ThemeToggle and
+  asserts computed colors differ, then measures primary controls at >=44px.
+
+The AXE checks in `accessibility.spec.ts` import `@axe-core/playwright`. That
+package must be present in `devDependencies` for the e2e suite to compile; it is
+not installed by the app itself.
+
+### Offline manual check (F-04)
+
+The service worker caches only the app shell. History, retakes, and sharing are
+server actions and are not intercepted. To verify: load the app online once,
+then go offline and reload. The interface should open, but history/retake
+actions should report that a connection is needed.
 
 ---
 
@@ -218,7 +236,8 @@ test/e2e/
   generation.spec.ts            # formats, answer UX, matching, scorecard, summary
   exports.spec.ts               # anki/csv downloads, print/cram popups
   share-history.spec.ts         # share, shared page, history CRUD + charts
-  accessibility.spec.ts         # a11y, contrast, overflow, zoom, metadata, console
+  accessibility.spec.ts         # a11y, axe, contrast, touch targets, zoom, motion, metadata
+  runner.mobile.spec.ts         # mobile-only quiz runner (mobile-chromium project)
 test/
   quiz-export.test.ts           # export builders incl. print/cram HTML
   quiz-processors.test.ts       # processQuiz + practice-missed regression
@@ -241,13 +260,13 @@ src/
 
 | Gate | Result |
 |------|--------|
-| `npm test` (Vitest) | 9 files / **100 tests** passing |
+| `npm test` (Vitest) | 24 files / **210 tests** passing |
 | `npm run typecheck` | clean |
 | `npm run lint` (eslint) | clean |
 | `npm run lint:ox` (oxlint + anti-slop) | clean |
 | `npm run build` (Next.js) | compiles, static pages generated |
-| `npm run test:e2e` (Playwright) | 5 files / **66 tests** passing (warm ~26s at 4 workers; verified 2026-08-17) |
+| `npm run test:e2e` (Playwright) | 6 spec files / **86 tests** passing; `runner.mobile.spec.ts` runs in the `mobile-chromium` project only |
 
 > Note: when deploying, set the Netlify env var
-> `NEXT_PUBLIC_SITE_URL=https://quizifyyyy.netlify.app` (an existing env var
-> overrides the code fallback).
+> `NEXT_PUBLIC_SITE_URL=https://quizify.netlify.app` (an existing env var
+> overrides the shared fallback exported from `src/app/manifest.ts`).

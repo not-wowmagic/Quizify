@@ -20,7 +20,7 @@ export function getSupabase(): SupabaseClient | null {
   if (process.env.E2E_MOCK_AI === '1') {
     // SAFETY: the e2e mock intentionally provides only the query-builder
     // surface that actions.ts uses; actions treat it as a SupabaseClient.
-    // oxlint-disable-next-line anti-slop/no-chained-type-assertions
+    // oxlint-disable-next-line anti-slop/no-chained-type-assertions -- a test stub cannot structurally implement the full SupabaseClient surface
     return createMockSupabase() as unknown as SupabaseClient;
   }
   const url = process.env.SUPABASE_URL;

@@ -3,8 +3,8 @@ import { headers } from 'next/headers';
 import Script from 'next/script';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import { SITE_URL } from './manifest';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://quizifyyyy.netlify.app';
 const siteDescription = 'Turn lecture notes, textbook excerpts, and study documents into interactive quizzes in seconds.';
 
 // Keep Server Actions below Netlify's 60-second function ceiling. The quiz
@@ -18,7 +18,7 @@ const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
 const umamiScriptUrl = process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL || 'https://cloud.umami.is/script.js';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: 'Quizify - AI-Powered Quiz Generator',
     template: '%s | Quizify',
@@ -45,7 +45,7 @@ const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
   name: 'Quizify',
-  url: siteUrl,
+  url: SITE_URL,
   applicationCategory: 'EducationalApplication',
   operatingSystem: 'Any',
   description: siteDescription,

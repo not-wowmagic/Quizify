@@ -36,7 +36,12 @@ export async function generateTutorGuidance(input: TutorInput): Promise<TutorOut
   const { question, context, userQuestion } = TutorInputSchema.parse(input);
 
   const prompt = `<question>\n${question}\n</question>\n\n<context>\n${context}\n</context>\n\n<user-question>\n${userQuestion}\n</user-question>\n\nReturn JSON: { "guidance": "..." }`;
-  const content = await callLLM(prompt, { systemInstruction: TUTOR_SYSTEM_INSTRUCTION, timeoutMs: 45000 });
+  const content = await callLLM(prompt, {
+    systemInstruction: TUTOR_SYSTEM_INSTRUCTION,
+    timeoutMs: 45000,
+    maxOutputTokens: 600,
+    structuredOutput: true,
+  });
   const parsed = extractJSON(content);
   return TutorOutputSchema.parse(parsed);
 }

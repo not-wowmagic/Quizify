@@ -4,14 +4,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardDescription, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TurnstileWidget } from '@/components/turnstile-widget';
 import { extractFromWebUrl, extractTextFromImageAction } from '@/app/actions';
 import { sanitizeText } from '@/lib/sanitize';
 import {
   Loader2, Upload, Lightbulb, FileText,
-  Sparkles, CircleDot, CheckSquare, Edit3, Link as LinkIcon, Shuffle, Lock,
+  CircleDot, CheckSquare, Edit3, Link as LinkIcon, Shuffle, Lock,
   Globe, Camera, CheckCircle2, XCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -89,6 +89,12 @@ export function QuizSetup({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCustomCount, setIsCustomCount] = useState(false);
   const [customCount, setCustomCount] = useState('10');
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+
+  const handleTurnstileToken = (token: string | null) => {
+    setTurnstileToken(token);
+    onTurnstileToken(token);
+  };
 
   // Web URL extraction state
   const [webUrl, setWebUrl] = useState('');
@@ -110,7 +116,7 @@ export function QuizSetup({
     setIsWebFetching(true);
     setWebStatus(null);
     try {
-      const result = await extractFromWebUrl(url);
+      const result = await extractFromWebUrl(url, turnstileToken ?? undefined);
       if ('error' in result) {
         setWebStatus({ ok: false, message: result.error });
         return;
@@ -181,7 +187,7 @@ export function QuizSetup({
       const downscaled = await downscaleImage(file);
       setOcrPreview(downscaled);
       setIsOcrExtracting(true);
-      const result = await extractTextFromImageAction({ imageDataUrl: downscaled });
+      const result = await extractTextFromImageAction({ imageDataUrl: downscaled, turnstileToken: turnstileToken ?? undefined });
       if ('error' in result) {
         setOcrStatus({ ok: false, message: result.error });
       } else {
@@ -221,7 +227,7 @@ export function QuizSetup({
             <span className="quizify-setup-kicker-index">01</span>
             <span>New study session</span>
           </p>
-          <CardTitle className="text-xl font-bold tracking-tight text-foreground">Configure Quiz</CardTitle>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">Configure Quiz</h2>
           <CardDescription className="text-sm text-muted-foreground mt-1">
             Import study material and select your desired question parameters.
           </CardDescription>
@@ -325,7 +331,7 @@ export function QuizSetup({
                     placeholder="https://en.wikipedia.org/wiki/…"
                     disabled={isLoading || isWebFetching}
                     aria-label="Article URL"
-                    className="w-full rounded-lg border border-border/80 bg-background pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="w-full rounded-lg border border-border/80 bg-background pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   />
                 </div>
                 <Button
@@ -428,7 +434,7 @@ export function QuizSetup({
                   onNumQuestionsChange(Number(value));
                 }}
                 disabled={isLoading}
-                className="w-full h-9 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2"
+                className="w-full h-11 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2"
               >
                 {[5, 10, 15, 20].map((num) => (
                   <option key={num} value={num}>{num} questions</option>
@@ -453,7 +459,7 @@ export function QuizSetup({
                     onBlur={() => setCustomCount(String(clampCount(Number.isNaN(parseInt(customCount, 10)) ? 10 : parseInt(customCount, 10))))}
                     disabled={isLoading}
                     aria-label="Custom number of questions"
-                    className="w-24 h-9 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2"
+                    className="w-24 h-11 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2"
                   />
                   <span className="text-xs text-muted-foreground">between 1 and 50</span>
                 </div>
@@ -473,7 +479,7 @@ export function QuizSetup({
                   onDifficultyChange(e.target.value as Difficulty);
                 }}
                 disabled={isLoading}
-                className="w-full h-9 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2"
+                className="w-full h-11 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2"
               >
                 {(['easy', 'medium', 'hard', 'adaptive'] as const).map((diff) => (
                   <option key={diff} value={diff}>
@@ -491,7 +497,7 @@ export function QuizSetup({
                 value={language}
                 onChange={(e) => onLanguageChange(e.target.value)}
                 disabled={isLoading}
-                className="w-full h-9 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2"
+                className="w-full h-11 rounded-lg border border-border/60 bg-background px-3 text-sm text-foreground focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-2"
               >
                 {LANGUAGES.map(lang => (
                   <option key={lang} value={lang}>{lang}</option>
@@ -534,7 +540,7 @@ export function QuizSetup({
       <CardFooter className="quizify-setup-footer p-0 pt-4 flex flex-col sm:flex-row items-center justify-end gap-3 border-t border-border/60 mt-4">
         <div className="flex flex-col items-center gap-2 w-full sm:w-auto">
           {turnstileSiteKey && (
-            <TurnstileWidget siteKey={turnstileSiteKey} onToken={onTurnstileToken} />
+            <TurnstileWidget siteKey={turnstileSiteKey} onToken={handleTurnstileToken} />
           )}
           {onIncognitoChange && (
             <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
@@ -544,15 +550,17 @@ export function QuizSetup({
                 aria-checked={incognito}
                 onClick={() => onIncognitoChange(!incognito)}
                 disabled={isLoading}
-                className={cn(
-                  "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                  incognito ? "bg-primary" : "bg-muted-foreground/40"
-                )}
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <span className={cn(
-                  "inline-block h-3.5 w-3.5 transform rounded-full bg-card shadow-sm transition-transform",
-                  incognito ? "translate-x-[18px]" : "translate-x-[3px]"
-                )} />
+                  "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+                  incognito ? "bg-primary" : "bg-muted-foreground/40"
+                )}>
+                  <span className={cn(
+                    "inline-block h-3.5 w-3.5 transform rounded-full bg-card shadow-sm transition-transform",
+                    incognito ? "translate-x-[18px]" : "translate-x-[3px]"
+                  )} />
+                </span>
               </button>
               <Lock className="h-3.5 w-3.5" />
               Incognito Mode
@@ -575,10 +583,7 @@ export function QuizSetup({
                 Generating quiz…
               </>
             ) : (
-              <>
-                <Sparkles className="mr-2 h-5 w-5" aria-hidden="true" />
-                Generate Quiz
-              </>
+              'Generate Quiz'
             )}
           </Button>
           {isGenerating && onCancelGeneration && (

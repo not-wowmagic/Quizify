@@ -29,11 +29,18 @@ export function buildAnkiTxt(quiz: Quiz): string {
   return notes.join('\n');
 }
 
+const beginsFormula = (value: string): boolean => /^[=+@-]/.test(value);
+
+/** Neutralizes a single answer/term token before it is joined into a cell. */
+const csvToken = (value: string): string => beginsFormula(value) ? `'${value}` : value;
+
 function csvEscape(value: string): string {
-  if (/[",\n\r]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
+  // Neutralize spreadsheet formula injection at the cell boundary too.
+  const safe = beginsFormula(value) ? `'${value}` : value;
+  if (/[",\n\r]/.test(safe)) {
+    return `"${safe.replace(/"/g, '""')}"`;
   }
-  return value;
+  return safe;
 }
 
 /** Builds a CSV file with columns: Question, Options, Correct Answer, Topic. */
@@ -43,14 +50,14 @@ export function buildQuizCsv(quiz: Quiz): string {
   for (const q of quiz.questions) {
     if (q.type === 'matching') {
       const questionText = `${q.question} (Match the following: ${q.pairs.map((_, i) => letter(i)).join(', ')})`;
-      const options = q.pairs.map((p, i) => `${letter(i)}. ${p.premise}`).join(' | ');
-      const answer = q.pairs.map((p, i) => `${letter(i)} ↔ ${p.response}`).join(' | ');
+      const options = q.pairs.map((p, i) => `${letter(i)}. ${csvToken(p.premise)}`).join(' | ');
+      const answer = q.pairs.map((p, i) => `${letter(i)} ↔ ${csvToken(p.response)}`).join(' | ');
       rows.push([questionText, options, answer, q.topic ?? '']);
     } else {
       rows.push([
         q.question,
-        q.options.map((opt, i) => `${letter(i)}. ${opt}`).join(' | '),
-        `${letter(q.correctAnswerIndex)}. ${q.options[q.correctAnswerIndex]}`,
+        q.options.map((opt, i) => `${letter(i)}. ${csvToken(opt)}`).join(' | '),
+        `${letter(q.correctAnswerIndex)}. ${csvToken(q.options[q.correctAnswerIndex])}`,
         q.topic ?? '',
       ]);
     }
@@ -198,14 +205,14 @@ export function buildPrintHtml(quiz: Quiz, title: string): string {
     max-width: 760px;
     margin: 0 auto;
     padding: 24px 20px;
-    color: #0f172a;
+    color: #1a1a1a;
     background: #ffffff;
     line-height: 1.5;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   header {
-    border-bottom: 2px solid #e2e8f0;
+    border-bottom: 2px solid #1a1a1a;
     padding-bottom: 18px;
     margin-bottom: 28px;
   }
@@ -215,17 +222,17 @@ export function buildPrintHtml(quiz: Quiz, title: string): string {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #4338ca;
-    background: #eef2ff;
-    border: 1px solid #c7d2fe;
+    color: #1a1a1a;
+    background: #f4f4f4;
+    border: 1px solid #8a8a8a;
     padding: 3px 10px;
-    border-radius: 9999px;
+    border-radius: 0.2rem;
     margin-bottom: 8px;
   }
   h1 {
     font-size: 1.55rem;
     font-weight: 800;
-    color: #0f172a;
+    color: #1a1a1a;
     margin: 0 0 10px 0;
     letter-spacing: -0.02em;
     line-height: 1.25;
@@ -235,7 +242,7 @@ export function buildPrintHtml(quiz: Quiz, title: string): string {
     justify-content: space-between;
     align-items: center;
     font-size: 0.82rem;
-    color: #64748b;
+    color: #6b6b6b;
     flex-wrap: wrap;
     gap: 12px;
   }
@@ -258,10 +265,10 @@ export function buildPrintHtml(quiz: Quiz, title: string): string {
     page-break-inside: avoid;
     break-inside: avoid;
     background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    border: 1px solid #8a8a8a;
+    border-radius: 0.65rem;
     padding: 16px 18px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    box-shadow: 2px 2px 0 rgba(26, 26, 26, 0.85);
   }
   .q-title-row {
     display: flex;
@@ -275,8 +282,8 @@ export function buildPrintHtml(quiz: Quiz, title: string): string {
     justify-content: center;
     width: 26px;
     height: 26px;
-    border-radius: 50%;
-    background: #4f46e5;
+    border-radius: 0.2rem;
+    background: #1a1a1a;
     color: #ffffff;
     font-size: 0.8rem;
     font-weight: 700;
@@ -290,17 +297,17 @@ export function buildPrintHtml(quiz: Quiz, title: string): string {
     margin: 0;
     font-size: 0.98rem;
     font-weight: 600;
-    color: #1e293b;
+    color: #1a1a1a;
     line-height: 1.45;
   }
   .topic {
     display: inline-block;
     margin-left: 8px;
     padding: 2px 8px;
-    border-radius: 9999px;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    color: #475569;
+    border-radius: 0.2rem;
+    background: #f4f4f4;
+    border: 1px solid #8a8a8a;
+    color: #4a4a4a;
     font-size: 0.72rem;
     font-weight: 600;
     vertical-align: middle;
@@ -316,10 +323,10 @@ export function buildPrintHtml(quiz: Quiz, title: string): string {
     margin: 0;
     padding: 7px 12px;
     background: #f8fafc;
-    border: 1px solid #f1f5f9;
-    border-radius: 8px;
+    border: 1px solid #f4f4f4;
+    border-radius: 0.25rem;
     font-size: 0.9rem;
-    color: #334155;
+    color: #333333;
   }
   ul.matching-list {
     list-style: none;
@@ -335,21 +342,21 @@ export function buildPrintHtml(quiz: Quiz, title: string): string {
     gap: 10px;
     padding: 8px 12px;
     background: #f8fafc;
-    border: 1px solid #f1f5f9;
-    border-radius: 8px;
+    border: 1px solid #f4f4f4;
+    border-radius: 0.25rem;
     font-size: 0.9rem;
   }
   .match-premise {
     font-weight: 600;
-    color: #1e293b;
+    color: #1a1a1a;
     flex: 1;
   }
   .match-arrow {
-    color: #94a3b8;
+    color: #8a8a8a;
     font-weight: 700;
   }
   .match-response {
-    color: #475569;
+    color: #4a4a4a;
     flex: 1;
   }
   .answer-key {
@@ -376,7 +383,7 @@ export function buildPrintHtml(quiz: Quiz, title: string): string {
     padding: 10px 14px;
     background: #f0fdf4;
     border: 1px solid #dcfce7;
-    border-radius: 10px;
+    border-radius: 0.35rem;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -395,7 +402,7 @@ export function buildPrintHtml(quiz: Quiz, title: string): string {
     justify-content: center;
     width: 24px;
     height: 24px;
-    border-radius: 6px;
+    border-radius: 0.2rem;
     background: #22c55e;
     color: #ffffff;
     font-size: 0.78rem;
@@ -415,9 +422,9 @@ export function buildPrintHtml(quiz: Quiz, title: string): string {
   footer.sheet-footer {
     margin-top: 32px;
     padding-top: 14px;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid #8a8a8a;
     font-size: 0.75rem;
-    color: #94a3b8;
+    color: #8a8a8a;
     text-align: center;
   }
 </style>
@@ -515,14 +522,14 @@ export function buildCramSheetHtml(quiz: Quiz, title: string): string {
     max-width: 7.5in;
     margin: 0 auto;
     padding: 16px 12px;
-    color: #1e293b;
+    color: #1a1a1a;
     background: #ffffff;
     line-height: 1.45;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   header {
-    border-bottom: 3px solid #f59e0b;
+    border-bottom: 3px solid #d68c27;
     padding-bottom: 14px;
     margin-bottom: 20px;
   }
@@ -532,55 +539,55 @@ export function buildCramSheetHtml(quiz: Quiz, title: string): string {
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #b45309;
-    background: #fef3c7;
-    border: 1px solid #fde68a;
+    color: #1a1a1a;
+    background: #f4f4f4;
+    border: 1px solid #8a8a8a;
     padding: 3px 10px;
-    border-radius: 9999px;
+    border-radius: 0.2rem;
     margin-bottom: 6px;
   }
   h1 {
     font-size: 1.55rem;
     font-weight: 800;
     margin: 0;
-    color: #0f172a;
+    color: #1a1a1a;
     letter-spacing: -0.02em;
     line-height: 1.25;
   }
   .sub {
     font-size: 0.82rem;
-    color: #64748b;
+    color: #6b6b6b;
     margin: 4px 0 10px 0;
   }
   .study-tip-box {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: #fffbeb;
-    border: 1px solid #fef3c7;
-    border-radius: 8px;
+    background: #faf6ef;
+    border: 1px solid #e6d5bd;
+    border-radius: 0.25rem;
     padding: 6px 12px;
     font-size: 0.78rem;
-    color: #92400e;
+    color: #6b4b12;
   }
   .section {
     margin-bottom: 18px;
     page-break-inside: avoid;
     break-inside: avoid;
     background: #ffffff;
-    border: 1px solid #fed7aa;
-    border-radius: 12px;
+    border: 1px solid #b8b8b8;
+    border-radius: 0.65rem;
     padding: 14px 16px;
-    box-shadow: 0 1px 2px rgba(245, 158, 11, 0.04);
+    box-shadow: 2px 2px 0 rgba(26, 26, 26, 0.85);
   }
   h2 {
     font-size: 0.92rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: #c2410c;
+    color: #1a1a1a;
     margin: 0 0 10px 0;
-    border-bottom: 1.5px solid #ffedd5;
+    border-bottom: 1.5px solid #e6d5bd;
     padding-bottom: 6px;
   }
   ul {
@@ -597,15 +604,15 @@ export function buildCramSheetHtml(quiz: Quiz, title: string): string {
     font-size: 0.86rem;
     line-height: 1.45;
     background: #fafaf9;
-    border-radius: 8px;
-    border-left: 3.5px solid #f97316;
+    border-radius: 0.25rem;
+    border-left: 3.5px solid #d68c27;
     border-top: 1px solid #f5f5f4;
     border-right: 1px solid #f5f5f4;
     border-bottom: 1px solid #f5f5f4;
   }
   .point-q {
     font-size: 0.88rem;
-    color: #0f172a;
+    color: #1a1a1a;
     margin-bottom: 4px;
   }
   .point-answers {
@@ -624,7 +631,7 @@ export function buildCramSheetHtml(quiz: Quiz, title: string): string {
     font-size: 0.82rem;
   }
   .distractors {
-    color: #64748b;
+    color: #6b6b6b;
     font-size: 0.78rem;
   }
   .matching-point {
@@ -637,9 +644,9 @@ export function buildCramSheetHtml(quiz: Quiz, title: string): string {
   footer {
     margin-top: 24px;
     font-size: 0.75rem;
-    color: #94a3b8;
+    color: #8a8a8a;
     text-align: center;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid #8a8a8a;
     padding-top: 10px;
   }
 </style>

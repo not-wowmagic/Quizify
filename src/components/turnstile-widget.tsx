@@ -5,12 +5,14 @@
 // TURNSTILE_SECRET_KEY (see src/lib/rate-limit.ts).
 import Script from 'next/script';
 import { useCallback, useEffect, useRef } from 'react';
+import { TURNSTILE_ACTION } from '@/lib/turnstile';
 
 declare global {
   interface Window {
     turnstile?: {
       render: (el: HTMLElement, options: {
         sitekey: string;
+        action?: string;
         callback: (token: string) => void;
         'expired-callback': () => void;
         'error-callback': () => void;
@@ -37,6 +39,7 @@ export function TurnstileWidget({ siteKey, onToken }: TurnstileWidgetProps) {
     if (containerRef.current && window.turnstile && widgetIdRef.current === null) {
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: siteKey,
+        action: TURNSTILE_ACTION,
         callback: (token: string) => onTokenRef.current(token),
         'expired-callback': () => onTokenRef.current(null),
         'error-callback': () => onTokenRef.current(null),

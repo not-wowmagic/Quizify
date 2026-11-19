@@ -381,6 +381,8 @@ Return one concise plain-text title (3-10 words) plus questions in this exact JS
       timeoutMs: 90000,
       deadlineMs: params.deadlineMs,
       provider: params.provider,
+      maxOutputTokens: 6000,
+      structuredOutput: true,
     });
 
     // SAFETY: raw AI JSON parsed at the trust boundary; every question is
@@ -455,6 +457,8 @@ Return one concise plain-text title (3-10 words) plus questions in this exact JS
       timeoutMs: 90000,
       deadlineMs: params.deadlineMs,
       provider: params.provider,
+      maxOutputTokens: 6000,
+      structuredOutput: true,
     });
 
     // SAFETY: raw AI JSON parsed at the trust boundary; every question is
@@ -601,6 +605,16 @@ interface GenerationRun {
   rawQuestions: QuestionRaw[];
 }
 
+const cancelledGenerations = new Set<string>();
+
+export function markGenerationCancelled(generationId: string): void {
+  cancelledGenerations.add(generationId);
+}
+
+function isGenerationCancelled(generationId?: string): boolean {
+  return generationId !== undefined && cancelledGenerations.has(generationId);
+}
+
 /** Executes one provider pass while keeping request concurrency bounded. */
 async function runGenerationTasks(
   tasks: GenerationTask[],
@@ -608,45 +622,52 @@ async function runGenerationTasks(
   deadlineMs: number,
   provider: LLMProvider,
   topUpInstruction?: string,
+  generationId?: string,
 ): Promise<GenerationRun> {
-  const results = await mapWithConcurrency(tasks, MAX_PARALLEL_GENERATION_CALLS, async task => {
-    try {
-      if (input.questionType === 'matching') {
-        return await processMatchingChunk(task.chunk, {
+  const results: ChunkResult[] = [];
+  for (let start = 0; start < tasks.length; start += MAX_PARALLEL_GENERATION_CALLS) {
+    if (isGenerationCancelled(generationId)) break;
+    const batch = tasks.slice(start, start + MAX_PARALLEL_GENERATION_CALLS);
+    const batchResults = await mapWithConcurrency(batch, MAX_PARALLEL_GENERATION_CALLS, async task => {
+      try {
+        if (input.questionType === 'matching') {
+          return await processMatchingChunk(task.chunk, {
+            questionsPerChunk: task.count,
+            difficulty: input.difficulty,
+            language: input.language,
+            deadlineMs,
+            provider,
+            topUpInstruction,
+          });
+        }
+        if (input.questionType === 'mixed') {
+          return await processMixedChunk(task.chunk, {
+            questionsPerChunk: task.count,
+            difficulty: input.difficulty,
+            language: input.language,
+            deadlineMs,
+            provider,
+            topUpInstruction,
+          });
+        }
+        return await processStandardChunk(task.chunk, {
           questionsPerChunk: task.count,
+          questionType: input.questionType,
           difficulty: input.difficulty,
           language: input.language,
           deadlineMs,
           provider,
           topUpInstruction,
         });
+      } catch (err) {
+        console.error('[generate-quiz] Chunk task execution failed:', err);
+        // SAFETY: failed tasks intentionally use the empty ChunkResult shape;
+        // no provider response is trusted on this path.
+        return { questions: [], failed: true } as ChunkResult;
       }
-      if (input.questionType === 'mixed') {
-        return await processMixedChunk(task.chunk, {
-          questionsPerChunk: task.count,
-          difficulty: input.difficulty,
-          language: input.language,
-          deadlineMs,
-          provider,
-          topUpInstruction,
-        });
-      }
-      return await processStandardChunk(task.chunk, {
-        questionsPerChunk: task.count,
-        questionType: input.questionType,
-        difficulty: input.difficulty,
-        language: input.language,
-        deadlineMs,
-        provider,
-        topUpInstruction,
-      });
-    } catch (err) {
-      console.error('[generate-quiz] Chunk task execution failed:', err);
-      // SAFETY: failed tasks intentionally use the empty ChunkResult shape;
-      // no provider response is trusted on this path.
-      return { questions: [], failed: true } as ChunkResult;
-    }
-  });
+    });
+    results.push(...batchResults);
+  }
 
   return {
     results,
@@ -673,11 +694,15 @@ ${existingStems}
 /**
  * Generates quiz questions from text based on given parameters
  */
-export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQuizOutput> {
-  return withLLMSession(() => generateQuizInSession(input));
+export async function generateQuiz(input: GenerateQuizInput, generationId?: string): Promise<GenerateQuizOutput> {
+  try {
+    return await withLLMSession(() => generateQuizInSession(input, generationId));
+  } finally {
+    if (generationId) cancelledGenerations.delete(generationId);
+  }
 }
 
-async function generateQuizInSession(input: GenerateQuizInput): Promise<GenerateQuizOutput> {
+async function generateQuizInSession(input: GenerateQuizInput, generationId?: string): Promise<GenerateQuizOutput> {
   // Validate input (defense in depth; the server action also parses)
   const validatedInput = GenerateQuizInputSchema.parse(input);
 
@@ -688,15 +713,18 @@ async function generateQuizInSession(input: GenerateQuizInput): Promise<Generate
   const tasks = createGenerationTasks(validatedInput.lectureText, generationCount);
   const runs: GenerationRun[] = [];
 
-  const primaryRun = await runGenerationTasks(tasks, validatedInput, deadlineMs, provider);
+  const primaryRun = await runGenerationTasks(tasks, validatedInput, deadlineMs, provider, undefined, generationId);
   runs.push(primaryRun);
 
   // Validate and bounds-check every AI-generated question.
   let validated = validateQuestions(primaryRun.rawQuestions, 'quiz generation');
 
-  // Gemini is fast enough for one bounded top-up pass when validation removes
-  // questions. This preserves exact requested counts without rerunning all work.
-  if (provider === 'gemini' && validated.length > 0 && validated.length < numQuestions) {
+  if (isGenerationCancelled(generationId)) {
+    return { title: 'Study Quiz', questions: [] };
+  }
+
+  // One bounded top-up pass absorbs validation drops for every provider.
+  if (validated.length > 0 && validated.length < numQuestions && Date.now() < deadlineMs && !isGenerationCancelled(generationId)) {
     const missing = numQuestions - validated.length;
     const topUpCount = Math.min(QUESTIONS_PER_GENERATION_CALL, missing + TOP_UP_MARGIN);
     const topUpRun = await runGenerationTasks(
@@ -705,6 +733,7 @@ async function generateQuizInSession(input: GenerateQuizInput): Promise<Generate
       deadlineMs,
       provider,
       buildTopUpInstruction(validated),
+      generationId,
     );
     runs.push(topUpRun);
     validated = [
@@ -713,12 +742,20 @@ async function generateQuizInSession(input: GenerateQuizInput): Promise<Generate
     ];
   }
 
-  // If Gemini produced no usable questions at all, use the configured cheap
-  // OpenCode model as a last-resort provider fallback.
-  if (provider === 'gemini' && validated.length === 0) {
-    const fallbackRun = await runGenerationTasks(tasks, validatedInput, deadlineMs, 'opencode');
+  // When the first provider yields nothing usable, try the other configured
+  // provider once, still bounded by the generation deadline.
+  if (validated.length === 0 && Date.now() < deadlineMs && !isGenerationCancelled(generationId)) {
+    const fallbackProvider: LLMProvider = provider === 'opencode' ? 'gemini' : 'opencode';
+    const fallbackRun = await runGenerationTasks(
+      tasks,
+      validatedInput,
+      deadlineMs,
+      fallbackProvider,
+      undefined,
+      generationId,
+    );
     runs.push(fallbackRun);
-    validated = validateQuestions(fallbackRun.rawQuestions, 'OpenCode fallback');
+    validated = validateQuestions(fallbackRun.rawQuestions, 'provider fallback');
   }
 
   const results = runs.flatMap(run => run.results);
