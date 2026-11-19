@@ -21,7 +21,7 @@ npx playwright install chromium
 
 # 2. Run everything
 npm run test:e2e        # browser suite (86 tests across 6 spec files; first run includes a next build)
-npm test                # unit suite (209 tests across 24 files)
+npm test                # unit suite (210 tests across 24 files)
 npm run typecheck
 npm run lint
 npm run lint:ox
@@ -58,7 +58,7 @@ Shared helpers + deterministic fixtures live in `test/e2e/helpers.ts`
 (lecture text, standard-answer lookup, matching-pair lookup, deterministic
 correct/wrong answering, and browser error tracking).
 
-### 2.2 Unit tests (`test/`) - 209 tests across 24 files
+### 2.2 Unit tests (`test/`) - 210 tests across 24 files
 
 | File | Covers |
 |------|--------|
@@ -260,7 +260,7 @@ src/
 
 | Gate | Result |
 |------|--------|
-| `npm test` (Vitest) | 24 files / **209 tests** passing |
+| `npm test` (Vitest) | 24 files / **210 tests** passing |
 | `npm run typecheck` | clean |
 | `npm run lint` (eslint) | clean |
 | `npm run lint:ox` (oxlint + anti-slop) | clean |
