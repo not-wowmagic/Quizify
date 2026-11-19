@@ -151,9 +151,11 @@ psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
 
 The test inserts 200 rows for one device, asserts the 201st is rejected, asserts an oversized payload is rejected, and rolls back its fixtures. It prints `attempt_limits_ok` on success.
 
-### Pending database hardening migrations (not applied)
+### Database hardening migrations (applied 2026-11-19)
 
-Two new migration files are staged but have NOT been applied to the linked remote project. They require owner review and approval before any `supabase db push` or SQL Editor run. Do not apply them as part of routine deploys.
+The two hardening migrations were applied automatically by the Supabase GitHub integration when PR #46 merged to `master` on 2026-11-19. The migration table contains both versions, the `quiz_attempts_quiz_id_covering_idx` index exists, and `public.enforce_attempt_limits` reports `search_path=""`. Do not re-run them.
+
+Because the integration applies migrations on every merge to `master`, treat a merge as a production migration trigger. Review migration files in the pull request before merging, not only before running `supabase db push`.
 
 - `supabase/migrations/20261119000001_secure_function_search_path.sql`: sets `search_path = ''` on `public.enforce_attempt_limits` to clear the mutable-search_path advisor WARN.
 - `supabase/migrations/20261119000002_quiz_attempts_quiz_id_index.sql`: adds a covering index on `quiz_attempts(quiz_id)` to clear the advisor INFO about `quiz_attempts_quiz_id_fkey`.
@@ -168,10 +170,10 @@ Machine-verifiable items are marked done where the code or migration state enfor
 - [x] Paid endpoints fail closed in production when Upstash is missing or errors; the in-memory fallback is limited to non-production and E2E.
 - [x] Turnstile verification validates `success`, hostname, and the `quizify` action, fails closed on network errors, and exchanges a single-use token for a two-hour signed bot session cookie when the secret is set.
 - [x] Database client is server-only (`import 'server-only'`) and uses the service role; both tables keep RLS enabled with no policies.
-- [ ] Merge the security commits to `master`.
+- [x] Security remediation merged to `master` as PR #46 on 2026-11-19.
+- [x] Two hardening migrations applied automatically by the Supabase GitHub integration on merge; both versions are present in `schema_migrations`, the covering index exists, and the function search path is pinned.
 - [ ] Configure Upstash and confirm requests appear in the Upstash dashboard.
 - [ ] Configure Turnstile keys if bot protection is wanted; otherwise confirm the deliberate opt-out.
-- [ ] Apply the two pending hardening migrations after owner review and approval.
 - [ ] Enable GitHub secret scanning and push protection.
 - [ ] Confirm `SUPABASE_SERVICE_ROLE_KEY` in Netlify is server-only and is not prefixed `NEXT_PUBLIC_`.
 
