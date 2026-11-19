@@ -15,7 +15,7 @@ export default function OpenGraphImage() {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(135deg, #0a0a0b 0%, #1a1a1a 100%)',
+          background: 'linear-gradient(135deg, #0c0c0c 0%, #131010 100%)',
           color: '#ffffff',
           fontFamily: 'sans-serif',
         }}
@@ -28,8 +28,8 @@ export default function OpenGraphImage() {
             width: 110,
             height: 110,
             borderRadius: 28,
-            background: '#ffffff',
-            color: '#0a0a0b',
+            background: '#5A5858',
+            color: '#fafafa',
             fontSize: 64,
             fontWeight: 800,
             marginBottom: 32,
@@ -40,7 +40,7 @@ export default function OpenGraphImage() {
         <div style={{ fontSize: 84, fontWeight: 800, letterSpacing: '-0.02em' }}>
           Quizify
         </div>
-        <div style={{ fontSize: 30, color: '#a1a1aa', marginTop: 16, maxWidth: 800, textAlign: 'center' }}>
+        <div style={{ fontSize: 30, color: '#8f8f8f', marginTop: 16, maxWidth: 800, textAlign: 'center' }}>
           Turn lecture notes into interactive AI quizzes in seconds
         </div>
       </div>

@@ -17,13 +17,13 @@ interface MatchingQuestionCardProps {
   onUpdate: (answer: MatchingAnswer) => void;
 }
 
-const matchColors = [
-  'border-foreground/40 bg-foreground/5 text-foreground',
-  'border-foreground/35 bg-foreground/10 text-foreground',
-  'border-foreground/30 bg-foreground/5 text-foreground',
-  'border-foreground/25 bg-foreground/10 text-foreground',
-  'border-foreground/20 bg-foreground/5 text-foreground',
-  'border-foreground/15 bg-foreground/10 text-foreground',
+const matchBadgeColors = [
+  'border-transparent bg-palette-blue text-on-blue',
+  'border-transparent bg-palette-purple text-on-purple',
+  'border-transparent bg-palette-orange text-on-orange',
+  'border-transparent bg-palette-green text-on-green',
+  'border-transparent bg-palette-red text-on-red',
+  'border-transparent bg-palette-cyan text-on-cyan',
 ];
 
 /** Non-color result cue so the monochrome theme stays readable. */
@@ -132,9 +132,9 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
           {question.difficultyTier && (
             <span className={cn(
               "shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em]",
-              question.difficultyTier === 'easy' && "border-foreground/20 bg-background text-foreground/60",
-              question.difficultyTier === 'medium' && "border-foreground/40 bg-foreground/10 text-foreground",
-              question.difficultyTier === 'hard' && "border-foreground bg-foreground text-background",
+              question.difficultyTier === 'easy' && "border-palette-green bg-palette-green text-on-green",
+              question.difficultyTier === 'medium' && "border-palette-warning bg-palette-warning text-on-warning",
+              question.difficultyTier === 'hard' && "border-palette-red bg-palette-red text-on-red",
             )}>
               {question.difficultyTier === 'easy' ? 'Easy' : question.difficultyTier === 'medium' ? 'Medium' : 'Hard'}
             </span>
@@ -156,7 +156,7 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
               const isMatched = matches[pIdx] !== undefined;
               const matchResult = getMatchResult(pIdx);
               const matchLabel = getMatchLabel(pIdx);
-              const colorIdx = matchLabel !== null ? (matchLabel - 1) % matchColors.length : 0;
+              const colorIdx = matchLabel !== null ? (matchLabel - 1) % matchBadgeColors.length : 0;
 
               return (
                 <button
@@ -168,11 +168,10 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
                   className={cn(
                     'quizify-match-option w-full text-left p-3 rounded-lg border text-sm transition-colors duration-200 flex items-center justify-between gap-2',
                     {
-                      'border-primary bg-primary/15 text-primary ring-2 ring-primary/30 font-medium': isSelected && !checked,
-                      [matchColors[colorIdx]]: isMatched && !checked,
-                      'border-border/60 bg-muted/20 hover:border-border hover:bg-muted/50': !isSelected && !isMatched && !checked,
-                      'bg-foreground/10 border-foreground/50 text-foreground': matchResult === 'correct',
-                      'bg-foreground/5 border-foreground/30 text-foreground': matchResult === 'incorrect',
+                      'border-primary bg-primary text-primary-foreground ring-2 ring-primary/30 font-medium': isSelected && !checked,
+                      'border-input bg-card hover:border-primary hover:bg-secondary': !isSelected && !isMatched && !checked,
+                      'border-success bg-success text-success-foreground': matchResult === 'correct',
+                      'border-destructive bg-destructive/10 text-destructive': matchResult === 'incorrect',
                       'opacity-90 cursor-not-allowed': checked,
                     }
                   )}
@@ -181,7 +180,7 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
                   <span className="flex items-center gap-1.5">
                     <MatchResultIcon result={matchResult} />
                     {matchLabel !== null && (
-                      <span className="h-5 w-5 rounded-md border border-current text-[11px] font-bold flex items-center justify-center shrink-0">
+                      <span className={cn("h-5 w-5 rounded-md border text-[11px] font-bold flex items-center justify-center shrink-0", matchBadgeColors[colorIdx])}>
                         {matchLabel}
                       </span>
                     )}
@@ -200,7 +199,7 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
               const matchedPremiseIdx = responseToMatchedPremise[responseOriginalIdx];
               const matchResult = matchedPremiseIdx !== undefined ? getMatchResult(matchedPremiseIdx) : null;
               const matchLabel = getResponseMatchLabel(responseOriginalIdx);
-              const colorIdx = matchLabel !== null ? (matchLabel - 1) % matchColors.length : 0;
+              const colorIdx = matchLabel !== null ? (matchLabel - 1) % matchBadgeColors.length : 0;
 
               return (
                 <button
@@ -211,10 +210,9 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
                   className={cn(
                     'quizify-match-option w-full text-left p-3 rounded-lg border text-sm transition-colors duration-200 flex items-center justify-between gap-2',
                     {
-                      [matchColors[colorIdx]]: isMatched && !checked,
-                      'border-border/60 bg-muted/20 hover:border-border hover:bg-muted/50': !isMatched && !checked,
-                      'bg-foreground/10 border-foreground/50 text-foreground': matchResult === 'correct',
-                      'bg-foreground/5 border-foreground/30 text-foreground': matchResult === 'incorrect',
+                      'border-input bg-card hover:border-primary hover:bg-secondary': !isMatched && !checked,
+                      'border-success bg-success text-success-foreground': matchResult === 'correct',
+                      'border-destructive bg-destructive/10 text-destructive': matchResult === 'incorrect',
                       'opacity-90 cursor-not-allowed': checked,
                     }
                   )}
@@ -223,7 +221,7 @@ export function MatchingQuestionCard({ question, questionIndex, userAnswer, onUp
                   <span className="flex items-center gap-1.5">
                     <MatchResultIcon result={matchResult} />
                     {matchLabel !== null && (
-                      <span className="h-5 w-5 rounded-md border border-current text-[11px] font-bold flex items-center justify-center shrink-0">
+                      <span className={cn("h-5 w-5 rounded-md border text-[11px] font-bold flex items-center justify-center shrink-0", matchBadgeColors[colorIdx])}>
                         {matchLabel}
                       </span>
                     )}

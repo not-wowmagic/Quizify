@@ -4,38 +4,139 @@
 
 @layer base {
   :root {
+    color-scheme: light;
+
+    /* Light palette: #ffffff base, #1a1a1a ink, #3b7dd8 primary, #d68c27 accent. */
     --background: 0 0% 100%;
-    --foreground: 0 0% 4%;
+    --foreground: 0 0% 10.2%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 4%;
+    --card-foreground: 0 0% 10.2%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 4%;
+    --popover-foreground: 0 0% 10.2%;
 
-    --primary: 0 0% 4%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 214.8 66.8% 53.9%;
+    --primary-foreground: 0 0% 3.9%;
 
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 9%;
+    --secondary: 0 0% 95.7%;
+    --secondary-foreground: 0 0% 10.2%;
 
-    --muted: 0 0% 96%;
+    --muted: 0 0% 95.7%;
     --muted-foreground: 0 0% 42%;
 
-    --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 9%;
+    --accent: 34.6 69.2% 49.6%;
+    --accent-foreground: 0 0% 3.9%;
 
-    --success: 0 0% 18%;
-    --success-foreground: 0 0% 100%;
+    --success: 136.8 43.3% 42.2%;
+    --success-foreground: 0 0% 3.9%;
 
-    --destructive: 0 0% 12%;
+    --destructive: 358 62.4% 52%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 88%;
-    --input: 0 0% 88%;
-    --ring: 0 0% 4%;
+    --border: 0 0% 72.2%;
+    --input: 0 0% 54.1%;
+    --ring: 214.8 66.8% 53.9%;
+
+    --page-background: 0 0% 100%;
+    --panel-high: 0 0% 95.7%;
+    --border-subtle: 0 0% 72.2%;
+    --control-border: 0 0% 54.1%;
+    --muted-soft: 0 0% 54.1%;
+    --disabled-text: 0 0% 42%;
+    --link: 261.1 38.4% 53.5%;
+    --shadow-ink: 0 0% 10.2%;
+
+    --brand-tile: 0 0% 10.2%;
+    --brand-inner: 0 0% 72.2%;
+    --brand-mark: 0 0% 100%;
+
+    --palette-blue: 214.8 66.8% 53.9%;
+    --palette-purple: 261.1 38.4% 53.5%;
+    --palette-orange: 34.6 69.2% 49.6%;
+    --palette-green: 136.8 43.3% 42.2%;
+    --palette-red: 358 62.4% 52%;
+    --palette-cyan: 188.4 50.5% 38.8%;
+    --palette-yellow: 39.1 67.1% 69%;
+    --palette-warning: 34.6 69.2% 49.6%;
+
+    --on-blue: 0 0% 3.9%;
+    --on-purple: 0 0% 100%;
+    --on-orange: 0 0% 3.9%;
+    --on-green: 0 0% 3.9%;
+    --on-red: 0 0% 100%;
+    --on-cyan: 0 0% 3.9%;
+    --on-yellow: 0 0% 3.9%;
+    --on-warning: 0 0% 3.9%;
 
     --radius: 0.75rem;
+  }
+
+  [data-theme='dark'] {
+    color-scheme: dark;
+
+    /* Dark palette: #0a0a0a canvas, #141414 panels, #fab283 primary, #9d7cd8 accent. */
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 93.3%;
+
+    --card: 0 0% 7.8%;
+    --card-foreground: 0 0% 93.3%;
+
+    --popover: 0 0% 7.8%;
+    --popover-foreground: 0 0% 93.3%;
+
+    --primary: 23.7 92.2% 74.7%;
+    --primary-foreground: 0 0% 3.9%;
+
+    --secondary: 0 0% 11.8%;
+    --secondary-foreground: 0 0% 93.3%;
+
+    --muted: 0 0% 11.8%;
+    --muted-foreground: 0 0% 50.2%;
+
+    --accent: 261.5 54.1% 66.7%;
+    --accent-foreground: 0 0% 3.9%;
+
+    --success: 130.8 53.3% 67.3%;
+    --success-foreground: 0 0% 3.9%;
+
+    --destructive: 355.3 65.2% 65.1%;
+    --destructive-foreground: 0 0% 3.9%;
+
+    --border: 0 0% 28.2%;
+    --input: 0 0% 50.2%;
+    --ring: 23.7 92.2% 74.7%;
+
+    --page-background: 0 0% 4.7%;
+    --panel-high: 0 0% 11.8%;
+    --border-subtle: 0 0% 18%;
+    --control-border: 0 0% 50.2%;
+    --muted-soft: 0 0% 56.1%;
+    --disabled-text: 0 0% 56.1%;
+    --link: 219.5 100% 65.5%;
+    --shadow-ink: 0 0% 0%;
+
+    --brand-tile: 0 8.6% 6.9%;
+    --brand-inner: 0 1.1% 34.9%;
+    --brand-mark: 0 0% 98%;
+
+    --palette-blue: 214.9 88.4% 66.1%;
+    --palette-purple: 261.5 54.1% 66.7%;
+    --palette-orange: 33.9 89.9% 61%;
+    --palette-green: 130.8 53.3% 67.3%;
+    --palette-red: 355.3 65.2% 65.1%;
+    --palette-cyan: 186.7 47% 54.9%;
+    --palette-yellow: 39.1 67.1% 69%;
+    --palette-warning: 33.9 89.9% 61%;
+
+    --on-blue: 0 0% 3.9%;
+    --on-purple: 0 0% 3.9%;
+    --on-orange: 0 0% 3.9%;
+    --on-green: 0 0% 3.9%;
+    --on-red: 0 0% 3.9%;
+    --on-cyan: 0 0% 3.9%;
+    --on-yellow: 0 0% 3.9%;
+    --on-warning: 0 0% 3.9%;
   }
 
 }
@@ -71,34 +172,13 @@
   }
 }
 
-/* Quizify lookbook: Meadow-derived directions sharing the same learning flow. */
+/* Quizify shell: structural tokens. The light/dark palette lives on :root. */
 .quizify-shell {
-  --background: 0 0% 96%;
-  --foreground: 0 0% 8%;
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 8%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 8%;
-  --primary: 0 0% 8%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 91%;
-  --secondary-foreground: 0 0% 8%;
-  --muted: 0 0% 92%;
-  --muted-foreground: 0 0% 42%;
-  --accent: 0 0% 20%;
-  --accent-foreground: 0 0% 100%;
-  --success: 0 0% 18%;
-  --success-foreground: 0 0% 100%;
-  --destructive: 0 0% 12%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 0 0% 82%;
-  --input: 0 0% 82%;
-  --ring: 0 0% 8%;
   --radius: 0.9rem;
   --card-alpha: 0.9;
-  --style-shadow: 0 18px 50px hsl(0 0% 0% / 0.07);
-  --style-line: hsl(var(--foreground) / 0.07);
-  --style-background: radial-gradient(circle at 8% 8%, hsl(0 0% 0% / 0.05), transparent 27rem), radial-gradient(circle at 92% 16%, hsl(0 0% 0% / 0.04), transparent 32rem), linear-gradient(135deg, hsl(0 0% 97%), hsl(0 0% 91%));
+  --style-shadow: 0 18px 50px hsl(var(--shadow-ink) / 0.1);
+  --style-line: hsl(var(--border) / 0.35);
+  --style-background: hsl(var(--page-background));
   isolation: isolate;
   position: relative;
   min-height: 100dvh;
@@ -1041,38 +1121,17 @@
   box-shadow: 0 10px 26px hsl(var(--primary) / 0.18);
 }
 
-/* 11 — Meadow OS: a duskier pixel-world / frosted-panel blend. */
+/* 11 — Meadow OS: the active editorial study surface. */
 .quizify-shell[data-style='meadow'] {
-  --background: 0 0% 96%;
-  --foreground: 0 0% 4%;
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 4%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 4%;
-  --primary: 0 0% 4%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 93%;
-  --secondary-foreground: 0 0% 4%;
-  --muted: 0 0% 94%;
-  --muted-foreground: 0 0% 36%;
-  --accent: 0 0% 92%;
-  --accent-foreground: 0 0% 4%;
-  --success: 0 0% 4%;
-  --success-foreground: 0 0% 100%;
-  --destructive: 0 0% 4%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 0 0% 4%;
-  --input: 0 0% 4%;
-  --ring: 0 0% 4%;
   --radius: 0.55rem;
   --card-alpha: 1;
-  --glass-edge: 0 0% 4%;
-  --meadow-control: 0 0% 100%;
-  --meadow-control-muted: 0 0% 94%;
-  --meadow-control-foreground: 0 0% 4%;
-  --style-shadow: 5px 5px 0 hsl(0 0% 4% / 0.9);
-  --style-line: hsl(0 0% 4% / 0.06);
-  --style-background: radial-gradient(circle at 14% -6%, hsl(0 0% 0% / 0.07), transparent 26rem), radial-gradient(circle at 90% 12%, hsl(0 0% 0% / 0.04), transparent 30rem), linear-gradient(180deg, hsl(0 0% 98%), hsl(0 0% 95%));
+  --glass-edge: var(--border);
+  --meadow-control: var(--card);
+  --meadow-control-muted: var(--secondary);
+  --meadow-control-foreground: var(--foreground);
+  --style-shadow: 5px 5px 0 hsl(var(--shadow-ink) / 0.9);
+  --style-line: hsl(var(--border) / 0.35);
+  --style-background: hsl(var(--page-background));
 }
 
 /* 12 — Lookout: blue-sky command deck with the lightest glass controls. */
@@ -1987,10 +2046,10 @@
   border-color: transparent !important;
   border-radius: 0.4rem;
   box-shadow: none !important;
-  color: hsl(var(--primary)) !important;
+  color: hsl(var(--link)) !important;
   padding: 0.35rem 0.15rem;
   text-decoration: underline;
-  text-decoration-color: hsl(var(--primary) / 0.3);
+  text-decoration-color: hsl(var(--link) / 0.4);
   text-underline-offset: 0.2rem;
 }
 
@@ -2599,5 +2658,522 @@
   .quizify-shell[data-style='meadow'] .quizify-view-tab {
     font-size: 0.58rem;
     letter-spacing: 0.03em;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Palette themes
+   The editorial structure stays. Color roles come from the light and dark
+   palettes on :root, so every surface and state follows the active theme.
+   --------------------------------------------------------------------------- */
+
+.quizify-shell[data-style='meadow']::after {
+  background-image: radial-gradient(hsl(var(--border) / 0.9) 0.75px, transparent 0.85px);
+  background-size: 14px 14px;
+  mask-image: linear-gradient(to bottom, black, transparent 74%);
+  opacity: 0.42;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-topbar {
+  border-bottom-color: hsl(var(--border-subtle));
+}
+
+.quizify-shell[data-style='meadow'] .quizify-brand-mark {
+  background: hsl(var(--brand-tile)) !important;
+  border: 1px solid hsl(var(--brand-inner));
+  box-shadow: 2px 2px 0 hsl(var(--shadow-ink) / 0.9);
+  color: hsl(var(--brand-mark)) !important;
+}
+
+/* Theme toggle. */
+.quizify-theme-toggle {
+  align-items: center;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--control-border));
+  border-radius: 0.35rem;
+  box-shadow: 2px 2px 0 hsl(var(--shadow-ink) / 0.9);
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  display: inline-flex;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.64rem;
+  font-weight: 700;
+  gap: 0.45rem;
+  justify-content: center;
+  letter-spacing: 0.08em;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  text-transform: uppercase;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+@media (hover: hover) {
+  .quizify-theme-toggle:hover {
+    background: hsl(var(--primary));
+    border-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+}
+
+.quizify-theme-toggle:active {
+  transform: translateY(1px);
+}
+
+.quizify-theme-toggle:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.quizify-theme-toggle svg {
+  height: 1rem;
+  width: 1rem;
+}
+
+.quizify-theme-icon-sun { display: none; }
+.quizify-theme-icon-moon { display: inline-block; }
+.quizify-theme-label-light { display: none; }
+.quizify-theme-label-dark { display: inline; }
+
+[data-theme='dark'] .quizify-theme-icon-sun { display: inline-block; }
+[data-theme='dark'] .quizify-theme-icon-moon { display: none; }
+[data-theme='dark'] .quizify-theme-label-light { display: inline; }
+[data-theme='dark'] .quizify-theme-label-dark { display: none; }
+
+/* Navigation. */
+.quizify-shell[data-style='meadow'] .quizify-view-tabs {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--border));
+  box-shadow: 3px 3px 0 hsl(var(--shadow-ink) / 0.9);
+}
+
+.quizify-shell[data-style='meadow'] .quizify-view-tab {
+  color: hsl(var(--muted-foreground));
+}
+
+.quizify-shell[data-style='meadow'] .quizify-view-tab:hover {
+  background: hsl(var(--secondary)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-view-tab.is-active {
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+/* Paper surfaces. */
+.quizify-shell[data-style='meadow'] .quizify-workspace .surface-card,
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-runner-header {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  box-shadow: 5px 5px 0 hsl(var(--shadow-ink) / 0.9) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .surface-card.bg-card {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-setup-card,
+.quizify-shell[data-style='meadow'] .quizify-runner-header,
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-score-card {
+  border-top-color: hsl(var(--primary)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-score-card {
+  border-top-color: hsl(var(--accent)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-history-panel .surface-card,
+.quizify-shell[data-style='meadow'] .quizify-public-panel .surface-card {
+  box-shadow: 3px 3px 0 hsl(var(--shadow-ink) / 0.85) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-setup-header {
+  border-bottom-color: hsl(var(--border-subtle));
+}
+
+.quizify-setup-kicker {
+  color: hsl(var(--muted-foreground));
+}
+
+.quizify-setup-kicker-index {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.quizify-runner-kicker {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground)) !important;
+}
+
+.quizify-question-index {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+/* Source tabs. */
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-source-tabs {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  box-shadow: 3px 3px 0 hsl(var(--shadow-ink) / 0.9);
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-source-tab {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-source-tab:not([data-state='active']) {
+  background: hsl(var(--card)) !important;
+  border-color: transparent !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-source-tab:not([data-state='active']):hover {
+  background: hsl(var(--secondary)) !important;
+  border-color: hsl(var(--control-border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-source-tab[data-state='active'] {
+  background: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+/* Drop zone and camera. */
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='dropzone-file'],
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='camera-file'] {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--control-border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='dropzone-file']:hover,
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='camera-file']:hover {
+  background: hsl(var(--secondary)) !important;
+  border-color: hsl(var(--primary)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='dropzone-file'] .text-foreground,
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='camera-file'] .text-foreground {
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='dropzone-file'] .text-primary,
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='camera-file'] .text-primary {
+  color: hsl(var(--link)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='dropzone-file'] span.text-primary,
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='camera-file'] span.text-primary {
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='dropzone-file'] .text-muted-foreground,
+.quizify-shell[data-style='meadow'] .quizify-workspace label[for='camera-file'] .text-muted-foreground {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Form fields. */
+.quizify-shell[data-style='meadow'] .quizify-workspace input:not([type='checkbox']),
+.quizify-shell[data-style='meadow'] .quizify-workspace select,
+.quizify-shell[data-style='meadow'] .quizify-workspace textarea {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--control-border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace input:not([type='checkbox'])::placeholder,
+.quizify-shell[data-style='meadow'] .quizify-workspace textarea::placeholder {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace select option {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+/* Outline buttons. */
+.quizify-shell[data-style='meadow'] .quizify-workspace button[class~='border-border/80'],
+.quizify-shell[data-style='meadow'] .quizify-workspace button[class~='border-border'] {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--control-border)) !important;
+  box-shadow: 2px 2px 0 hsl(var(--shadow-ink) / 0.85) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace button[class~='border-border/80']:hover,
+.quizify-shell[data-style='meadow'] .quizify-workspace button[class~='border-border']:hover {
+  background: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace button[role='switch'] {
+  border: 1px solid hsl(var(--control-border));
+  box-shadow: 2px 2px 0 hsl(var(--shadow-ink) / 0.9);
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace button[role='switch'] > span {
+  border: 1px solid hsl(var(--control-border));
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace button:disabled:not([role='switch']):not(.quizify-answer-option):not(.quizify-match-option) {
+  background: hsl(var(--secondary)) !important;
+  border: 1px dashed hsl(var(--control-border)) !important;
+  box-shadow: none !important;
+  color: hsl(var(--disabled-text)) !important;
+  opacity: 1 !important;
+}
+
+/* Question formats. */
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-question-format[aria-pressed='false'] {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--control-border)) !important;
+  box-shadow: none !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-question-format[aria-pressed='false']:hover {
+  background: hsl(var(--secondary)) !important;
+  border-color: hsl(var(--primary)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-question-format[aria-pressed='true'] {
+  background: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary)) !important;
+  box-shadow: 2px 2px 0 hsl(var(--shadow-ink) / 0.85) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+/* Answer options. */
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answered='false'],
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-match-option[data-match-state='idle'] {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--control-border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answered='false']:hover,
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-match-option[data-match-state='idle']:hover {
+  background: hsl(var(--secondary)) !important;
+  border-color: hsl(var(--primary)) !important;
+  box-shadow: 2px 2px 0 hsl(var(--shadow-ink) / 0.85);
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answered='false'] .quizify-answer-key {
+  background: hsl(var(--secondary)) !important;
+  border-color: hsl(var(--control-border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answer-state='unrevealed'] {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--muted-foreground)) !important;
+  opacity: 1 !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answer-state='unrevealed'] .quizify-answer-key {
+  background: transparent !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answer-state='correct'] {
+  background: hsl(var(--success)) !important;
+  border-color: hsl(var(--success)) !important;
+  box-shadow: 2px 2px 0 hsl(var(--shadow-ink) / 0.85) !important;
+  color: hsl(var(--success-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answer-state='correct'] .quizify-answer-key {
+  background: hsl(var(--success-foreground)) !important;
+  border-color: hsl(var(--success-foreground)) !important;
+  color: hsl(var(--success)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answer-state='correct'] svg {
+  color: hsl(var(--success-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answer-state='incorrect'] {
+  background: hsl(var(--destructive) / 0.1) !important;
+  border: 1.5px dashed hsl(var(--destructive)) !important;
+  box-shadow: none !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answer-state='incorrect'] .quizify-answer-key {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--destructive)) !important;
+  color: hsl(var(--destructive)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-answer-option[data-answer-state='incorrect'] svg {
+  color: hsl(var(--destructive)) !important;
+}
+
+/* Matching pairs. */
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-match-option[data-match-state='selected'] {
+  background: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary)) !important;
+  box-shadow: 2px 2px 0 hsl(var(--shadow-ink) / 0.85) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-match-option[data-match-state='matched'] {
+  background: hsl(var(--secondary)) !important;
+  border-color: hsl(var(--control-border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-match-option[data-match-state='correct'] {
+  background: hsl(var(--success)) !important;
+  border-color: hsl(var(--success)) !important;
+  box-shadow: 2px 2px 0 hsl(var(--shadow-ink) / 0.85) !important;
+  color: hsl(var(--success-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-question-card .quizify-match-option[data-match-state='incorrect'] {
+  background: hsl(var(--destructive) / 0.1) !important;
+  border: 1.5px dashed hsl(var(--destructive)) !important;
+  box-shadow: none !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Tutor and share controls. */
+.quizify-shell[data-style='meadow'] .quizify-tutor-chip {
+  background: hsl(var(--primary) / 0.08) !important;
+  border-color: hsl(var(--primary) / 0.4) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-tutor-chip:hover {
+  background: hsl(var(--primary) / 0.16) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-tutor-input {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--control-border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-tutor-input::placeholder {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-tutor-guidance {
+  background: hsl(var(--accent) / 0.08) !important;
+  border-color: hsl(var(--accent) / 0.4) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-tutor-guidance .text-primary {
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-public-visibility-button {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--control-border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-public-visibility-button:hover {
+  background: hsl(var(--secondary)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-public-visibility-button[data-listed='true'] {
+  background: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+/* Summary and score surfaces. */
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-summary-card {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  border-left-color: hsl(var(--accent)) !important;
+  box-shadow: 5px 5px 0 hsl(var(--shadow-ink) / 0.9) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-summary-card .text-primary {
+  color: hsl(var(--foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-workspace .quizify-score-card {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-score-card [class~='bg-background/80'] {
+  background:
+    repeating-linear-gradient(135deg, hsl(var(--primary-foreground) / 0.08) 0 1px, transparent 1px 9px),
+    hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-score-card [class~='bg-background/80'] .text-foreground,
+.quizify-shell[data-style='meadow'] .quizify-score-card [class~='bg-background/80'] .text-primary,
+.quizify-shell[data-style='meadow'] .quizify-score-card [class~='bg-background/80'] .text-muted-foreground {
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+.quizify-shell[data-style='meadow'] .quizify-share-card,
+.quizify-shell[data-style='meadow'] .quizify-share-panel {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  box-shadow: 5px 5px 0 hsl(var(--shadow-ink) / 0.9) !important;
+}
+
+.quizify-shell[data-style='meadow'].quizify-shared-shell .surface-card {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  box-shadow: 5px 5px 0 hsl(var(--shadow-ink) / 0.9) !important;
+}
+
+.quizify-shell[data-style='meadow'].quizify-shared-shell .quizify-summary-card {
+  border-left-color: hsl(var(--accent)) !important;
+}
+
+.quizify-shell[data-style='meadow'].quizify-shared-shell .quizify-score-card {
+  border-top-color: hsl(var(--accent)) !important;
+}
+
+@media (max-width: 760px) {
+  .quizify-shell[data-style='meadow'] .quizify-workspace .surface-card,
+  .quizify-shell[data-style='meadow'] .quizify-workspace .quizify-runner-header {
+    box-shadow: 3px 3px 0 hsl(var(--shadow-ink) / 0.9) !important;
+  }
+
+  .quizify-shell[data-style='meadow'] .quizify-view-tabs {
+    box-shadow: 2px 2px 0 hsl(var(--shadow-ink) / 0.9);
+  }
+
+  .quizify-shell[data-style='meadow'] .quizify-view-tab {
+    font-size: 0.58rem;
+    letter-spacing: 0.03em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quizify-theme-toggle,
+  .quizify-answer-option,
+  .quizify-match-option,
+  .quizify-question-format,
+  .quizify-source-tab,
+  .quizify-view-tab,
+  .quizify-shell button,
+  .quizify-shell .surface-card {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .quizify-theme-toggle:active,
+  .quizify-answer-option:hover,
+  .quizify-match-option:hover {
+    transform: none !important;
   }
 }

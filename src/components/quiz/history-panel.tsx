@@ -288,7 +288,7 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
                   <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} tickLine={false} axisLine={false} />
                   <YAxis domain={[0, 100]} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} tickLine={false} axisLine={false} />
                   <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: 'hsl(var(--foreground))' }} formatter={(value) => [`${value}%`, 'Score']} />
-                  <Line type="monotone" dataKey="pct" stroke="hsl(var(--foreground))" strokeWidth={2} dot={{ r: 3, fill: 'hsl(var(--foreground))' }} />
+                  <Line type="monotone" dataKey="pct" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3, fill: 'hsl(var(--primary))' }} />
                 </LineChart>
               </MeasuredChart>
             </Card>
@@ -307,7 +307,7 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
                   <Tooltip contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: 'hsl(var(--foreground))' }} formatter={(value) => [`${value}%`, 'Accuracy']} />
                   <Bar dataKey="accuracy" radius={[0, 6, 6, 0]} barSize={16}>
                     {stats.topicData.map((entry) => (
-                      <Cell key={entry.topic} fill={entry.accuracy < 60 ? '#a3a3a3' : entry.accuracy < 80 ? '#525252' : '#171717'} />
+                      <Cell key={entry.topic} fill={entry.accuracy < 60 ? 'hsl(var(--palette-red))' : entry.accuracy < 80 ? 'hsl(var(--palette-warning))' : 'hsl(var(--palette-green))'} />
                     ))}
                     <LabelList
                       dataKey="mastery"
@@ -431,12 +431,12 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h5 className="text-sm font-semibold text-foreground truncate">{normalizeQuizTitle(attempt.title)}</h5>
-                  {attempt.quiz_id && <span className="badge border-primary/30 bg-primary/10 text-primary text-[10px]">Shared Quiz</span>}
+                  {attempt.quiz_id && <span className="badge border-primary/30 bg-primary/10 text-foreground text-[10px]">Shared Quiz</span>}
                   <span className={cn(
                     "badge text-xs font-semibold",
-                    pct >= 80 ? "border-foreground bg-foreground text-background"
-                      : pct >= 60 ? "border-foreground/40 bg-foreground/10 text-foreground"
-                        : "border-foreground/20 bg-transparent text-muted-foreground",
+                    pct >= 80 ? "border-palette-green bg-palette-green text-on-green"
+                      : pct >= 60 ? "border-palette-warning bg-palette-warning text-on-warning"
+                        : "border-palette-red bg-palette-red text-on-red",
                   )}>
                     {pct}%
                   </span>
@@ -526,7 +526,7 @@ export function HistoryPanel({ onRetake, active = false }: HistoryPanelProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-foreground/10"
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-palette-red hover:bg-palette-red/10"
                   onClick={() => requestDelete(attempt.id)}
                   disabled={deletingId === attempt.id}
                   title="Delete this attempt"
@@ -633,12 +633,12 @@ function DailyGoalCard({ attempts }: { attempts: QuizAttempt[] }) {
   // GitHub-style intensity buckets (relative to the goal)
   const intensity = (count: number): string => {
     if (count === 0) return 'bg-muted/20 border-border/50';
-    if (goal === 0 || count >= goal) return 'bg-foreground border-foreground';
+    if (goal === 0 || count >= goal) return 'bg-palette-green border-palette-green';
     const ratio = count / goal;
-    if (ratio >= 0.75) return 'bg-foreground/70 border-foreground/70';
-    if (ratio >= 0.5) return 'bg-foreground/50 border-foreground/50';
-    if (ratio >= 0.25) return 'bg-foreground/30 border-foreground/30';
-    return 'bg-foreground/15 border-foreground/20';
+    if (ratio >= 0.75) return 'bg-palette-green/80 border-palette-green/80';
+    if (ratio >= 0.5) return 'bg-palette-green/60 border-palette-green/60';
+    if (ratio >= 0.25) return 'bg-palette-green/40 border-palette-green/40';
+    return 'bg-palette-green/25 border-palette-green/30';
   };
 
   const ringRadius = 26;
@@ -649,7 +649,7 @@ function DailyGoalCard({ attempts }: { attempts: QuizAttempt[] }) {
     <Card className="surface-card border-border/80 bg-card p-5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-          <Flame className="h-4 w-4 text-foreground" /> Daily Goal
+          <Flame className="h-4 w-4 text-palette-warning" /> Daily Goal
         </h4>
 
         {editing ? (
@@ -682,7 +682,7 @@ function DailyGoalCard({ attempts }: { attempts: QuizAttempt[] }) {
             <circle cx="32" cy="32" r={ringRadius} fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
             <circle
               cx="32" cy="32" r={ringRadius} fill="none"
-              stroke="hsl(var(--foreground))"
+              stroke="hsl(var(--palette-green))"
               strokeWidth="6"
               strokeLinecap="round"
               strokeDasharray={ringCircumference}
