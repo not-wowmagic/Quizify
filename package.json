@@ -30,7 +30,7 @@
     "ipaddr.js": "^2.5.0",
     "lucide-react": "^0.577.0",
     "mammoth": "^1.13.0",
-    "next": "^16.4.1",
+    "next": "^16.4.5",
     "pdfjs-dist": "^4.4.171",
     "qrcode.react": "^4.2.0",
     "react": "^19.3.0",
