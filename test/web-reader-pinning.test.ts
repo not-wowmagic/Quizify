@@ -1,57 +1,63 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Agent, Response, fetch } from 'undici';
 import type { LookupFunction } from 'node:net';
+import { fetchPublicPage, type DnsLookup, type WebReaderDeps } from '@/lib/web-reader';
 
-const { dnsLookupMock, fetchMock, captured } = vi.hoisted(() => ({
-  dnsLookupMock: vi.fn(),
-  fetchMock: vi.fn(),
-  captured: { lookup: null as LookupFunction | null },
-}));
-
-vi.mock('node:dns/promises', () => ({ lookup: dnsLookupMock }));
-vi.mock('undici', () => ({
-  Agent: class {
-    constructor(options: { connect: { lookup: LookupFunction } }) {
-      captured.lookup = options.connect.lookup;
-    }
-    async close(): Promise<void> {}
-  },
-  fetch: fetchMock,
-}));
-
-import { fetchPublicPage } from '@/lib/web-reader';
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe('pinned DNS lookup', () => {
   it('returns the validated address without resolving the hostname again', async () => {
     vi.stubEnv('E2E_MOCK_AI', '0');
-    dnsLookupMock.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
 
+    let capturedLookup: LookupFunction | null = null;
+    const dnsLookup = vi.fn<DnsLookup>();
+    dnsLookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
+
+    const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockImplementation(async () => {
-      const lookup = captured.lookup;
-      expect(lookup).not.toBeNull();
-      if (!lookup) throw new Error('pinned lookup was not installed');
+      const pinnedLookup = capturedLookup;
+      expect(pinnedLookup).not.toBeNull();
+      if (pinnedLookup === null) throw new Error('pinned lookup was not installed');
 
       const resolved = await new Promise<{ address: string; family: number }>((resolve, reject) => {
-        lookup('example.test', { all: false, family: 0 }, (error, address, family) => {
-          if (error) reject(error);
-          else if (typeof address === 'string') resolve({ address, family: family ?? 0 });
-          else reject(new Error('unexpected address array'));
+        pinnedLookup('example.test', { all: true, family: 0 }, (error, addresses) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          if (!Array.isArray(addresses)) {
+            reject(new Error('pinned lookup returned a single address'));
+            return;
+          }
+          const [first] = addresses;
+          if (!first) {
+            reject(new Error('pinned lookup returned no addresses'));
+            return;
+          }
+          resolve(first);
         });
       });
 
       expect(resolved).toEqual({ address: '93.184.216.34', family: 4 });
-      return {
-        status: 200,
-        ok: true,
-        headers: new Headers({ 'content-length': '5' }),
-        text: async () => 'hello',
-      };
+      return new Response('hello', { status: 200, headers: { 'content-length': '5' } });
     });
 
-    await expect(fetchPublicPage('http://example.test/')).resolves.toEqual({
+    const deps: WebReaderDeps = {
+      lookup: dnsLookup,
+      fetch: fetchMock,
+      createAgent: pinnedLookup => {
+        capturedLookup = pinnedLookup;
+        return new Agent({ connect: { lookup: pinnedLookup } });
+      },
+    };
+
+    await expect(fetchPublicPage('http://example.test/', deps)).resolves.toEqual({
       html: 'hello',
       finalUrl: 'http://example.test/',
     });
-    expect(dnsLookupMock).toHaveBeenCalledTimes(1);
+    expect(dnsLookup).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

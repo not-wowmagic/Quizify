@@ -163,8 +163,13 @@ function warnSharedClientBucket(): void {
   );
 }
 
+/** The subset of request headers the client-IP resolver reads. */
+export interface HeaderReader {
+  get(name: string): string | null;
+}
+
 /**
- * Resolves the caller IP from proxy headers inside a server action.
+ * Resolves the caller IP from proxy headers.
  *
  * Netlify sets x-nf-client-connection-ip from the actual connection. That is
  * the only authoritative value here. X-Forwarded-For is deliberately never
@@ -176,9 +181,7 @@ function warnSharedClientBucket(): void {
  * is present, all such requests share one bucket and are collectively
  * throttled; this is intentional and must not fail the whole app closed.
  */
-export async function getClientIp(): Promise<string> {
-  const h = await headers();
-
+export function resolveClientIp(h: HeaderReader): string {
   const netlifyIp = normalizeIp(h.get('x-nf-client-connection-ip'));
   if (netlifyIp) return netlifyIp;
 
@@ -190,6 +193,11 @@ export async function getClientIp(): Promise<string> {
 
   warnSharedClientBucket();
   return SHARED_IP_BUCKET;
+}
+
+/** Reads the current request headers and resolves the caller IP. */
+export async function getClientIp(): Promise<string> {
+  return resolveClientIp(await headers());
 }
 
 // =========================================
