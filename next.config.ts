@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Keep the local preview focused on the product canvas.
   devIndicators: false,
+  experimental: {
+    agentUpgrade: 'security',
+  },
   async headers() {
     return [
       {
