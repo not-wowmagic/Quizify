@@ -202,15 +202,17 @@ async function fetchWithRetry<TBody>(
         signal: controller.signal,
       });
 
+      // Headers can arrive before generation finishes. Keep the timeout active
+      // until the entire body is read, including provider keep-alive responses.
+      const txt = await res.text();
       clearTimeout(timeoutId);
       const durationMs = Date.now() - attemptStartedAt;
-      console.info(`[llm] ${label} attempt ${i + 1} returned ${res.status} in ${durationMs}ms`);
+      console.info(`[llm] ${label} attempt ${i + 1} completed ${res.status} in ${durationMs}ms`);
 
       if (res.ok) {
-        return await res.json();
+        return JSON.parse(txt);
       }
 
-      const txt = await res.text();
       // Retry on transient status codes (429 Rate Limit, 5xx server issues).
       // These fail fast, so retrying is cheap; timeouts are covered below.
       if ((res.status === 429 || res.status >= 500) && i < retries) {

@@ -197,6 +197,37 @@ describe('callLLM deadline handling (stubbed fetch)', () => {
     vi.useRealTimers();
   });
 
+  it('keeps the deadline active while reading a slow response body', async () => {
+    vi.useFakeTimers();
+    vi.stubEnv('OPENCODE_API_KEY', 'test-key');
+    vi.stubEnv('AI_PROVIDER', 'opencode');
+    let signal: AbortSignal | null | undefined;
+    let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      signal = init.signal;
+      return new Response(new ReadableStream<Uint8Array>({
+        start(controller) {
+          streamController = controller;
+          signal?.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')));
+        },
+      }));
+    });
+    const { callLLM } = await import('@/ai/llm');
+    let settled = false;
+    const operation = callLLM('hello', { timeoutMs: 100, deadlineMs: Date.now() + 100 })
+      .catch(() => undefined)
+      .finally(() => { settled = true; });
+    await vi.advanceTimersByTimeAsync(2000);
+    const snapshot = { aborted: signal?.aborted, settled };
+    // Release a buggy implementation's pending body so the test itself never hangs.
+    if (!signal?.aborted) {
+      streamController?.enqueue(new TextEncoder().encode(JSON.stringify({ choices: [{ message: { content: 'OK' } }] })));
+      streamController?.close();
+    }
+    await operation;
+    expect(snapshot).toEqual({ aborted: true, settled: true });
+  });
+
   it('fails fast without calling the API when the deadline has already passed', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
