@@ -1353,8 +1353,21 @@
 }
 
 .quizify-question-index {
+  align-items: center;
   background: hsl(var(--primary));
+  border-radius: 0.375rem;
   color: hsl(var(--primary-foreground));
+  display: inline-flex;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  height: 1.5rem;
+  justify-content: center;
+  line-height: 1;
+  margin-right: 0.5rem;
+  min-width: 1.5rem;
+  padding: 0 0.375rem;
+  vertical-align: middle;
 }
 
 /* Source tabs. */
