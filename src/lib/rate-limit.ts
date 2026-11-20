@@ -82,7 +82,7 @@ function warnMissingUpstash(): void {
   warnedMissingUpstash = true;
   console.warn(
     '[rate-limit] UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN are not configured; ' +
-      'paid endpoints deny requests in production, and local/E2E use the in-memory limiter.',
+      'using the per-instance in-memory limiter. Configure both for a global hourly budget.',
   );
 }
 
@@ -109,33 +109,28 @@ export const rateLimitDeps = {
   defaultCreateLimiter: createUpstashLimiter,
 };
 
-function deny(): RateLimitResult {
-  return { allowed: false, retryAfterSec: 60 };
-}
-
 /**
- * Paid endpoints pass `strict` so a deployment without a working global
- * limiter denies the request instead of granting an unlimited per-instance
- * budget. Local development and the E2E mock keep the in-memory fallback.
+ * Upstash is preferred because one sliding window is shared by every server
+ * instance. When it is missing or a request fails, the in-memory limiter
+ * keeps the app usable instead of denying every visitor. That fallback is
+ * per-instance on serverless, so production should configure Upstash.
  */
 export async function checkRateLimit(
   key: string,
   limit: number,
   windowMs: number,
-  strict = false,
 ): Promise<RateLimitResult> {
   // e2e suite: never rate-limit the mock server (many quizzes from one IP).
   if (process.env.E2E_MOCK_AI === '1') {
     return { allowed: true, retryAfterSec: 0 };
   }
 
-  const failClosed = strict && process.env.NODE_ENV === 'production';
   const windowSec = Math.max(1, Math.ceil(windowMs / 1000));
   const limiter = rateLimitDeps.createLimiter(limit, windowSec);
 
   if (!limiter) {
     warnMissingUpstash();
-    return failClosed ? deny() : checkRateLimitInMemory(key, limit, windowMs);
+    return checkRateLimitInMemory(key, limit, windowMs);
   }
 
   try {
@@ -147,7 +142,7 @@ export async function checkRateLimit(
     };
   } catch (err) {
     console.error('[rate-limit] Upstash request failed:', err);
-    return failClosed ? deny() : checkRateLimitInMemory(key, limit, windowMs);
+    return checkRateLimitInMemory(key, limit, windowMs);
   }
 }
 

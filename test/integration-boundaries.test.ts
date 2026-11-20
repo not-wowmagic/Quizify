@@ -55,14 +55,14 @@ describe('HTTP-level boundary integration', () => {
     expect(await verifyTurnstile('bad-token', 'createQuiz', siteverifyFetch)).toBe(false);
   });
 
-  it('returns a retryable denial in production when the global limiter is missing', async () => {
+  it('keeps serving in production when the global limiter is missing', async () => {
     vi.stubEnv('E2E_MOCK_AI', '');
     vi.stubEnv('NODE_ENV', 'production');
-    const first = await checkRateLimit('quiz:integration', 30, 3_600_000, true);
-    const second = await checkRateLimit('quiz:integration', 30, 3_600_000, true);
-    expect(first.allowed).toBe(false);
-    expect(second.allowed).toBe(false);
-    expect(second.retryAfterSec).toBeGreaterThan(0);
+    const first = await checkRateLimit('quiz:integration', 30, 3_600_000);
+    const second = await checkRateLimit('quiz:integration', 30, 3_600_000);
+    expect(first.allowed).toBe(true);
+    expect(second.allowed).toBe(true);
+    expect(second.retryAfterSec).toBe(0);
   });
 
   it('reads a pinned page body through injected HTTP doubles', async () => {

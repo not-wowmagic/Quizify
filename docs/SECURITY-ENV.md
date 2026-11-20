@@ -4,7 +4,7 @@ This file covers the production environment work that remains after the security
 
 ## 1. Upstash Redis (rate limiting)
 
-The app uses Upstash's sliding-window limiter when `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are both set. Paid endpoints pass `strict`, so in production the limiter fails closed: if either variable is missing, or the Redis request errors, the request is denied rather than served by a per-instance fallback. Local development (`NODE_ENV` not `production`) and the E2E suite (`E2E_MOCK_AI=1`) keep an in-memory fallback. An in-memory `Map` is not a global limit on serverless, so production depends on Upstash being configured.
+The app uses Upstash's sliding-window limiter when `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are both set. If either variable is missing, or the Redis request errors, every endpoint falls back to the built-in in-memory fixed-window limiter, so a first-time visitor is never blocked by an unavailable limiter. An in-memory `Map` is per server instance, not a global limit on serverless, so configure Upstash for one shared hourly budget across instances. The E2E suite (`E2E_MOCK_AI=1`) skips limiting entirely.
 
 The IP key prefers Netlify's `x-nf-client-connection-ip`, then a validated `x-real-ip`, then a single shared bucket for headerless callers, which are throttled collectively. `x-forwarded-for` is never trusted.
 
@@ -27,7 +27,7 @@ Do not use the TCP or `redis://` URL; the app uses the REST client.
 4. Scope them to **Functions** and **Runtime**. They are not `NEXT_PUBLIC_` variables and must not reach the browser.
 5. Save and redeploy. Netlify only injects environment changes into a new deploy.
 
-Do not claim Upstash is active in production until these steps are complete and the checks below pass. Until then, paid endpoints deny requests by design (fail closed).
+Do not claim Upstash is active in production until these steps are complete and the checks below pass. Until then, each server instance enforces its own budget with the in-memory fallback.
 
 ### Confirm it is actually being used
 
@@ -35,7 +35,7 @@ Do not claim Upstash is active in production until these steps are complete and 
 - Open the Upstash database dashboard and check the **Commands** / **Requests** graph after generating a quiz or saving an attempt. A working limiter produces activity.
 - Stronger check: make requests from two different networks. With Upstash configured, the 30/hour `quiz:` budget is shared across function instances.
 
-Because paid endpoints fail closed in production, a misconfiguration makes rate-limited actions fail visibly. That is intentional.
+If Upstash is not actually used, the function logs show the missing-configuration or request-failure warning. The app keeps working with per-instance limits, which is weaker than the global budget but never takes quiz generation offline.
 
 ## 2. Turnstile is opt-in
 
@@ -167,7 +167,7 @@ RLS invariant (unchanged): both `public.quizzes` and `public.quiz_attempts` keep
 Machine-verifiable items are marked done where the code or migration state enforces them. Items that need the owner to configure Netlify, GitHub, or Cloudflare remain unchecked.
 
 - [x] Attempt-limit migration verified applied to the linked remote project as of 2026-11-19; do not re-run against production.
-- [x] Paid endpoints fail closed in production when Upstash is missing or errors; the in-memory fallback is limited to non-production and E2E.
+- [x] Rate limiting falls back to the in-memory limiter when Upstash is missing or errors, so paid endpoints stay available with per-instance budgets.
 - [x] Turnstile verification validates `success`, hostname, and the `quizify` action, fails closed on network errors, and exchanges a single-use token for a two-hour signed bot session cookie when the secret is set.
 - [x] Database client is server-only (`import 'server-only'`) and uses the service role; both tables keep RLS enabled with no policies.
 - [x] Security remediation merged to `master` as PR #46 on 2026-11-19.
