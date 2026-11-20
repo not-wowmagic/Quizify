@@ -77,7 +77,7 @@ describe('S-01 Turnstile enforcement', () => {
   });
 });
 
-describe('S-02 strict global rate limiting', () => {
+describe('S-02 rate limiting with the in-memory fallback', () => {
   beforeEach(() => {
     vi.stubEnv('NODE_ENV', 'test');
     vi.useFakeTimers();
@@ -88,13 +88,14 @@ describe('S-02 strict global rate limiting', () => {
     vi.useRealTimers();
   });
 
-  it('denies a paid endpoint in production when Upstash is not configured', async () => {
+  it('keeps serving in production when Upstash is not configured', async () => {
     vi.stubEnv('NODE_ENV', 'production');
-    const result = await checkRateLimit('quiz:1.2.3.4', 30, 3_600_000, true);
-    expect(result.allowed).toBe(false);
+    const result = await checkRateLimit('quiz:1.2.3.4', 30, 3_600_000);
+    expect(result.allowed).toBe(true);
+    expect(result.retryAfterSec).toBe(0);
   });
 
-  it('denies a paid endpoint in production when Upstash errors', async () => {
+  it('keeps serving in production when the Redis request errors', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://example.invalid');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'token');
@@ -103,22 +104,19 @@ describe('S-02 strict global rate limiting', () => {
         throw new Error('redis down');
       },
     });
-    expect((await checkRateLimit('quiz:1.2.3.5', 30, 3_600_000, true)).allowed).toBe(false);
+    expect((await checkRateLimit('quiz:1.2.3.5', 30, 3_600_000)).allowed).toBe(true);
   });
 
-  it('falls back to the shared bucket for non-paid endpoints on Redis errors', async () => {
-    vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://example.invalid');
-    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'token');
-    rateLimitDeps.createLimiter = () => ({
-      limit: async () => {
-        throw new Error('redis down');
-      },
-    });
-    expect((await checkRateLimit('web:1.2.3.6', 30, 3_600_000)).allowed).toBe(true);
+  it('still enforces the budget after falling back', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    expect((await checkRateLimit('quiz:fallback-budget', 1, 3_600_000)).allowed).toBe(true);
+    const blocked = await checkRateLimit('quiz:fallback-budget', 1, 3_600_000);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.retryAfterSec).toBeGreaterThan(0);
   });
 
   it('keeps local development working with the in-memory fallback', async () => {
-    expect((await checkRateLimit('quiz:1.2.3.7', 30, 3_600_000, true)).allowed).toBe(true);
+    expect((await checkRateLimit('quiz:1.2.3.7', 30, 3_600_000)).allowed).toBe(true);
   });
 });
 

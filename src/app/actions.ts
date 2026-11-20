@@ -32,6 +32,11 @@ import type { QuizAttempt } from '@/types/history';
 
 const HOUR_MS = 60 * 60 * 1000;
 
+function minutesUntil(seconds: number): string {
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+  return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+}
+
 // Per-IP hourly budgets for the paid AI endpoints
 const QUIZ_LIMIT = 30;
 const SUMMARY_LIMIT = 50;
@@ -107,9 +112,9 @@ export async function createQuiz(input: CreateQuizInput): Promise<Pick<Quiz, 'qu
 
   // Rate limit the paid endpoint
   const ip = await getClientIp();
-  const limit = await checkRateLimit(`quiz:${ip}`, QUIZ_LIMIT, HOUR_MS, true);
+  const limit = await checkRateLimit(`quiz:${ip}`, QUIZ_LIMIT, HOUR_MS);
   if (!limit.allowed) {
-    return { error: `Rate limit reached. You can generate ${QUIZ_LIMIT} quizzes per hour. Try again in ${Math.ceil(limit.retryAfterSec / 60)} minutes.` };
+    return { error: `Rate limit reached. You can generate ${QUIZ_LIMIT} quizzes per hour. Try again in ${minutesUntil(limit.retryAfterSec)}.` };
   }
 
   // Canonical, strict validation (unknown/tampered fields are rejected).
@@ -174,7 +179,7 @@ export async function createSummary(input: GenerateSummaryInput & { turnstileTok
     const botError = await enforceBotProtection(input.turnstileToken, 'createSummary');
     if (botError) return { error: botError };
     const ip = await getClientIp();
-    const limit = await checkRateLimit(`summary:${ip}`, SUMMARY_LIMIT, HOUR_MS, true);
+    const limit = await checkRateLimit(`summary:${ip}`, SUMMARY_LIMIT, HOUR_MS);
     if (!limit.allowed) {
       return { error: 'Too many summary requests. Please try again later.' };
     }
@@ -196,7 +201,7 @@ export async function askTutorFollowUp(input: TutorInput & { turnstileToken?: st
     const botError = await enforceBotProtection(input.turnstileToken, 'askTutorFollowUp');
     if (botError) return { error: botError };
     const ip = await getClientIp();
-    const limit = await checkRateLimit(`tutor:${ip}`, TUTOR_LIMIT, HOUR_MS, true);
+    const limit = await checkRateLimit(`tutor:${ip}`, TUTOR_LIMIT, HOUR_MS);
     if (!limit.allowed) {
       return { error: 'Too many tutor requests. Please try again later.' };
     }
@@ -224,7 +229,7 @@ export async function extractFromWebUrl(rawUrl: string, turnstileToken?: string)
     }
 
     const ip = await getClientIp();
-    const limit = await checkRateLimit(`web:${ip}`, WEB_LIMIT, HOUR_MS, true);
+    const limit = await checkRateLimit(`web:${ip}`, WEB_LIMIT, HOUR_MS);
     if (!limit.allowed) {
       return { error: 'Too many URL fetches. Please try again later.' };
     }
@@ -252,7 +257,7 @@ export async function extractTextFromImageAction(input: ImageOcrInput & { turnst
     }
 
     const ip = await getClientIp();
-    const limit = await checkRateLimit(`ocr:${ip}`, OCR_LIMIT, HOUR_MS, true);
+    const limit = await checkRateLimit(`ocr:${ip}`, OCR_LIMIT, HOUR_MS);
     if (!limit.allowed) {
       return { error: 'Too many image scans. Please try again later.' };
     }
@@ -306,9 +311,9 @@ export async function publishQuiz(input: PublishQuizInput): Promise<PublishedQui
   if (botError) return { error: botError };
 
   const ip = await getClientIp();
-  const limit = await checkRateLimit(`share:${ip}`, SHARE_LIMIT, HOUR_MS, true);
+  const limit = await checkRateLimit(`share:${ip}`, SHARE_LIMIT, HOUR_MS);
   if (!limit.allowed) {
-    return { error: `Too many shares. You can share ${SHARE_LIMIT} quizzes per hour. Try again in ${Math.ceil(limit.retryAfterSec / 60)} minutes.` };
+    return { error: `Too many shares. You can share ${SHARE_LIMIT} quizzes per hour. Try again in ${minutesUntil(limit.retryAfterSec)}.` };
   }
 
   let validated;
